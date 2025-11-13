@@ -41,7 +41,7 @@ jobs:
 
       # Install built framework artifacts to local repository first so examples can find them
       - name: Install framework to local repository
-        run: ./mvnw clean install -DskipTests -pl framework -P release
+        run: ./mvnw clean install -DskipTests -pl framework -P release -T 1C
         env:
           MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
           MAVEN_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
@@ -49,7 +49,7 @@ jobs:
 
       # Build and publish remaining artifacts (including examples that depend on framework)
       - name: Build and publish
-        run: ./mvnw clean deploy -Prelease -B -U
+        run: ./mvnw clean deploy -Prelease -B -U -T 1C
         env:
           MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
           MAVEN_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}

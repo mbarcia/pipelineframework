@@ -20,15 +20,24 @@ jobs:
           restore-keys: ${{ runner.os }}-m2
       # Install built framework artifacts to local repository first so examples can find them
       - name: Install framework to local repository
-        run: ./mvnw clean install -DskipTests -f framework/pom.xml --no-transfer-progress
+        run: ./mvnw clean install -DskipTests -f framework/pom.xml --no-transfer-progress -T 1C
       # Build and test remaining artifacts (including examples that depend on framework)
       - name: Build
-        run: ./mvnw --batch-mode -DskipTests package --no-transfer-progress
+        run: ./mvnw --batch-mode -DskipTests package --no-transfer-progress -T 1C
       - name: Verify
-        run: ./mvnw -B verify -P coverage --no-transfer-progress
+        run: ./mvnw -B verify -P coverage --no-transfer-progress -T 1C
       - name: Coverage
-        uses: codecov/codecov-action@v3
+       - name: Coverage
+        uses: codecov/codecov-action@v4
         with:
-          files: ./target/site/jacoco/jacoco.xml
+          files: |
+            ./framework/runtime/target/jacoco-report/jacoco.xml
+            ./framework/deployment/target/jacoco-report/jacoco.xml
+            ./examples/csv-payments/common/target/jacoco-report/jacoco.xml
+            ./examples/csv-payments/input-csv-file-processing-svc/target/jacoco-report/jacoco.xml
+            ./examples/csv-payments/payments-processing-svc/target/jacoco-report/jacoco.xml
+            ./examples/csv-payments/payment-status-svc/target/jacoco-report/jacoco.xml
+            ./examples/csv-payments/output-csv-file-processing-svc/target/jacoco-report/jacoco.xml
+            ./examples/csv-payments/orchestrator-svc/target/jacoco-report/jacoco.xml
           name: codecov
           token: ${{ secrets.CODECOV_TOKEN }}
