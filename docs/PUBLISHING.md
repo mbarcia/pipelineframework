@@ -147,7 +147,7 @@ To authenticate with Sonatype Central and provide GPG credentials, you could con
 
 ### GPG Configuration
 
-The publishing workflow handles GPG signing on GitHub Actions, but for refenrece, this is how you could configure it on 
+The publishing workflow handles GPG signing on GitHub Actions, but for reference, this is how you could configure it on
 your local:
 
 ```xml
@@ -239,7 +239,7 @@ Use this manual approach only when you need fine-grained control or the Release 
      mvn versions:set -DnewVersion=1.0.0
      mvn versions:commit
      ```
-   - Test the build with `mvn clean install`
+   - Test the build with `mvn clean install -P central-publishing`
    - Create a Git tag (e.g., `v1.0.0`)
    - Push the tag to trigger the GitHub Actions release workflow
 
