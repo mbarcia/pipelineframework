@@ -113,6 +113,8 @@
                     <configuration>
                         <source>21</source>
                         <target>21</target>
+                        <release>21</release>
+                        <enablePreview>true</enablePreview>
                         <annotationProcessorPaths>
                             <!-- lombok must come first -->
                             <path>
@@ -136,9 +138,6 @@
                                 <version>${version.pipeline}</version>
                             </path>
                         </annotationProcessorPaths>
-                        <compilerArgs>
-                            <arg>--enable-preview</arg>
-                        </compilerArgs>
                     </configuration>
                 </plugin>
                 <!-- 

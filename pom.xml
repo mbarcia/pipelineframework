@@ -95,6 +95,8 @@
                     <configuration>
                         <source>21</source>
                         <target>21</target>
+                        <release>21</release>
+                        <enablePreview>true</enablePreview>
                         <annotationProcessorPaths>
                             <!-- lombok must come first -->
                             <path>
@@ -113,12 +115,8 @@
                                 <version>${quarkus.platform.version}</version>
                             </path>
                         </annotationProcessorPaths>
-                        <compilerArgs>
-                            <arg>--enable-preview</arg>
-                        </compilerArgs>
                     </configuration>
                 </plugin>
-                
                 <plugin>
                     <groupId>io.quarkus</groupId>
                     <artifactId>quarkus-maven-plugin</artifactId>
