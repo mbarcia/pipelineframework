@@ -100,16 +100,16 @@ class PersistenceManagerTest {
         // Create a mock that extends ReactivePanachePersistenceProvider to pass the instanceof
         // check
         // but with method implementations that don't depend on Vert.x context
-        ReactivePanachePersistenceProvider mockProvider = mock(ReactivePanachePersistenceProvider.class);
-        when(mockProvider.supports(entity)).thenReturn(true);
-        when(mockProvider.supportsThreadContext())
+        ReactivePanachePersistenceProvider panacheMockProvider = mock(ReactivePanachePersistenceProvider.class);
+        when(panacheMockProvider.supports(entity)).thenReturn(true);
+        when(panacheMockProvider.supportsThreadContext())
                 .thenReturn(true); // For regular threads, it should return true
-        when(mockProvider.persist(entity)).thenReturn(Uni.createFrom().item(entity));
-        when(mockProvider.type()).thenReturn(PanacheEntityBase.class); // Need to mock this too
+        when(panacheMockProvider.persist(entity)).thenReturn(Uni.createFrom().item(entity));
+        when(panacheMockProvider.type()).thenReturn(PanacheEntityBase.class); // Need to mock this too
 
         // Set up the mock instance to use our specific provider
         when(mockProviderInstance.isUnsatisfied()).thenReturn(false);
-        when(mockProviderInstance.stream()).thenReturn(java.util.stream.Stream.of(mockProvider));
+        when(mockProviderInstance.stream()).thenReturn(java.util.stream.Stream.of(panacheMockProvider));
 
         // Re-initialize the provider list in the PersistenceManager
         reinitializeProviders();
@@ -120,9 +120,9 @@ class PersistenceManagerTest {
         subscriber.awaitItem();
 
         assertSame(entity, subscriber.getItem());
-        verify(mockProvider).supports(entity);
-        verify(mockProvider).supportsThreadContext();
-        verify(mockProvider).persist(entity);
+        verify(panacheMockProvider).supports(entity);
+        verify(panacheMockProvider).supportsThreadContext();
+        verify(panacheMockProvider).persist(entity);
     }
 
     @Test
