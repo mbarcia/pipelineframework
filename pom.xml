@@ -57,6 +57,8 @@
         <quarkus.platform.version>3.29.4</quarkus.platform.version>
         <quarkus.platform.group-id>io.quarkus.platform</quarkus.platform.group-id>
         <quarkus.platform.artifact-id>quarkus-bom</quarkus.platform.artifact-id>
+        <quarkus.java.source>21</quarkus.java.source>
+        <quarkus.java.target>21</quarkus.java.target>
         <version.jandex>3.5.0</version.jandex>
         <grpc.version>1.63.0</grpc.version>
         <spotless.plugin.version>2.44.0</spotless.plugin.version>
