@@ -37,7 +37,6 @@ target/
 # Generated files
 dependency-reduced-pom.xml
 *SUMMARY.md
-**/.flattened-pom.xml
 
 # Local configuration and logs
 *.log

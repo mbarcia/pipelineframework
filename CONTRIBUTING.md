@@ -138,6 +138,9 @@ The Pipeline Framework uses an automated release process with GitHub Actions. Pl
 
 ### For Maintainers
 When your pull request is merged to main, the maintainers will handle the release process using the Maven Release Plugin.
+The project now uses standard Maven practices: strict hierarchy with every module linking back to its parent using `<parent>`,
+all the way up to the root, and version omission in children where all child and intermediate parent modules omit their
+own `<version>` tag entirely, relying solely on inheritance from the root parent.
 
 ## Questions?
 

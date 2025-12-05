@@ -8,11 +8,11 @@ These are the rules and landmines this project learned the hard way:
 - Quarkus extensions require that runtime + deployment modules are evaluated together.
 - Always use `clean install` at the root when building the framework.
 
-## 🚫 `flatten-maven-plugin` cannot run on deployment modules
+## 🚫 Maven version management follows standard practices
 
-- Quarkus extensions rely on `deployment` modules containing metadata.
-- Flatten strips metadata → breaking extension discovery.
-- Therefore: **flatten applies only to runtime**, never deployment.
+- Strict hierarchy: every module links back to its parent using `<parent>`, all the way up to the root
+- Version omission in children: all child and intermediate parent modules omit their own `<version>` tag
+- All modules rely solely on inheritance from the root parent for versioning
 
 ## ⚠️ Incremental builds are unsafe for Quarkus extensions
 

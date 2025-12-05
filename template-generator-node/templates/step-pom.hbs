@@ -5,7 +5,7 @@
                              http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <artifactId>{{serviceName}}</artifactId>
-    <version>1.0</version>
+    <!-- version is not needed as it is automatically inherited from the parent-->
     <packaging>jar</packaging>
 
     <parent>
@@ -19,7 +19,7 @@
         <dependency>
             <groupId>{{basePackage}}</groupId>
             <artifactId>common</artifactId>
-            <version>1.0</version>
+            <version>${version.pipeline}</version>
             <scope>compile</scope>
         </dependency>
         <!-- Hibernate Reactive for reactive persistence (non-virtual threads) -->

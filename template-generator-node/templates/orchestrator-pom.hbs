@@ -5,7 +5,7 @@
                              http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <artifactId>orchestrator-svc</artifactId>
-    <version>1.0</version>
+    <!-- version is not needed as it is automatically inherited from the parent-->
     <packaging>jar</packaging>
 
     <parent>
@@ -20,7 +20,7 @@
         <dependency>
             <groupId>{{basePackage}}</groupId>
             <artifactId>{{serviceName}}</artifactId>
-            <version>1.0</version>
+            <version>${version.pipeline}</version>
         </dependency>
         {{/steps}}
         <dependency>

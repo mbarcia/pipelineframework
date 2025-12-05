@@ -18,9 +18,16 @@
 
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    <groupId>org.pipelineframework</groupId>
+
+    <parent>
+        <groupId>org.pipelineframework</groupId>
+        <artifactId>pipeline-framework-root</artifactId>
+        <version>0.9.2-SNAPSHOT</version>
+        <relativePath>../../pom.xml</relativePath>
+    </parent>
+
     <artifactId>csv-payments-parent</artifactId>
-    <version>0.9.2</version>
+    <!-- version is not needed as it is automatically inherited from the parent-->
     <packaging>pom</packaging>
     <name>CSV Payments</name>
 
@@ -44,9 +51,7 @@
         <protobuf.version>4.28.2</protobuf.version>
         <grpc.version>1.63.0</grpc.version>
         <version.jandex>3.5.0</version.jandex>
-        <version.pipeline>0.9.2</version.pipeline>
         <spotless.plugin.version>2.44.0</spotless.plugin.version>
-        <google-java-format.version>1.25.0</google-java-format.version>
         <!-- Default: don't build containers unless specifically enabled -->
         <quarkus.container-image.build>false</quarkus.container-image.build>
         <quarkus.container-image.registry>localhost</quarkus.container-image.registry>
@@ -84,6 +89,13 @@
     </dependencyManagement>
 
     <build>
+        <plugins>
+            <plugin>
+                <groupId>com.diffplug.spotless</groupId>
+                <artifactId>spotless-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+
         <pluginManagement>
             <plugins>
                 <plugin>
@@ -172,38 +184,6 @@
                         <!--suppress UnresolvedMavenProperty -->
                         <argLine>${surefireArgLine} --enable-preview -XX:+EnableDynamicAgentLoading</argLine>
                     </configuration>
-                </plugin>
-                <plugin>
-                    <groupId>com.diffplug.spotless</groupId>
-                    <artifactId>spotless-maven-plugin</artifactId>
-                    <version>${spotless.plugin.version}</version>
-                    <configuration>
-                        <java>
-                            <googleJavaFormat>
-                                <version>${google-java-format.version}</version>
-                                <style>AOSP</style>
-                            </googleJavaFormat>
-                            <removeUnusedImports />
-                        </java>
-                        <formats>
-                            <format>
-                                <includes>
-                                    <include>src/main/**/*.java</include>
-                                    <include>jbang/*.java</include>
-                                </includes>
-                            </format>
-                        </formats>
-                    </configuration>
-                    <executions>
-                        <execution>
-                            <!-- Runs in compile phase to fail fast in case of formatting issues.-->
-                            <id>spotless-check</id>
-                            <phase>package</phase>
-                            <goals>
-                                <goal>check</goal>
-                            </goals>
-                        </execution>
-                    </executions>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>

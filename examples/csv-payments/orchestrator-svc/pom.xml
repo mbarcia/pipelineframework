@@ -17,23 +17,22 @@
 
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    <artifactId>orchestrator-svc</artifactId>
-    <version>0.9.2</version>
-    <packaging>jar</packaging>
 
     <parent>
         <groupId>org.pipelineframework</groupId>
         <artifactId>csv-payments-parent</artifactId>
-        <version>0.9.2</version>
+        <version>0.9.2-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
+
+    <artifactId>orchestrator-svc</artifactId>
 
     <dependencies>
         <!-- Backend service dependencies for pipeline processing -->
         <dependency>
             <groupId>org.pipelineframework</groupId>
             <artifactId>input-csv-file-processing-svc</artifactId>
-            <version>0.9.2</version>
+            <version>${version.pipeline}</version>
             <classifier>client</classifier>
             <exclusions>
                 <exclusion>
@@ -45,7 +44,7 @@
         <dependency>
             <groupId>org.pipelineframework</groupId>
             <artifactId>payments-processing-svc</artifactId>
-            <version>0.9.2</version>
+            <version>${version.pipeline}</version>
             <classifier>client</classifier>
             <exclusions>
                 <exclusion>
@@ -57,7 +56,7 @@
         <dependency>
             <groupId>org.pipelineframework</groupId>
             <artifactId>payment-status-svc</artifactId>
-            <version>0.9.2</version>
+            <version>${version.pipeline}</version>
             <classifier>client</classifier>
             <exclusions>
                 <exclusion>
@@ -69,7 +68,7 @@
         <dependency>
             <groupId>org.pipelineframework</groupId>
             <artifactId>output-csv-file-processing-svc</artifactId>
-            <version>0.9.2</version>
+            <version>${version.pipeline}</version>
             <classifier>client</classifier>
             <exclusions>
                 <exclusion>
