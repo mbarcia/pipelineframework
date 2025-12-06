@@ -38,9 +38,11 @@ import org.pipelineframework.step.future.StepOneToOneCompletableFuture;
 @QuarkusTest
 class ParallelProcessingSmokeTest {
 
-    @Inject PipelineRunner pipelineRunner;
+    @Inject
+    PipelineRunner pipelineRunner;
 
-    @Inject PipelineConfig pipelineConfig;
+    @Inject
+    PipelineConfig pipelineConfig;
 
     private static class TestStepOneToOne extends ConfigurableStep
             implements StepOneToOne<String, String> {
@@ -50,7 +52,9 @@ class ParallelProcessingSmokeTest {
         private final List<String> executionThreads = new java.util.ArrayList<>();
         private final List<String> results = new java.util.ArrayList<>();
 
-        public TestStepOneToOne() {}
+        public TestStepOneToOne() {
+            // Empty constructor required for test class
+        }
 
         @Override
         public Uni<String> applyOneToOne(String input) {
@@ -99,7 +103,9 @@ class ParallelProcessingSmokeTest {
         private final List<String> executionThreads = new java.util.ArrayList<>();
         private final List<String> results = new java.util.ArrayList<>();
 
-        public TestStepOneToOneCompletableFuture() {}
+        public TestStepOneToOneCompletableFuture() {
+            // Empty constructor required for test class
+        }
 
         @Override
         public CompletableFuture<String> applyAsync(String input) {
@@ -150,8 +156,7 @@ class ParallelProcessingSmokeTest {
         Multi<Object> result = (Multi<Object>) pipelineRunner.run(input, List.of(step));
 
         // Then
-        AssertSubscriber<Object> subscriber =
-                result.subscribe().withSubscriber(AssertSubscriber.create(3));
+        AssertSubscriber<Object> subscriber = result.subscribe().withSubscriber(AssertSubscriber.create(3));
         subscriber.awaitItems(3, Duration.ofSeconds(5)).assertCompleted();
 
         List<Object> items = subscriber.getItems();
@@ -175,8 +180,7 @@ class ParallelProcessingSmokeTest {
         Multi<Object> result = (Multi<Object>) pipelineRunner.run(input, List.of(step));
 
         // Then
-        AssertSubscriber<Object> subscriber =
-                result.subscribe().withSubscriber(AssertSubscriber.create(3));
+        AssertSubscriber<Object> subscriber = result.subscribe().withSubscriber(AssertSubscriber.create(3));
         subscriber.awaitItems(3, Duration.ofSeconds(5)).assertCompleted();
 
         List<Object> items = subscriber.getItems();
@@ -231,8 +235,7 @@ class ParallelProcessingSmokeTest {
         Multi<Object> result = (Multi<Object>) pipelineRunner.run(input, List.of(step));
 
         // Then
-        AssertSubscriber<Object> subscriber =
-                result.subscribe().withSubscriber(AssertSubscriber.create(3));
+        AssertSubscriber<Object> subscriber = result.subscribe().withSubscriber(AssertSubscriber.create(3));
         subscriber.awaitItems(3, Duration.ofSeconds(5)).assertCompleted();
 
         List<Object> items = subscriber.getItems();

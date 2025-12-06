@@ -31,8 +31,7 @@ The project uses three independent workflows:
 - `-Pcentral-publishing` — Release mode for Maven Central deploy
 - Avoid mixing `skipTests` and `skipITs`
 - Quarkus extensions require full reactor builds (`clean install`)
-- `flatten-maven-plugin` must NOT run on deployment modules
-- 
+
 ## CI Architecture Diagram
 ```mermaid
 flowchart TD
@@ -78,7 +77,6 @@ flowchart TD
 
 ### Golden Rules
 - ❌ **Never** mix `skipTests` + `skipITs`.
-- ❌ **Never** run `flatten-maven-plugin` on deployment modules.
 - ✔ Always run framework builds with:
   `mvn clean install`
 - ✔ Examples (CSV Payments) may be built individually.

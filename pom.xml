@@ -20,7 +20,7 @@
 
     <groupId>org.pipelineframework</groupId>
     <artifactId>pipeline-framework-root</artifactId>
-    <version>0.9.2</version>
+    <version>0.9.2-SNAPSHOT</version>
     <packaging>pom</packaging>
     <name>The Pipeline Framework - Root POM</name>
     <description>The root POM for the Pipeline Framework project, managing both framework components and example applications</description>
@@ -49,6 +49,7 @@
     </scm>
 
     <properties>
+        <version.pipeline>0.9.2-SNAPSHOT</version.pipeline> <!-- Needs to match the version of this POM declared above -->
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
@@ -56,12 +57,11 @@
         <quarkus.platform.version>3.29.4</quarkus.platform.version>
         <quarkus.platform.group-id>io.quarkus.platform</quarkus.platform.group-id>
         <quarkus.platform.artifact-id>quarkus-bom</quarkus.platform.artifact-id>
+        <quarkus.java.source>21</quarkus.java.source>
+        <quarkus.java.target>21</quarkus.java.target>
         <version.jandex>3.5.0</version.jandex>
-        <protobuf.version>4.28.2</protobuf.version>
         <grpc.version>1.63.0</grpc.version>
-        <version.pipeline>0.9.2-SNAPSHOT</version.pipeline>
         <spotless.plugin.version>2.44.0</spotless.plugin.version>
-        <google-java-format.version>1.25.0</google-java-format.version>
         <surefireArgLine />
     </properties>
 
@@ -96,6 +96,8 @@
                     <configuration>
                         <source>21</source>
                         <target>21</target>
+                        <release>21</release>
+                        <enablePreview>true</enablePreview>
                         <annotationProcessorPaths>
                             <!-- lombok must come first -->
                             <path>
@@ -114,12 +116,8 @@
                                 <version>${quarkus.platform.version}</version>
                             </path>
                         </annotationProcessorPaths>
-                        <compilerArgs>
-                            <arg>--enable-preview</arg>
-                        </compilerArgs>
                     </configuration>
                 </plugin>
-                
                 <plugin>
                     <groupId>io.quarkus</groupId>
                     <artifactId>quarkus-maven-plugin</artifactId>
@@ -159,24 +157,25 @@
                         <argLine>${surefireArgLine} --enable-preview -XX:+EnableDynamicAgentLoading</argLine>
                     </configuration>
                 </plugin>
-                
+
                 <plugin>
                     <groupId>com.diffplug.spotless</groupId>
                     <artifactId>spotless-maven-plugin</artifactId>
                     <version>${spotless.plugin.version}</version>
                     <configuration>
                         <java>
-                            <googleJavaFormat>
-                                <version>${google-java-format.version}</version>
-                                <style>AOSP</style>
-                            </googleJavaFormat>
-                            <removeUnusedImports />
+                            <eclipse>
+                                <file>${maven.multiModuleProjectDirectory}/ide-config/quarkus-formatter.xml</file>
+                            </eclipse>
+                            <removeUnusedImports/>
+                            <formatAnnotations/>
+                            <endWithNewline/>
                         </java>
                         <formats>
                             <format>
                                 <includes>
                                     <include>src/main/**/*.java</include>
-                                    <include>jbang/*.java</include>
+                                    <include>src/test/**/*.java</include>
                                 </includes>
                             </format>
                         </formats>
@@ -192,7 +191,6 @@
                         </execution>
                     </executions>
                 </plugin>
-
                 <plugin>
                     <groupId>io.smallrye</groupId>
                     <artifactId>jandex-maven-plugin</artifactId>

@@ -37,7 +37,6 @@ target/
 # Generated files
 dependency-reduced-pom.xml
 *SUMMARY.md
-**/.flattened-pom.xml
 
 # Local configuration and logs
 *.log
@@ -69,3 +68,4 @@ QWEN.md
 
 # Maven Release Plugin backup files
 pom.xml.releaseBackup
+/release.properties

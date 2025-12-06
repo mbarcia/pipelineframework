@@ -36,27 +36,19 @@ The Pipeline Framework is published to Maven Central to make it available to dev
 
 The Pipeline Framework uses a centralized version management system to ensure consistency across all modules:
 
-1. **Single Source of Truth**: The version is defined in the root POM (`pom.xml`) as the `<version.pipeline>` property
-2. **Module References**: All other POM files reference this property instead of hard-coding versions
-3. **Build-Time Resolution**: The Flatten Maven Plugin resolves property references to literal values during the build process
+1. **Single Source of Truth**: The version is defined in the root POM (`pom.xml`) as the `<version>` element
+2. **Strict Hierarchy**: Every module links back to its parent using `<parent>`, all the way up to the root
+3. **Version Omission in Children**: All child and intermediate parent modules omit their own `<version>` tag entirely, relying solely on inheritance from the root parent
 4. **Updating Versions**: To update the version, change it only in the root POM
 
 ### Version Property Definition
 
-In several (`pom.xml`):
+In the root POM (`pom.xml`):
 ```xml
-<properties>
-    <!-- ... other properties ... -->
-    <version.pipeline>0.9.2</version.pipeline>
-    <!-- ... other properties ... -->
-</properties>
+<version>0.9.2-SNAPSHOT</version>
 ```
 
-- Framework's parent POM
-- Deployment POM
-- Runtime module POM
-- Root POM
-- CSV Payments parent POM
+All child modules inherit this version through the parent relationship and omit their own `<version>` element entirely.
 
 ### Using Maven Versions Plugin
 
@@ -75,39 +67,6 @@ mvn versions:revert
 
 This ensures that all modules in the multimodule project are updated consistently.
 
-### Flatten Plugin Configuration
-
-To comply with Maven's requirement that the `<version>` element in project POMs be literal values while still maintaining a single source of truth, we use the Maven Flatten Plugin:
-
-```xml
-<plugin>
-    <groupId>org.codehaus.mojo</groupId>
-    <artifactId>flatten-maven-plugin</artifactId>
-    <version>1.6.0</version>
-    <configuration>
-        <updatePomFile>true</updatePomFile>
-        <flattenMode>oss</flattenMode>
-    </configuration>
-    <executions>
-        <execution>
-            <id>flatten</id>
-            <phase>process-resources</phase>
-            <goals>
-                <goal>flatten</goal>
-            </goals>
-        </execution>
-        <execution>
-            <id>flatten-clean</id>
-            <phase>clean</phase>
-            <goals>
-                <goal>clean</goal>
-            </goals>
-        </execution>
-    </executions>
-</plugin>
-```
-
-This configuration generates a `.flattened-pom.xml` file with all properties resolved to their literal values during the build process. This full property resolution is required for Maven Central publishing to ensure that the published artifacts have all dependencies with literal versions instead of property placeholders.
 
 ## Maven Central Publishing Setup
 
@@ -299,4 +258,5 @@ Before pushing a tag that triggers the release workflow:
 - Only the framework artifacts (not example applications) are published to Maven Central
 - The examples project does NOT depend on the published framework artifacts
 - The root POM orchestrates the overall build while the framework POM handles publishing
+- The project now uses standard Maven practices: strict hierarchy with every module linking back to its parent using `<parent>`, all the way up to the root, and version omission in children where all child and intermediate parent modules omit their own `<version>` tag entirely, relying solely on inheritance from the root parent
 - Always verify your release artifacts on Maven Central after a successful deployment

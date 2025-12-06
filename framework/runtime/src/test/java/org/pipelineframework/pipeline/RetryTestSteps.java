@@ -68,31 +68,27 @@ public class RetryTestSteps {
          * Initialises the step from the supplied StepConfig and preserves the first observed
          * non-default retry-related values as manual overrides for subsequent initialisations.
          *
-         * <p>If a non-null `config` is provided and this is the first time non-default values for
+         * <p>
+         * If a non-null `config` is provided and this is the first time non-default values for
          * `retryLimit`, `retryWait` or `recoverOnFailure` are observed, those values are stored as
          * manual overrides. When manual overrides exist they are applied on top of any later
          * `config` passed to this method.
          *
          * @param config the configuration to apply; may be {@code null}. Values are compared
-         *     against a fresh {@code StepConfig} instance to detect non-defaults.
+         *        against a fresh {@code StepConfig} instance to detect non-defaults.
          */
         @Override
         public void initialiseWithConfig(org.pipelineframework.config.StepConfig config) {
             // Check if this is the first time being configured with non-default values
             // If so, preserve these as manual configuration
-            if (!hasManualConfig && config != null) {
-                // Check if the incoming config has custom values
-                if (config.retryLimit()
-                                != new org.pipelineframework.config.StepConfig().retryLimit()
-                        || config.retryWait()
-                                != new org.pipelineframework.config.StepConfig().retryWait()
-                        || config.recoverOnFailure()
-                                != new org.pipelineframework.config.StepConfig()
-                                        .recoverOnFailure()) {
-                    // This looks like manual configuration - save the values
-                    setManualConfig(
-                            config.retryLimit(), config.retryWait(), config.recoverOnFailure());
-                }
+            org.pipelineframework.config.StepConfig defaults = new org.pipelineframework.config.StepConfig();
+            if (!hasManualConfig && config != null
+                    && (config.retryLimit() != defaults.retryLimit()
+                            || config.retryWait() != defaults.retryWait()
+                            || config.recoverOnFailure() != defaults.recoverOnFailure())) {
+                // This looks like manual configuration - save the values
+                setManualConfig(
+                        config.retryLimit(), config.retryWait(), config.recoverOnFailure());
             }
 
             if (hasManualConfig) {
@@ -115,7 +111,7 @@ public class RetryTestSteps {
          * @param retryLimit the maximum number of retry attempts to apply
          * @param retryWait the wait duration between retry attempts
          * @param recoverOnFailure whether the step should recover and emit the original value after
-         *     failures
+         *        failures
          */
         private void setManualConfig(
                 int retryLimit, java.time.Duration retryWait, boolean recoverOnFailure) {

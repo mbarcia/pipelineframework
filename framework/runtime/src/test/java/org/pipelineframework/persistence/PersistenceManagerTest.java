@@ -34,9 +34,11 @@ import org.pipelineframework.persistence.provider.ReactivePanachePersistenceProv
 
 class PersistenceManagerTest {
 
-    @Mock Instance<PersistenceProvider<?>> mockProviderInstance;
+    @Mock
+    Instance<PersistenceProvider<?>> mockProviderInstance;
 
-    @Mock PersistenceProvider<?> mockProvider;
+    @Mock
+    PersistenceProvider<?> mockProvider;
 
     private PersistenceManager persistenceManager;
 
@@ -65,8 +67,7 @@ class PersistenceManagerTest {
 
         Uni<Object> resultUni = persistenceManager.persist(entity);
 
-        UniAssertSubscriber<Object> subscriber =
-                resultUni.subscribe().withSubscriber(UniAssertSubscriber.create());
+        UniAssertSubscriber<Object> subscriber = resultUni.subscribe().withSubscriber(UniAssertSubscriber.create());
         subscriber.awaitItem();
 
         assertNull(subscriber.getItem());
@@ -84,8 +85,7 @@ class PersistenceManagerTest {
 
         Uni<Object> resultUni = persistenceManager.persist(entity);
 
-        UniAssertSubscriber<Object> subscriber =
-                resultUni.subscribe().withSubscriber(UniAssertSubscriber.create());
+        UniAssertSubscriber<Object> subscriber = resultUni.subscribe().withSubscriber(UniAssertSubscriber.create());
         subscriber.awaitItem();
 
         assertSame(entity, subscriber.getItem());
@@ -100,31 +100,29 @@ class PersistenceManagerTest {
         // Create a mock that extends ReactivePanachePersistenceProvider to pass the instanceof
         // check
         // but with method implementations that don't depend on Vert.x context
-        ReactivePanachePersistenceProvider mockProvider =
-                mock(ReactivePanachePersistenceProvider.class);
-        when(mockProvider.supports(entity)).thenReturn(true);
-        when(mockProvider.supportsThreadContext())
+        ReactivePanachePersistenceProvider panacheMockProvider = mock(ReactivePanachePersistenceProvider.class);
+        when(panacheMockProvider.supports(entity)).thenReturn(true);
+        when(panacheMockProvider.supportsThreadContext())
                 .thenReturn(true); // For regular threads, it should return true
-        when(mockProvider.persist(entity)).thenReturn(Uni.createFrom().item(entity));
-        when(mockProvider.type()).thenReturn(PanacheEntityBase.class); // Need to mock this too
+        when(panacheMockProvider.persist(entity)).thenReturn(Uni.createFrom().item(entity));
+        when(panacheMockProvider.type()).thenReturn(PanacheEntityBase.class); // Need to mock this too
 
         // Set up the mock instance to use our specific provider
         when(mockProviderInstance.isUnsatisfied()).thenReturn(false);
-        when(mockProviderInstance.stream()).thenReturn(java.util.stream.Stream.of(mockProvider));
+        when(mockProviderInstance.stream()).thenReturn(java.util.stream.Stream.of(panacheMockProvider));
 
         // Re-initialize the provider list in the PersistenceManager
         reinitializeProviders();
 
         Uni<PanacheEntityBase> resultUni = persistenceManager.persist(entity);
 
-        UniAssertSubscriber<PanacheEntityBase> subscriber =
-                resultUni.subscribe().withSubscriber(UniAssertSubscriber.create());
+        UniAssertSubscriber<PanacheEntityBase> subscriber = resultUni.subscribe().withSubscriber(UniAssertSubscriber.create());
         subscriber.awaitItem();
 
         assertSame(entity, subscriber.getItem());
-        verify(mockProvider).supports(entity);
-        verify(mockProvider).supportsThreadContext();
-        verify(mockProvider).persist(entity);
+        verify(panacheMockProvider).supports(entity);
+        verify(panacheMockProvider).supportsThreadContext();
+        verify(panacheMockProvider).persist(entity);
     }
 
     @Test
@@ -142,8 +140,7 @@ class PersistenceManagerTest {
 
         Uni<Object> resultUni = persistenceManager.persist(entity);
 
-        UniAssertSubscriber<Object> subscriber =
-                resultUni.subscribe().withSubscriber(UniAssertSubscriber.create());
+        UniAssertSubscriber<Object> subscriber = resultUni.subscribe().withSubscriber(UniAssertSubscriber.create());
         subscriber.awaitItem();
 
         assertSame(entity, subscriber.getItem());
