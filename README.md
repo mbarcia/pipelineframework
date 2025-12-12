@@ -113,7 +113,7 @@ Here's a simple pipeline step implementation:
 )
 @ApplicationScoped
 public class ProcessPaymentService implements ReactiveStreamingClientService<PaymentRecord, PaymentStatus> {
-    
+
     @Override
     public Uni<PaymentStatus> process(PaymentRecord input) {
         // Business logic here
@@ -123,6 +123,25 @@ public class ProcessPaymentService implements ReactiveStreamingClientService<Pay
     }
 }
 ```
+
+## 🔌 Plugin System
+
+The framework now includes a powerful plugin system that enables external components to participate in pipelines as side-effect steps with typed gRPC endpoints. Plugins are implemented using simple interfaces without dependencies on DTOs, mappers, or protos.
+
+```java
+@ApplicationScoped
+public class LoggingPlugin implements PluginReactiveUnary<String> {
+    private static final Logger LOG = Logger.getLogger(LoggingPlugin.class);
+
+    @Override
+    public Uni<Void> process(String message) {
+        LOG.info("Processing message: " + message);
+        return Uni.createFrom().voidItem();
+    }
+}
+```
+
+For more information about the plugin system, see the [plugins documentation](docs/plugins/index.md).
 
 ## Continuous Integration
 See our [CI documentation](CI.md)

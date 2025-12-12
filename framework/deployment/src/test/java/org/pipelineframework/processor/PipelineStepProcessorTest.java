@@ -103,7 +103,7 @@ class PipelineStepProcessorTest {
 
     @SuppressWarnings({ "unchecked", "rawtypes" })
     @Test
-    void testProcessWithPipelineStepAnnotationPresent() {
+    void testProcessWithPipelineStepAnnotationPresentGrpcEnabled() {
         // Mock the @PipelineStep TypeElement
         TypeElement pipelineStepAnnotation = mock(TypeElement.class);
         Set<TypeElement> annotations = Collections.singleton(pipelineStepAnnotation);
@@ -113,6 +113,9 @@ class PipelineStepProcessorTest {
         when(mockServiceClass.getKind()).thenReturn(ElementKind.CLASS);
         PipelineStep mockAnnotation = mock(PipelineStep.class);
         when(mockServiceClass.getAnnotation(PipelineStep.class)).thenReturn(mockAnnotation);
+        // Mock the grpcEnabled property to return true (default value)
+        when(mockAnnotation.grpcEnabled()).thenReturn(true);
+        when(mockAnnotation.local()).thenReturn(false); // Also mock local to be false to generate client step
 
         // Use raw types to avoid generic issues
         when(roundEnv.getElementsAnnotatedWith(PipelineStep.class))
@@ -130,6 +133,7 @@ class PipelineStepProcessorTest {
 
         // Use spy to verify that generation methods are called
         PipelineStepProcessor spyProcessor = spy(localProcessor);
+        AnnotationMirror mockAnnotationMirror = mock(AnnotationMirror.class);
         try {
             doNothing()
                     .when(spyProcessor)
@@ -137,6 +141,20 @@ class PipelineStepProcessorTest {
             doNothing()
                     .when(spyProcessor)
                     .generateClientStep(any(TypeElement.class), any(PipelineStep.class));
+            doNothing()
+                    .when(spyProcessor)
+                    .generatePluginAdapter(any(TypeElement.class), any(PipelineStep.class));
+            doNothing()
+                    .when(spyProcessor)
+                    .generatePluginReactiveService(any(TypeElement.class), any(PipelineStep.class));
+            // Mock the getAnnotationMirror method to return the annotation mirror for our specific service class
+            doReturn(mockAnnotationMirror)
+                    .when(spyProcessor)
+                    .getAnnotationMirror(eq(mockServiceClass), eq(PipelineStep.class));
+            // Mock getAnnotationValueAsBoolean to return the grpcEnabled value for the annotation mirror
+            doReturn(true)
+                    .when(spyProcessor)
+                    .getAnnotationValueAsBoolean(eq(mockAnnotationMirror), eq("grpcEnabled"), eq(true));
         } catch (IOException e) {
             // This catch block is just to satisfy the compiler - IOException won't actually be
             // thrown by doNothing
@@ -152,6 +170,89 @@ class PipelineStepProcessorTest {
             verify(spyProcessor)
                     .generateGrpcServiceAdapter(eq(mockServiceClass), eq(mockAnnotation));
             verify(spyProcessor).generateClientStep(eq(mockServiceClass), eq(mockAnnotation));
+            verify(spyProcessor).generatePluginAdapter(eq(mockServiceClass), eq(mockAnnotation));
+            verify(spyProcessor).generatePluginReactiveService(eq(mockServiceClass), eq(mockAnnotation));
+        } catch (IOException e) {
+            // This catch is just to satisfy the compiler - verify() won't actually throw
+            // IOException
+            fail("Unexpected IOException during verification: " + e.getMessage());
+        }
+    }
+
+    @SuppressWarnings({ "unchecked", "rawtypes" })
+    @Test
+    void testProcessWithPipelineStepAnnotationPresentGrpcDisabled() {
+        // Mock the @PipelineStep TypeElement
+        TypeElement pipelineStepAnnotation = mock(TypeElement.class);
+        Set<TypeElement> annotations = Collections.singleton(pipelineStepAnnotation);
+
+        // Mock a valid class element annotated with @PipelineStep
+        TypeElement mockServiceClass = mock(TypeElement.class);
+        when(mockServiceClass.getKind()).thenReturn(ElementKind.CLASS);
+        PipelineStep mockAnnotation = mock(PipelineStep.class);
+        when(mockServiceClass.getAnnotation(PipelineStep.class)).thenReturn(mockAnnotation);
+        // Mock the grpcEnabled property to return false (disabled)
+        when(mockAnnotation.grpcEnabled()).thenReturn(false);
+        when(mockAnnotation.local()).thenReturn(false); // Also mock local to be false to generate client step
+
+        // Use raw types to avoid generic issues
+        when(roundEnv.getElementsAnnotatedWith(PipelineStep.class))
+                .thenReturn((Set) Collections.singleton(mockServiceClass));
+
+        PipelineStepProcessor localProcessor = new PipelineStepProcessor();
+        ProcessingEnvironment localProcessingEnv = mock(ProcessingEnvironment.class);
+        when(localProcessingEnv.getMessager()).thenReturn(mock(Messager.class));
+        when(localProcessingEnv.getElementUtils())
+                .thenReturn(mock(javax.lang.model.util.Elements.class));
+        when(localProcessingEnv.getFiler()).thenReturn(mock(Filer.class));
+        when(localProcessingEnv.getSourceVersion()).thenReturn(SourceVersion.RELEASE_21);
+
+        localProcessor.init(localProcessingEnv);
+
+        // Use spy to verify that generation methods are called
+        PipelineStepProcessor spyProcessor = spy(localProcessor);
+        AnnotationMirror mockAnnotationMirror = mock(AnnotationMirror.class);
+        try {
+            doNothing()
+                    .when(spyProcessor)
+                    .generateGrpcServiceAdapter(any(TypeElement.class), any(PipelineStep.class));
+            doNothing()
+                    .when(spyProcessor)
+                    .generateClientStep(any(TypeElement.class), any(PipelineStep.class));
+            doNothing()
+                    .when(spyProcessor)
+                    .generatePluginAdapter(any(TypeElement.class), any(PipelineStep.class));
+            doNothing()
+                    .when(spyProcessor)
+                    .generatePluginReactiveService(any(TypeElement.class), any(PipelineStep.class));
+            // Mock the getAnnotationMirror method to return the annotation mirror for our specific service class
+            doReturn(mockAnnotationMirror)
+                    .when(spyProcessor)
+                    .getAnnotationMirror(eq(mockServiceClass), eq(PipelineStep.class));
+            // Mock getAnnotationValueAsBoolean to return the grpcEnabled value for the annotation mirror
+            doReturn(false)
+                    .when(spyProcessor)
+                    .getAnnotationValueAsBoolean(eq(mockAnnotationMirror), eq("grpcEnabled"), eq(true));
+        } catch (IOException e) {
+            // This catch block is just to satisfy the compiler - IOException won't actually be
+            // thrown by doNothing
+            fail("Unexpected IOException during mocking: " + e.getMessage());
+        }
+
+        // When annotations are present (i.e., @PipelineStep), processing should occur and return
+        // true
+        boolean result = spyProcessor.process(annotations, roundEnv);
+
+        assertTrue(result);
+        try {
+            // Verify that generateGrpcServiceAdapter is NOT called when grpc is disabled
+            verify(spyProcessor, never())
+                    .generateGrpcServiceAdapter(eq(mockServiceClass), eq(mockAnnotation));
+            // Also verify that generateClientStep is NOT called when grpc is disabled (as per the real implementation)
+            verify(spyProcessor, never())
+                    .generateClientStep(eq(mockServiceClass), eq(mockAnnotation));
+            verify(spyProcessor).generatePluginAdapter(eq(mockServiceClass), eq(mockAnnotation));
+            verify(spyProcessor).generatePluginReactiveService(eq(mockServiceClass), eq(mockAnnotation));
         } catch (IOException e) {
             // This catch is just to satisfy the compiler - verify() won't actually throw
             // IOException

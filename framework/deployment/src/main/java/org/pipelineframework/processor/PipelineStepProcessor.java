@@ -34,6 +34,8 @@ import javax.tools.Diagnostic;
 import javax.tools.JavaFileObject;
 import org.pipelineframework.annotation.PipelineStep;
 import org.pipelineframework.grpc.GrpcReactiveServiceAdapter;
+import org.pipelineframework.plugin.runtime.AdapterInvoker;
+import org.pipelineframework.plugin.runtime.PluginEngine;
 import org.pipelineframework.step.StepOneToMany;
 import org.pipelineframework.step.StepOneToOne;
 
@@ -100,59 +102,81 @@ public class PipelineStepProcessor extends AbstractProcessor {
             TypeElement serviceClass = (TypeElement) annotatedElement;
             PipelineStep pipelineStep = serviceClass.getAnnotation(PipelineStep.class);
 
+            // Get the annotation mirror to access parameter values
+            AnnotationMirror annotationMirror = getAnnotationMirror(serviceClass, PipelineStep.class);
+
+            // Generate gRPC service adapter only if annotation mirror exists and gRPC is enabled
+            if (annotationMirror != null && getAnnotationValueAsBoolean(annotationMirror, "grpcEnabled", true)) {
+                try {
+                    generateGrpcServiceAdapter(serviceClass, pipelineStep);
+                } catch (IOException e) {
+                    processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+                        "Failed to generate step (server) for " + serviceClass.getSimpleName() + ": " + e.getMessage());
+                }
+            }
+
+            // Generate client step only if annotation mirror exists, service is not local, and gRPC is enabled
+            if (annotationMirror != null && !pipelineStep.local() && getAnnotationValueAsBoolean(annotationMirror, "grpcEnabled", true)) {
+                try {
+                    generateClientStep(serviceClass, pipelineStep);
+                } catch (IOException e) {
+                    processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+                            "Failed to generate step (client) for " + serviceClass.getSimpleName() + ": " + e.getMessage());
+                }
+            }
+
+            // Generate REST resource if annotation mirror exists and restEnabled is true
+            boolean restEnabled = annotationMirror != null ? getAnnotationValueAsBoolean(annotationMirror, "restEnabled", false) : false;
+
+            processingEnv.getMessager().printMessage(Diagnostic.Kind.NOTE,
+                "Checking REST resource generation for " + serviceClass.getSimpleName() +
+                ", restEnabled=" + restEnabled);
+
+            if (restEnabled) {
+                // Check if service implements ReactiveService, ReactiveStreamingService, ReactiveStreamingClientService, or ReactiveBidirectionalStreamingService
+                boolean isReactiveService = implementsInterface(serviceClass, "org.pipelineframework.service.ReactiveService");
+                boolean isReactiveStreamingService = implementsInterface(serviceClass, "org.pipelineframework.service.ReactiveStreamingService");
+                boolean isReactiveStreamingClientService = implementsInterface(serviceClass, "org.pipelineframework.service.ReactiveStreamingClientService");
+                boolean isReactiveBidirectionalStreamingService = implementsInterface(serviceClass, "org.pipelineframework.service.ReactiveBidirectionalStreamingService");
+
+                if (!isReactiveService && !isReactiveStreamingService && !isReactiveStreamingClientService && !isReactiveBidirectionalStreamingService) {
+                    processingEnv.getMessager().printMessage(Diagnostic.Kind.WARNING,
+                        "Service " + serviceClass.getSimpleName() + " has restEnabled=true but does not implement ReactiveService, ReactiveStreamingService, ReactiveStreamingClientService, or ReactiveBidirectionalStreamingService, skipping REST resource generation");
+                } else {
+                    String serviceType = isReactiveService ? "ReactiveService" :
+                                       isReactiveStreamingService ? "ReactiveStreamingService" :
+                                       isReactiveStreamingClientService ? "ReactiveStreamingClientService" :
+                                       "ReactiveBidirectionalStreamingService";
+                    processingEnv.getMessager().printMessage(Diagnostic.Kind.NOTE,
+                        "Generating REST resource for " + serviceClass.getSimpleName() +
+                        " (type: " + serviceType + ")");
+                    try {
+                        generateRestResource(serviceClass, pipelineStep, isReactiveService, isReactiveStreamingService, isReactiveStreamingClientService, isReactiveBidirectionalStreamingService);
+                    } catch (IOException e) {
+                        processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+                            "Failed to generate REST resource for " + serviceClass.getSimpleName() + ": " + e.getMessage());
+                    }
+                }
+            } else {
+                processingEnv.getMessager().printMessage(Diagnostic.Kind.NOTE,
+                    "Skipping REST resource generation for " + serviceClass.getSimpleName() +
+                    " because restEnabled=" + restEnabled);
+            }
+
+            // Generate plugin adapter and service regardless of whether the step is local
+            // Plugins are external components that participate in pipelines with typed gRPC endpoints
             try {
-                generateGrpcServiceAdapter(serviceClass, pipelineStep);
+                generatePluginAdapter(serviceClass, pipelineStep);
             } catch (IOException e) {
                 processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
-                    "Failed to generate step (server) for " + serviceClass.getSimpleName() + ": " + e.getMessage());
+                    "Failed to generate plugin adapter for " + serviceClass.getSimpleName() + ": " + e.getMessage());
             }
 
             try {
-                generateClientStep(serviceClass, pipelineStep);
+                generatePluginReactiveService(serviceClass, pipelineStep);
             } catch (IOException e) {
                 processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
-                        "Failed to generate step (client) for " + serviceClass.getSimpleName() + ": " + e.getMessage());
-            }
-            
-            // Generate REST resource if restEnabled is true
-            AnnotationMirror annotationMirror = getAnnotationMirror(serviceClass, PipelineStep.class);
-            if (annotationMirror != null) {
-                boolean restEnabled = getAnnotationValueAsBoolean(annotationMirror, "restEnabled", false);
-                
-                processingEnv.getMessager().printMessage(Diagnostic.Kind.NOTE, 
-                    "Checking REST resource generation for " + serviceClass.getSimpleName() + 
-                    ", restEnabled=" + restEnabled);
-                
-                if (restEnabled) {
-                    // Check if service implements ReactiveService, ReactiveStreamingService, ReactiveStreamingClientService, or ReactiveBidirectionalStreamingService
-                    boolean isReactiveService = implementsInterface(serviceClass, "org.pipelineframework.service.ReactiveService");
-                    boolean isReactiveStreamingService = implementsInterface(serviceClass, "org.pipelineframework.service.ReactiveStreamingService");
-                    boolean isReactiveStreamingClientService = implementsInterface(serviceClass, "org.pipelineframework.service.ReactiveStreamingClientService");
-                    boolean isReactiveBidirectionalStreamingService = implementsInterface(serviceClass, "org.pipelineframework.service.ReactiveBidirectionalStreamingService");
-                    
-                    if (!isReactiveService && !isReactiveStreamingService && !isReactiveStreamingClientService && !isReactiveBidirectionalStreamingService) {
-                        processingEnv.getMessager().printMessage(Diagnostic.Kind.WARNING, 
-                            "Service " + serviceClass.getSimpleName() + " has restEnabled=true but does not implement ReactiveService, ReactiveStreamingService, ReactiveStreamingClientService, or ReactiveBidirectionalStreamingService, skipping REST resource generation");
-                    } else {
-                        String serviceType = isReactiveService ? "ReactiveService" : 
-                                           isReactiveStreamingService ? "ReactiveStreamingService" : 
-                                           isReactiveStreamingClientService ? "ReactiveStreamingClientService" : 
-                                           "ReactiveBidirectionalStreamingService";
-                        processingEnv.getMessager().printMessage(Diagnostic.Kind.NOTE, 
-                            "Generating REST resource for " + serviceClass.getSimpleName() + 
-                            " (type: " + serviceType + ")");
-                        try {
-                            generateRestResource(serviceClass, pipelineStep, isReactiveService, isReactiveStreamingService, isReactiveStreamingClientService, isReactiveBidirectionalStreamingService);
-                        } catch (IOException e) {
-                            processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
-                                "Failed to generate REST resource for " + serviceClass.getSimpleName() + ": " + e.getMessage());
-                        }
-                    }
-                } else {
-                    processingEnv.getMessager().printMessage(Diagnostic.Kind.NOTE, 
-                        "Skipping REST resource generation for " + serviceClass.getSimpleName() + 
-                        " because restEnabled=" + restEnabled);
-                }
+                    "Failed to generate plugin reactive service for " + serviceClass.getSimpleName() + ": " + e.getMessage());
             }
         }
 
@@ -1333,5 +1357,180 @@ public class PipelineStepProcessor extends AbstractProcessor {
             }
         }
         return defaultValue;
+    }
+
+    /**
+     * Generates a plugin adapter class that bridges gRPC messages to plugin implementations.
+     *
+     * @param serviceClass the annotated service class element
+     * @param pipelineStep the PipelineStep annotation instance for the service
+     * @throws IOException if writing the generated Java source file fails
+     */
+    protected void generatePluginAdapter(TypeElement serviceClass, PipelineStep pipelineStep) throws IOException {
+        // Get the annotation mirror to extract TypeMirror values
+        AnnotationMirror annotationMirror = getAnnotationMirror(serviceClass, PipelineStep.class);
+        if (annotationMirror == null) {
+            processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+                "Could not get annotation mirror for " + serviceClass, serviceClass);
+            return;
+        }
+
+        // Extract values from the annotation mirror
+        TypeMirror inputType = getAnnotationValue(annotationMirror, "inputType");
+        TypeMirror inboundMapperType = getAnnotationValue(annotationMirror, "inboundMapper");
+        TypeMirror inputGrpcType = getAnnotationValue(annotationMirror, "inputGrpcType");
+
+        // Use the same package as the original service but with a ".pipeline" suffix
+        String fqcn = serviceClass.getQualifiedName().toString();
+        String originalPackage = fqcn.substring(0, fqcn.lastIndexOf('.'));
+        String pkg = String.format("%s%s", originalPackage, PIPELINE_PACKAGE_SUFFIX);
+        String serviceClassName = serviceClass.getSimpleName().toString();
+        String adapterClassName = serviceClassName.replace("Service", "") + "PluginAdapter";
+
+        // Create the plugin adapter class
+        TypeSpec.Builder adapterBuilder = TypeSpec.classBuilder(adapterClassName)
+            .addModifiers(Modifier.PUBLIC)
+            .addAnnotation(AnnotationSpec.builder(ClassName.get("jakarta.enterprise.context", "ApplicationScoped")).build())
+            .addAnnotation(AnnotationSpec.builder(Unremovable.class).build())
+            .addSuperinterface(ClassName.get(AdapterInvoker.class));
+
+        // Add mapper field with @Inject if it exists
+        String mapperFieldName = "mapper";
+        if (inboundMapperType != null && !inboundMapperType.toString().equals("void")) {
+            String inboundMapperPackage = inboundMapperType.toString().substring(0, inboundMapperType.toString().lastIndexOf('.'));
+            String inboundMapperSimpleName = inboundMapperType.toString().substring(inboundMapperType.toString().lastIndexOf('.') + 1);
+            ClassName inboundMapperClassName = ClassName.get(inboundMapperPackage, inboundMapperSimpleName);
+
+            FieldSpec inboundMapperField = FieldSpec.builder(
+                inboundMapperClassName,
+                mapperFieldName)
+                .addAnnotation(AnnotationSpec.builder(Inject.class).build())
+                .build();
+            adapterBuilder.addField(inboundMapperField);
+        }
+
+        // We no longer inject the plugin directly to avoid CDI build failures
+        // Instead, we use PluginEngine for runtime resolution
+
+        // Add plugin engine field
+        FieldSpec pluginEngineField = FieldSpec.builder(
+            ClassName.get(PluginEngine.class),
+            "pluginEngine")
+            .addAnnotation(AnnotationSpec.builder(Inject.class).build())
+            .build();
+        adapterBuilder.addField(pluginEngineField);
+
+
+        // Add the invokeFromProto method implementation with runtime plugin resolution
+        MethodSpec invokeFromProtoMethod = MethodSpec.methodBuilder("invokeFromProto")
+            .addAnnotation(Override.class)
+            .addModifiers(Modifier.PUBLIC)
+            .returns(ParameterizedTypeName.get(ClassName.get(Uni.class), TypeName.OBJECT))
+            .addParameter(ClassName.get("com.google.protobuf", "Message"), "protoMessage")
+            .addStatement("$T inputDto = $N.fromGrpcFromDto(($T) protoMessage)",
+                inputType != null ? ClassName.get(inputType) : ClassName.OBJECT,
+                mapperFieldName,
+                inputGrpcType != null ? ClassName.get(inputGrpcType) : ClassName.OBJECT)
+            .addStatement("$T<$T> resolvedPlugin = pluginEngine.resolveReactiveUnary($T.class)",
+                ClassName.get("org.pipelineframework.plugin.api", "PluginReactiveUnary"),
+                inputType != null ? ClassName.get(inputType) : ClassName.OBJECT,
+                inputType != null ? ClassName.get(inputType) : ClassName.OBJECT)
+            .addStatement("return resolvedPlugin.process(inputDto).replaceWith((Object) null)")
+            .build();
+        adapterBuilder.addMethod(invokeFromProtoMethod);
+
+        TypeSpec adapterClass = adapterBuilder.build();
+
+        // Write the generated class
+        JavaFile javaFile = JavaFile.builder(pkg, adapterClass)
+            .build();
+
+        JavaFileObject builderFile = processingEnv.getFiler()
+            .createSourceFile(pkg + "." + adapterClassName);
+
+        try (var writer = builderFile.openWriter()) {
+            javaFile.writeTo(writer);
+        }
+    }
+
+    /**
+     * Generates a plugin reactive service that implements ReactiveService and delegates to the plugin adapter.
+     *
+     * @param serviceClass the annotated service class element
+     * @param pipelineStep the PipelineStep annotation instance for the service
+     * @throws IOException if writing the generated Java source file fails
+     */
+    protected void generatePluginReactiveService(TypeElement serviceClass, PipelineStep pipelineStep) throws IOException {
+        // Get the annotation mirror to extract TypeMirror values
+        AnnotationMirror annotationMirror = getAnnotationMirror(serviceClass, PipelineStep.class);
+        if (annotationMirror == null) {
+            processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+                "Could not get annotation mirror for " + serviceClass, serviceClass);
+            return;
+        }
+
+        // Extract values from the annotation mirror
+        TypeMirror inputGrpcType = getAnnotationValue(annotationMirror, "inputGrpcType");
+        TypeMirror outputGrpcType = getAnnotationValue(annotationMirror, "outputGrpcType");
+        TypeMirror stepType = getAnnotationValue(annotationMirror, "stepType");
+
+        // Use the same package as the original service but with a ".pipeline" suffix
+        String fqcn = serviceClass.getQualifiedName().toString();
+        String originalPackage = fqcn.substring(0, fqcn.lastIndexOf('.'));
+        String pkg = String.format("%s%s", originalPackage, PIPELINE_PACKAGE_SUFFIX);
+        String serviceClassName = serviceClass.getSimpleName().toString();
+        String pluginServiceClassName = serviceClassName.replace("Service", "") + "PluginReactiveService";
+
+        // For plugin services, always use Empty as the output type since plugins perform side effects
+        ClassName serviceInterface = ClassName.get("org.pipelineframework.service", "ReactiveService");
+        ClassName emptyClassName = ClassName.get("com.google.protobuf", "Empty");
+        TypeName serviceInterfaceWithTypes = ParameterizedTypeName.get(serviceInterface,
+            inputGrpcType != null ? ClassName.get(inputGrpcType) : ClassName.OBJECT,
+            emptyClassName);
+
+        // Create the plugin reactive service class
+        TypeSpec.Builder serviceBuilder = TypeSpec.classBuilder(pluginServiceClassName)
+            .addModifiers(Modifier.PUBLIC)
+            .addAnnotation(AnnotationSpec.builder(ClassName.get("jakarta.enterprise.context", "ApplicationScoped")).build())
+            .addAnnotation(AnnotationSpec.builder(Unremovable.class).build())
+            .addSuperinterface(serviceInterfaceWithTypes);
+
+        // Add adapter field with @Inject
+        String adapterClassName = serviceClassName.replace("Service", "") + "PluginAdapter";
+        String adapterFieldName = "adapter";
+        ClassName adapterClass = ClassName.get(pkg, adapterClassName);
+
+        FieldSpec adapterField = FieldSpec.builder(
+            adapterClass,
+            adapterFieldName)
+            .addAnnotation(AnnotationSpec.builder(Inject.class).build())
+            .build();
+        serviceBuilder.addField(adapterField);
+
+        // Add the process method implementation
+        MethodSpec.Builder processMethodBuilder = MethodSpec.methodBuilder("process")
+            .addAnnotation(Override.class)
+            .addModifiers(Modifier.PUBLIC)
+            .returns(ParameterizedTypeName.get(ClassName.get(Uni.class), emptyClassName))
+            .addParameter(inputGrpcType != null ? ClassName.get(inputGrpcType) : ClassName.OBJECT, "input");
+
+        // For plugin services, we return an empty response (Empty) since plugins perform side effects
+        processMethodBuilder
+            .addStatement("return adapter.invokeFromProto(input).replaceWith($T.getDefaultInstance())", emptyClassName);
+
+        serviceBuilder.addMethod(processMethodBuilder.build());
+
+        TypeSpec serviceClassSpec = serviceBuilder.build();
+
+        // Write the generated class
+        JavaFile javaFile = JavaFile.builder(pkg, serviceClassSpec)
+            .build();
+
+        JavaFileObject builderFile = processingEnv.getFiler()
+            .createSourceFile(pkg + "." + pluginServiceClassName);
+
+        try (var writer = builderFile.openWriter()) {
+            javaFile.writeTo(writer);
+        }
     }
 }
