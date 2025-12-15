@@ -60,8 +60,7 @@ import org.pipelineframework.service.ReactiveBidirectionalStreamingService;
   grpcImpl = org.pipelineframework.csv.grpc.MutinyProcessCsvPaymentsOutputFileServiceGrpc.ProcessCsvPaymentsOutputFileServiceImplBase.class,
   inboundMapper = PaymentOutputMapper.class,
   outboundMapper = CsvPaymentsOutputFileMapper.class,
-  grpcClient = "process-csv-payments-output-file",
-  autoPersist = true
+  grpcClient = "process-csv-payments-output-file"
 )
 @ApplicationScoped
 public class ProcessCsvPaymentsOutputFileReactiveService

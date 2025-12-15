@@ -16,10 +16,6 @@
 
 package org.pipelineframework.rest;
 
-import io.smallrye.mutiny.Multi;
-import io.smallrye.mutiny.Uni;
-import jakarta.inject.Inject;
-import org.pipelineframework.persistence.PersistenceManager;
 import org.pipelineframework.service.ReactiveService;
 
 /**
@@ -31,9 +27,6 @@ import org.pipelineframework.service.ReactiveService;
  */
 public abstract class RestReactiveServiceAdapter<DomainIn, DomainOut, DtoOut> {
 
-    @Inject
-    PersistenceManager persistenceManager;
-
     /**
      * Default constructor for RestReactiveServiceAdapter.
      */
@@ -41,67 +34,17 @@ public abstract class RestReactiveServiceAdapter<DomainIn, DomainOut, DtoOut> {
     }
 
     /**
- * Provides the reactive service used to process domain inputs into domain outputs.
- *
- * @return the {@code ReactiveService<DomainIn, DomainOut>} instance used to process domain objects
- */
-protected abstract ReactiveService<DomainIn, DomainOut> getService();
-
-    /**
- * Convert a processed domain object to its REST DTO representation.
- *
- * @param domainOut the processed domain model instance to convert
- * @return the DTO representation to be returned by the REST resource
- */
-protected abstract DtoOut toDto(DomainOut domainOut);
-
-    /**
- * Indicate whether entities must be persisted automatically before processing.
- *
- * Implementations (typically generated service adapters) should return the auto-persist
- * setting derived from the @PipelineStep annotation.
- *
- * @return `true` if entities must be auto-persisted before processing, `false` otherwise
- */
-    protected abstract boolean isAutoPersistenceEnabled();
-
-    /**
-     * Process a single domain object with auto-persistence support.
-     * 
-     * @param domainObject The domain object to process
-     * @return A Uni that completes with the DTO result
+     * Provides the reactive service used to process domain inputs into domain outputs.
+     *
+     * @return the {@code ReactiveService<DomainIn, DomainOut>} instance used to process domain objects
      */
-    protected Uni<DtoOut> processWithAutoPersistence(DomainIn domainObject) {
-        Uni<DomainIn> persistenceUni = isAutoPersistenceEnabled() 
-            ? persistenceManager.persist(domainObject)
-            : Uni.createFrom().item(domainObject);
-        
-        return persistenceUni
-            .onItem().transformToUni(persistedEntity -> 
-                getService()
-                    .process(persistedEntity)
-                    .onItem()
-                    .transform(this::toDto)
-            );
-    }
+    protected abstract ReactiveService<DomainIn, DomainOut> getService();
 
     /**
-     * Process a stream of domain objects with auto-persistence support.
-     * 
-     * @param domainStream The stream of domain objects to process
-     * @return A Multi that emits DTO results
+     * Convert a processed domain object to its REST DTO representation.
+     *
+     * @param domainOut the processed domain model instance to convert
+     * @return the DTO representation to be returned by the REST resource
      */
-    protected Multi<DtoOut> processStreamWithAutoPersistence(Multi<DomainIn> domainStream) {
-        Multi<DomainIn> persistedStream = isAutoPersistenceEnabled() 
-            ? domainStream.onItem().transformToUniAndConcatenate(persistenceManager::persist)
-            : domainStream;
-
-        return persistedStream
-            .onItem().transformToUniAndConcatenate(entity ->
-                getService()
-                    .process(entity)
-                    .onItem()
-                    .transform(this::toDto)
-            );
-    }
+    protected abstract DtoOut toDto(DomainOut domainOut);
 }

@@ -26,12 +26,6 @@ import org.pipelineframework.service.ReactiveService;
 public class ConcreteGrpcReactiveServiceAdapter
         extends GrpcReactiveServiceAdapter<Object, Object, TestEntity, TestResult> {
 
-    private boolean autoPersist = false;
-
-    public void setAutoPersistence(boolean autoPersist) {
-        this.autoPersist = autoPersist;
-    }
-
     @Override
     protected ReactiveService<TestEntity, TestResult> getService() {
         return new org.pipelineframework.service.TestReactiveService();
@@ -52,16 +46,6 @@ public class ConcreteGrpcReactiveServiceAdapter
     @Override
     protected Object toGrpc(TestResult domainOut) {
         return new Object(); // This is just for testing
-    }
-
-    /**
-     * Indicates whether automatic persistence is enabled for this adapter.
-     *
-     * @return `true` if auto-persistence is enabled, `false` otherwise.
-     */
-    @Override
-    protected boolean isAutoPersistenceEnabled() {
-        return autoPersist;
     }
 
     // Public methods for testing

@@ -47,8 +47,7 @@ import org.pipelineframework.csv.util.HybridResourceLoader;
     grpcImpl = MutinyProcessFolderServiceGrpc.ProcessFolderServiceImplBase.class,
     inboundMapper = CsvFolderMapper.class,
     outboundMapper = CsvPaymentsInputFileMapper.class,
-    grpcClient = "process-folder",
-    autoPersist = true
+    grpcClient = "process-folder"
 )
 public class ProcessFolderService implements org.pipelineframework.service.ReactiveStreamingService<CsvFolder, CsvPaymentsInputFile> {
 

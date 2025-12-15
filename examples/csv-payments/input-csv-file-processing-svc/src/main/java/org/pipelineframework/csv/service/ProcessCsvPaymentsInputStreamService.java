@@ -38,7 +38,6 @@ import org.pipelineframework.service.ReactiveStreamingService;
  * This converts a single input file into multiple payment records.
  */
 @PipelineStep(
-    autoPersist = true,
     inputType = CsvPaymentsInputStream.class,
     outputType = PaymentRecord.class,
     inputGrpcType = org.pipelineframework.csv.grpc.InputCsvFileProcessingSvc.CsvPaymentsInputStream.class,

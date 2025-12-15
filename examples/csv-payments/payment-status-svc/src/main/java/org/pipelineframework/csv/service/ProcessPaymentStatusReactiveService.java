@@ -44,8 +44,7 @@ import org.pipelineframework.service.ReactiveService;
     inboundMapper = PaymentStatusMapper.class,
     outboundMapper = PaymentOutputMapper.class,
     grpcClient = "process-payment-status",
-    restEnabled = true,
-    autoPersist = true
+    restEnabled = true
 )
 @ApplicationScoped
 @Getter

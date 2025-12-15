@@ -43,8 +43,7 @@ import org.pipelineframework.service.ReactiveService;
   grpcImpl = MutinySendPaymentRecordServiceGrpc.SendPaymentRecordServiceImplBase.class,
   inboundMapper = PaymentRecordMapper.class,
   outboundMapper = AckPaymentSentMapper.class,
-  grpcClient = "send-payment-record",
-  autoPersist = true
+  grpcClient = "send-payment-record"
 )
 @ApplicationScoped
 @Getter

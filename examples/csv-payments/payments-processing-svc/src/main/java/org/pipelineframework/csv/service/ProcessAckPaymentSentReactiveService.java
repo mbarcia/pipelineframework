@@ -42,8 +42,7 @@ import org.pipelineframework.service.ReactiveService;
     inboundMapper = AckPaymentSentMapper.class,
     outboundMapper = PaymentStatusMapper.class,
     grpcClient = "process-ack-payment-sent",
-    restEnabled = true,
-    autoPersist = true
+    restEnabled = true
 )
 @ApplicationScoped
 @Getter

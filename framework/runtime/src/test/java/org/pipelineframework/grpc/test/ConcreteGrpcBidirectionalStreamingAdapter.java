@@ -25,12 +25,6 @@ import org.pipelineframework.service.ReactiveBidirectionalStreamingService;
 public class ConcreteGrpcBidirectionalStreamingAdapter
         extends GrpcServiceBidirectionalStreamingAdapter<String, String, String, String> {
 
-    private boolean autoPersist = true;
-
-    public void setAutoPersistence(boolean autoPersist) {
-        this.autoPersist = autoPersist;
-    }
-
     @Override
     protected ReactiveBidirectionalStreamingService<String, String> getService() {
         return new TestBidirectionalStreamingService();
@@ -50,16 +44,6 @@ public class ConcreteGrpcBidirectionalStreamingAdapter
     @Override
     protected String toGrpc(String domainOut) {
         return "grpc_" + domainOut;
-    }
-
-    /**
-     * Indicates whether automatic persistence of streaming messages is enabled.
-     *
-     * @return `true` if automatic persistence is enabled, `false` otherwise.
-     */
-    @Override
-    protected boolean isAutoPersistenceEnabled() {
-        return autoPersist;
     }
 
     // Public methods for testing

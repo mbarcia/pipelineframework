@@ -49,8 +49,7 @@ import org.pipelineframework.service.ReactiveStreamingService;
     grpcImpl = MutinyProcessCsvPaymentsInputFileServiceGrpc.ProcessCsvPaymentsInputFileServiceImplBase.class,
     inboundMapper = CsvPaymentsInputFileMapper.class,
     outboundMapper = PaymentRecordMapper.class,
-    grpcClient = "process-csv-payments-input-file",
-    autoPersist = true
+    grpcClient = "process-csv-payments-input-file"
 )
 @ApplicationScoped
 @Getter

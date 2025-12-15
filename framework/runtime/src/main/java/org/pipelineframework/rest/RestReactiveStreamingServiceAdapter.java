@@ -16,10 +16,6 @@
 
 package org.pipelineframework.rest;
 
-import io.smallrye.mutiny.Multi;
-import io.smallrye.mutiny.Uni;
-import jakarta.inject.Inject;
-import org.pipelineframework.persistence.PersistenceManager;
 import org.pipelineframework.service.ReactiveStreamingService;
 
 /**
@@ -31,55 +27,24 @@ import org.pipelineframework.service.ReactiveStreamingService;
  */
 public abstract class RestReactiveStreamingServiceAdapter<DomainIn, DomainOut, DtoOut> {
 
-    @Inject
-    PersistenceManager persistenceManager;
-
     /**
      * Default constructor for RestReactiveStreamingServiceAdapter.
      */
     public RestReactiveStreamingServiceAdapter() {
     }
-    
 
     /**
- * Provide the reactive streaming service used to process domain inputs into domain outputs.
- *
- * @return the {@link ReactiveStreamingService} instance that processes {@code DomainIn} into {@code DomainOut}
- */
-protected abstract ReactiveStreamingService<DomainIn, DomainOut> getService();
-
-    /**
- * Convert a processed domain object to its corresponding DTO representation.
- *
- * @param domainOut the domain-level result to convert
- * @return the DTO representation of the provided domain object
- */
-protected abstract DtoOut toDto(DomainOut domainOut);
-
-    /**
- * Indicates whether entities are persisted automatically before processing.
- *
- * @return true if entities are persisted automatically before processing, false otherwise
- */
-    protected abstract boolean isAutoPersistenceEnabled();
-
-    /**
-     * Process a single domain object with auto-persistence support.
-     * 
-     * @param domainObject The domain object to process
-     * @return A Multi that emits DTO results
+     * Provide the reactive streaming service used to process domain inputs into domain outputs.
+     *
+     * @return the {@link ReactiveStreamingService} instance that processes {@code DomainIn} into {@code DomainOut}
      */
-    protected Multi<DtoOut> processWithAutoPersistence(DomainIn domainObject) {
-        Uni<DomainIn> persistenceUni = isAutoPersistenceEnabled() 
-            ? persistenceManager.persist(domainObject)
-            : Uni.createFrom().item(domainObject);
-        
-        return persistenceUni
-            .onItem().transformToMulti(persistedEntity -> 
-                getService()
-                    .process(persistedEntity)
-                    .onItem()
-                    .transform(this::toDto)
-            );
-    }
+    protected abstract ReactiveStreamingService<DomainIn, DomainOut> getService();
+
+    /**
+     * Convert a processed domain object to its corresponding DTO representation.
+     *
+     * @param domainOut the domain-level result to convert
+     * @return the DTO representation of the provided domain object
+     */
+    protected abstract DtoOut toDto(DomainOut domainOut);
 }

@@ -68,11 +68,6 @@ class GrpcServiceClientStreamingAdapterTest {
             protected GrpcOut toGrpc(DomainOut domainOut) {
                 return new GrpcOut();
             }
-
-            @Override
-            protected boolean isAutoPersistenceEnabled() {
-                return false;
-            }
         };
     }
 
@@ -145,27 +140,22 @@ class GrpcServiceClientStreamingAdapterTest {
         GrpcIn grpcIn1 = new GrpcIn();
         GrpcIn grpcIn2 = new GrpcIn();
         Multi<GrpcIn> grpcRequestStream = Multi.createFrom().items(grpcIn1, grpcIn2);
-        DomainOut domainOut = new DomainOut();
+        GrpcServiceClientStreamingAdapter<GrpcIn, GrpcOut, DomainIn, DomainOut> verificationAdapter = getGrpcInGrpcOutDomainInDomainOutGrpcServiceClientStreamingAdapter();
 
-        // Create a mock to verify the transformation
-        ReactiveStreamingClientService<DomainIn, DomainOut> verificationService = new ReactiveStreamingClientService<>() {
-            @Override
-            public Uni<DomainOut> process(Multi<DomainIn> inputStream) {
-                // Collect the items to verify transformation
-                return inputStream
-                        .collect()
-                        .asList()
-                        .onItem()
-                        .transform(
-                                list -> {
-                                    // Verify we received the expected number of items
-                                    assertEquals(2, list.size());
-                                    return domainOut;
-                                });
-            }
-        };
+        // When
+        Uni<GrpcOut> resultUni = verificationAdapter.remoteProcess(grpcRequestStream);
 
-        GrpcServiceClientStreamingAdapter<GrpcIn, GrpcOut, DomainIn, DomainOut> verificationAdapter = new GrpcServiceClientStreamingAdapter<>() {
+        // Then
+        UniAssertSubscriber<GrpcOut> subscriber = resultUni.subscribe().withSubscriber(UniAssertSubscriber.create());
+        subscriber.awaitItem();
+
+        assertNotNull(subscriber.getItem());
+    }
+
+    private static GrpcServiceClientStreamingAdapter<GrpcIn, GrpcOut, DomainIn, DomainOut> getGrpcInGrpcOutDomainInDomainOutGrpcServiceClientStreamingAdapter() {
+        ReactiveStreamingClientService<DomainIn, DomainOut> verificationService = getDomainInDomainOutReactiveStreamingClientService();
+
+        return new GrpcServiceClientStreamingAdapter<>() {
             @Override
             protected ReactiveStreamingClientService<DomainIn, DomainOut> getService() {
                 return verificationService;
@@ -181,21 +171,26 @@ class GrpcServiceClientStreamingAdapterTest {
             protected GrpcOut toGrpc(DomainOut domainOut) {
                 return new GrpcOut();
             }
-
-            @Override
-            protected boolean isAutoPersistenceEnabled() {
-                return false;
-            }
         };
+    }
 
-        // When
-        Uni<GrpcOut> resultUni = verificationAdapter.remoteProcess(grpcRequestStream);
+    private static ReactiveStreamingClientService<DomainIn, DomainOut> getDomainInDomainOutReactiveStreamingClientService() {
+        DomainOut domainOut = new DomainOut();
 
-        // Then
-        UniAssertSubscriber<GrpcOut> subscriber = resultUni.subscribe().withSubscriber(UniAssertSubscriber.create());
-        subscriber.awaitItem();
-
-        assertNotNull(subscriber.getItem());
+        // Create a mock to verify the transformation
+        return inputStream -> {
+            // Collect the items to verify transformation
+            return inputStream
+                    .collect()
+                    .asList()
+                    .onItem()
+                    .transform(
+                            list -> {
+                                // Verify we received the expected number of items
+                                assertEquals(2, list.size());
+                                return domainOut;
+                            });
+        };
     }
 
     @Test
@@ -225,12 +220,7 @@ class GrpcServiceClientStreamingAdapterTest {
                 toGrpcCalled[0] = true;
                 return new GrpcOut();
             }
-
-            @Override
-            protected boolean isAutoPersistenceEnabled() {
-                return false;
-            }
-        };
+       };
 
         // When
         Uni<GrpcOut> resultUni = trackingAdapter.remoteProcess(grpcRequestStream);
@@ -276,11 +266,6 @@ class GrpcServiceClientStreamingAdapterTest {
             protected GrpcOut toGrpc(DomainOut domainOut) {
                 return new GrpcOut();
             }
-
-            @Override
-            protected boolean isAutoPersistenceEnabled() {
-                return false;
-            }
         };
 
         // When
@@ -323,11 +308,6 @@ class GrpcServiceClientStreamingAdapterTest {
             @Override
             protected GrpcOut toGrpc(DomainOut domainOut) {
                 throw transformationException;
-            }
-
-            @Override
-            protected boolean isAutoPersistenceEnabled() {
-                return false;
             }
         };
 

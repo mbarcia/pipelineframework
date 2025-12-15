@@ -117,12 +117,6 @@ public @interface PipelineStep {
     String grpcClient() default "";
 
     /**
-     * Whether to enable auto-persistence for this service.
-     * @return true if auto-persistence should be enabled, false otherwise
-     */
-    boolean autoPersist() default false;
-
-    /**
      * Whether to enable gRPC adapter generation for this step.
      * @return true if gRPC adapter should be generated, false otherwise
      */
