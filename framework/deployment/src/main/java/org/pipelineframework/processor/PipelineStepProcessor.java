@@ -16,22 +16,22 @@
 
 package org.pipelineframework.processor;
 
+import java.io.IOException;
+import java.util.Set;
+import javax.annotation.processing.*;
+import javax.lang.model.SourceVersion;
+import javax.lang.model.element.*;
+import javax.lang.model.type.TypeMirror;
+import javax.tools.Diagnostic;
+import javax.tools.JavaFileObject;
+import jakarta.inject.Inject;
+
 import com.squareup.javapoet.*;
 import io.quarkus.arc.Unremovable;
 import io.quarkus.grpc.GrpcClient;
 import io.quarkus.grpc.GrpcService;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
-import jakarta.inject.Inject;
-import java.io.IOException;
-import java.util.Set;
-import javax.annotation.processing.*;
-import javax.lang.model.SourceVersion;
-import javax.lang.model.element.*;
-import javax.lang.model.element.AnnotationValue;
-import javax.lang.model.type.TypeMirror;
-import javax.tools.Diagnostic;
-import javax.tools.JavaFileObject;
 import org.pipelineframework.annotation.PipelineStep;
 import org.pipelineframework.grpc.GrpcReactiveServiceAdapter;
 import org.pipelineframework.plugin.runtime.AdapterInvoker;
@@ -413,6 +413,7 @@ public class PipelineStepProcessor extends AbstractProcessor {
         TypeMirror outputGrpcType = getAnnotationValue(annotationMirror, "outputGrpcType");
         TypeMirror stepType = getAnnotationValue(annotationMirror, "stepType");
         TypeMirror grpcImplType = getAnnotationValue(annotationMirror, "grpcImpl");
+        TypeMirror grpcStubType = getAnnotationValue(annotationMirror, "grpcStub");
         String serviceName = serviceClass.getQualifiedName().toString();
         TypeMirror backendType = getAnnotationValue(annotationMirror, "backendType");
 
@@ -443,7 +444,11 @@ public class PipelineStepProcessor extends AbstractProcessor {
 
         // Determine the appropriate gRPC service base class based on the grpcImpl annotation value
         ClassName grpcBaseClassName;
-        if (grpcImplType != null && !grpcImplType.toString().equals("void")) {
+        if (grpcImplType != null &&
+            !grpcImplType.toString().equals("void") &&
+            !grpcImplType.toString().equals("java.lang.Void") &&
+            !grpcImplType.toString().equals("java.lang.Void") &&  // Redundant but safe check
+            !grpcImplType.toString().equals(Void.class.getName())) {
             // Use the grpcImpl class as the base class
             String grpcImplTypeStr = grpcImplType.toString();
             int lastDot = grpcImplTypeStr.lastIndexOf('.');
@@ -458,18 +463,32 @@ public class PipelineStepProcessor extends AbstractProcessor {
             // Fallback to determine the package from available gRPC types
             // Default to the original package with .grpc suffix if no gRPC types available
             String grpcPackage = originalPackage + ".grpc";
-            
-            // Try to determine the actual gRPC package from inputGrpcType or outputGrpcType
-            if (inputGrpcType != null && !inputGrpcType.toString().equals("void")) {
+
+            // Try to determine the actual gRPC package from grpcStub if available
+            // This is more reliable than using inputGrpcType/outputGrpcType which might be generic types like Any/Empty
+            if (grpcStubType != null && !grpcStubType.toString().equals("void") && !grpcStubType.toString().equals("java.lang.Void") && !grpcStubType.toString().equals(Void.class.getName())) {
+                // Extract package from the type string directly to avoid potential element resolution issues
+                String grpcStubString = grpcStubType.toString();
+                int lastDotIndex = grpcStubString.lastIndexOf('.');
+                if (lastDotIndex > 0) {
+                    grpcPackage = grpcStubString.substring(0, lastDotIndex);
+                } else {
+                    // If no package part found, use original approach
+                    grpcPackage = extractPackage(grpcStubType, grpcPackage);
+                }
+            } else if (inputGrpcType != null && !inputGrpcType.toString().equals("void") && !inputGrpcType.toString().contains("google.protobuf")) {
+                // Only use inputGrpcType if it's not a generic protobuf type
                 grpcPackage = extractPackage(inputGrpcType, grpcPackage);
-            } else if (outputGrpcType != null && !outputGrpcType.toString().equals("void")) {
+            } else if (outputGrpcType != null && !outputGrpcType.toString().equals("void") && !outputGrpcType.toString().contains("google.protobuf")) {
+                // Only use outputGrpcType if it's not a generic protobuf type
                 grpcPackage = extractPackage(outputGrpcType, grpcPackage);
             }
-            
+
             // Construct the gRPC service base class using the determined package
-            String grpcServiceBaseClass = grpcPackage + "." + 
-                serviceClass.getSimpleName().toString().replace("Service", "") + "Grpc." + 
-                serviceClass.getSimpleName().toString().replace("Service", "") + "ImplBase";
+            // The gRPC implementation class follows the pattern: {ServiceName}ImplBase
+            // where {ServiceName} is the full service class name (e.g., "PersistenceService" -> "PersistenceServiceImplBase")
+            String baseServiceName = serviceClass.getSimpleName().toString();
+            String grpcServiceBaseClass = grpcPackage + "." + baseServiceName + "ImplBase";
             int lastDot = grpcServiceBaseClass.lastIndexOf('.');
             if (lastDot > 0) {
                 String packageName = grpcServiceBaseClass.substring(0, lastDot);
