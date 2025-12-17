@@ -16,15 +16,17 @@
 
 package org.pipelineframework;
 
+import java.text.MessageFormat;
+import java.util.*;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+
 import io.quarkus.arc.Unremovable;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
-import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
-import java.text.MessageFormat;
-import java.util.*;
 import org.jboss.logging.Logger;
 import org.pipelineframework.config.PipelineConfig;
+import org.pipelineframework.config.PipelineStepConfig;
 import org.pipelineframework.step.*;
 import org.pipelineframework.step.blocking.StepOneToManyBlocking;
 import org.pipelineframework.step.functional.ManyToOne;
@@ -48,6 +50,9 @@ public class PipelineRunner implements AutoCloseable {
     @Inject
     PipelineConfig pipelineConfig;
 
+    @Inject
+    PipelineStepConfig pipelineStepConfig;
+
     /**
      * Default constructor for PipelineRunner.
      */
@@ -60,15 +65,19 @@ public class PipelineRunner implements AutoCloseable {
      * Configurable steps are initialised with configuration built from the injected factories before being applied.
      *
      * @param input the source Multi of items to process through the pipeline; may be transformed to a Uni/Multi by steps
-     * @param steps the ordered list of step instances to apply; must not be null; null entries are skipped
+     * @param steps the list of step instances to apply; must not be null; null entries are skipped
      * @return either a Multi containing the resulting stream of items or a Uni containing the final single result
      * @throws NullPointerException if steps is null
      */
     public Object run(Multi<?> input, List<Object> steps) {
         Objects.requireNonNull(steps, "Steps list must not be null");
+
+        // Order the steps according to the pipeline configuration if available
+        List<Object> orderedSteps = orderSteps(steps);
+
         Object current = input;
 
-        for (Object step : steps) {
+        for (Object step : orderedSteps) {
             if (step == null) {
                 logger.warn("Warning: Found null step in configuration, skipping...");
                 continue;
@@ -96,6 +105,59 @@ public class PipelineRunner implements AutoCloseable {
         }
 
         return current; // could be Uni<?> or Multi<?>
+    }
+
+    /**
+     * Orders the provided steps according to the pipeline configuration.
+     *
+     * @param steps the list of step instances to order
+     * @return the ordered list of step instances
+     */
+    List<Object> orderSteps(List<Object> steps) {
+        // Check if there's a global pipeline order configured
+        List<String> pipelineOrder = pipelineStepConfig.order();
+
+        if (pipelineOrder == null || pipelineOrder.isEmpty()) {
+            // Use the existing order if no global order is configured
+            return steps;
+        }
+
+        // Filter out any empty strings from the pipeline order
+        List<String> filteredPipelineOrder = pipelineOrder.stream()
+            .filter(s -> s != null && !s.trim().isEmpty())
+            .toList();
+
+        if (filteredPipelineOrder.isEmpty()) {
+            // If after filtering there are no steps, use the existing order
+            return steps;
+        }
+
+        // Create a map of class name to step instance for quick lookups
+        Map<String, Object> stepMap = new HashMap<>();
+        for (Object step : steps) {
+            stepMap.put(step.getClass().getName(), step);
+        }
+
+        // Build the ordered list based on the pipeline configuration
+        List<Object> orderedSteps = new ArrayList<>();
+        for (String stepClassName : filteredPipelineOrder) {
+            Object step = stepMap.get(stepClassName);
+            if (step != null) {
+                orderedSteps.add(step);
+            } else {
+                logger.warnf("Step class %s was specified in pipeline order but was not found in the available steps", stepClassName);
+            }
+        }
+
+        // Add any remaining steps that weren't specified in the pipeline order
+        for (Object step : steps) {
+            if (!orderedSteps.contains(step)) {
+                logger.debugf("Adding step %s that wasn't specified in pipeline order", step.getClass().getName());
+                orderedSteps.add(step);
+            }
+        }
+
+        return orderedSteps;
     }
 
     /**

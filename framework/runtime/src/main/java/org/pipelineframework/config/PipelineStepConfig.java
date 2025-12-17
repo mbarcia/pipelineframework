@@ -16,11 +16,12 @@
 
 package org.pipelineframework.config;
 
+import java.util.Map;
+
 import io.quarkus.arc.Unremovable;
 import io.smallrye.config.ConfigMapping;
 import io.smallrye.config.WithDefault;
 import io.smallrye.config.WithName;
-import java.util.Map;
 
 /**
  * Configuration mapping for pipeline steps, supporting both global defaults
@@ -28,19 +29,28 @@ import java.util.Map;
  * <p>
  * To configure global defaults: pipeline.defaults.property=value
  * To configure specific steps: pipeline.step."fully.qualified.StepClass".property=value
+ * To configure pipeline order: pipeline.order=fully.qualified.StepClass1,fully.qualified.StepClass2
  */
 @ConfigMapping(prefix = "pipeline")
 @Unremovable
 public interface PipelineStepConfig {
-    
+
     /**
- * Global default configuration for pipeline steps.
- *
- * Properties from this configuration are applied to every step unless a step defines overrides; the `order`
- * property is ignored when these values are used as global defaults.
- *
- * @return the StepConfig instance containing default values for pipeline steps
- */
+     * Global pipeline order - specifies the ordered list of step classes to execute.
+     *
+     * @return the ordered list of step class names to execute in the pipeline
+     */
+    @WithDefault(" ")
+    java.util.List<String> order();
+
+    /**
+     * Global default configuration for pipeline steps.
+     * <p>
+     * Properties from this configuration are applied to every step unless a step defines overrides; the `order`
+     * property is ignored when these values are used as global defaults.
+     *
+     * @return the StepConfig instance containing default values for pipeline steps
+     */
     StepConfig defaults();
     
     /**
@@ -59,7 +69,7 @@ public interface PipelineStepConfig {
     interface StepConfig {
         /**
          * Execution order of this step within the pipeline.
-         *
+         * <p>
          * When this value is used in global defaults (pipeline.defaults) it is ignored; order is only
          * meaningful for per-step configuration.
          *
