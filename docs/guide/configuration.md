@@ -32,15 +32,8 @@ You can override configuration for specific steps using the fully qualified clas
 # Override for specific step
 pipeline.step."org.example.MyStep".retry-limit=5
 pipeline.step."org.example.MyStep".parallel=true
-pipeline.step."org.example.MyStep".order=100
 pipeline.step."org.example.MyStep".recover-on-failure=false
 ```
-
-### Step Definition Configuration
-
-Steps are defined using the `pipeline.step.<step-class>.order` configuration.
-
-The `order` property determines the execution order of the steps in the pipeline.
 
 ## Parallel Processing Configuration
 
@@ -120,12 +113,9 @@ public class ProcessCsvPaymentsOutputFileReactiveService
 The `@PipelineStep` annotation contains build-time properties:
 
 - `inputType`, `outputType` - Type information for code generation
-- `inputGrpcType`, `outputGrpcType` - gRPC type information
-- `grpcStub`, `grpcImpl` - gRPC classes
 - `inboundMapper`, `outboundMapper` - Mapper classes
 - `stepType` - Step type class
 - `backendType` - Backend adapter type
-- `grpcClient` - gRPC client name
 - `grpcEnabled` - Whether to enable gRPC generation
 - `restEnabled` - Whether to enable REST generation
 - `grpcServiceBaseClass` - gRPC service base class
@@ -133,7 +123,7 @@ The `@PipelineStep` annotation contains build-time properties:
 - `runOnVirtualThreads` - Whether the service entrypoint method should be run on a virtual thread, instead of a Vert.x event thread.
 
 ## Performance Optimization Guidelines
-Hibernate Reactive requires queries to run on a Vert.x event thread/context. When runOnVirtualThreads=true and the step is set to autoPersist=true (configured, i.e. via `application.properties`), the framework will make sure to "hop back on" onto an event thread to persist entities. Same when the service code is offloaded to run on a worker thread.
+Hibernate Reactive requires queries to run on a Vert.x event thread/context. When `runOnVirtualThreads=true` and persistence is enabled via configuration, the framework will make sure to "hop back on" onto an event thread to persist entities. Same when the service code is offloaded to run on a worker thread.
 
 ### For Item-Level Processing (1→1 Steps):
 1. **Set `parallel = true`** to enable concurrent processing of multiple input items

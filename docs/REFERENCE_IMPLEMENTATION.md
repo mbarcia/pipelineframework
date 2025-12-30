@@ -99,7 +99,6 @@ Transforms single input to single output:
 
 ```java
 @PipelineStep(
-    order = 1,
     inputType = CustomerInput.class,
     outputType = CustomerOutput.class,
     stepType = StepOneToOne.class,
@@ -118,7 +117,6 @@ Transforms single input to multiple outputs:
 
 ```java
 @PipelineStep(
-    order = 2,
     inputType = CustomerOutput.class,
     outputType = OrderInput.class,
     stepType = StepOneToMany.class,
@@ -137,7 +135,6 @@ Aggregates multiple inputs to single output:
 
 ```java
 @PipelineStep(
-    order = 3,
     inputType = OrderInput.class,
     outputType = SummaryOutput.class,
     stepType = StepManyToOne.class,
@@ -156,7 +153,6 @@ Performs side effects without changing data:
 
 ```java
 @PipelineStep(
-    order = 4,
     inputType = SummaryOutput.class,
     outputType = SummaryOutput.class,  # Same as input type
     stepType = StepOneToOne.class,

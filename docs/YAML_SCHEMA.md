@@ -68,8 +68,6 @@ parallel: true
 The following properties are automatically generated from the step name:
 - `serviceName`: Lowercase, hyphen-separated service name (e.g., "process-payment-svc")
 - `serviceNameCamel`: CamelCase service name (e.g., "processPayment")
-- `order`: Sequential order number starting from 1
-- `grpcClientName`: gRPC client name based on step name
 
 ## Field Properties
 

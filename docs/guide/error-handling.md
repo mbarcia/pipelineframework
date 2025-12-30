@@ -12,17 +12,12 @@ The framework leverages Mutiny's reactive processing model for high-throughput, 
 
 ```java
 @PipelineStep(
-    order = 1,
     inputType = PaymentRecord.class,
     outputType = PaymentStatus.class,
     stepType = StepOneToOne.class,
     backendType = GenericGrpcReactiveServiceAdapter.class,
-    grpcStub = MutinyProcessPaymentServiceGrpc.MutinyProcessPaymentServiceStub.class,
-    grpcImpl = MutinyProcessPaymentServiceGrpc.ProcessPaymentServiceImplBase.class,
     inboundMapper = PaymentRecordInboundMapper.class,
     outboundMapper = PaymentStatusOutboundMapper.class,
-    grpcClient = "process-payment",
-    autoPersist = true,
     runOnVirtualThreads = true  // Run on virtual threads for I/O-bound operations
 )
 @ApplicationScoped
@@ -64,21 +59,12 @@ The framework automatically handles backpressure through reactive streams with c
 
 ```java
 @PipelineStep(
-    order = 1,
     inputType = PaymentRecord.class,
     outputType = PaymentStatus.class,
     stepType = StepOneToOne.class,
     backendType = GenericGrpcReactiveServiceAdapter.class,
-    grpcStub = MutinyProcessPaymentServiceGrpc.MutinyProcessPaymentServiceStub.class,
-    grpcImpl = MutinyProcessPaymentServiceGrpc.ProcessPaymentServiceImplBase.class,
     inboundMapper = PaymentRecordInboundMapper.class,
-    outboundMapper = PaymentStatusOutboundMapper.class,
-    grpcClient = "process-payment",
-    autoPersist = true,
-    debug = true,
-    // Backpressure configuration
-    backpressureBufferCapacity = 1024,           // Buffer capacity when using BUFFER strategy
-    backpressureStrategy = "BUFFER"              // BUFFER, DROP, or ERROR strategy
+    outboundMapper = PaymentStatusOutboundMapper.class
 )
 ```
 
@@ -236,14 +222,13 @@ Enable DLQ at the step level:
 ```java
 @PipelineStep(
     // ... other configuration
-    recoverOnFailure = true,  // Enable DLQ
-    autoPersist = true        // Auto-persist items for DLQ
+    recoverOnFailure = true  // Enable DLQ
 )
 ```
 
 ### Persistence Dependencies
 
-When using `autoPersist = true`, you must include the necessary persistence dependencies in your `pom.xml`:
+If you plan to persist DLQ items, include the necessary persistence dependencies in your `pom.xml`:
 
 ```xml
 <dependency>
@@ -256,7 +241,7 @@ When using `autoPersist = true`, you must include the necessary persistence depe
 </dependency>
 ```
 
-If you do not need persistence functionality, you can omit these dependencies and set `autoPersist = false` on all steps. This allows you to run pipeline services without database dependencies.
+If you do not need persistence functionality, you can omit these dependencies.
 
 ### Custom DLQ Implementation
 

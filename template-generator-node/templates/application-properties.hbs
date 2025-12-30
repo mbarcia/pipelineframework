@@ -1,4 +1,4 @@
-quarkus.http.ssl-port={{#portNumber}}{{add 8443 order}}{{/portNumber}}
+quarkus.http.ssl-port={{#portNumber}}{{add 8443 portOffset}}{{/portNumber}}
 
 quarkus.hibernate-orm.blocking=false
 quarkus.datasource.jdbc=false
@@ -15,7 +15,7 @@ quarkus.micrometer.binder.http-client.enabled=true
 
 # gRPC client configuration for other services
 quarkus.grpc.clients.orchestrator-service.host=localhost
-quarkus.grpc.clients.orchestrator-service.port={{#portNumber}}{{add 8443 order}}{{/portNumber}}
+quarkus.grpc.clients.orchestrator-service.port={{#portNumber}}{{add 8443 portOffset}}{{/portNumber}}
 quarkus.grpc.clients.orchestrator-service.plain-text=false
 quarkus.grpc.clients.orchestrator-service.use-quarkus-grpc-client=true
 quarkus.grpc.clients.orchestrator-service.tls.enabled=true

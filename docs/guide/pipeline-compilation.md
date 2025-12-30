@@ -21,17 +21,12 @@ During the Maven build process, the annotation processor scans for `@PipelineSte
 ```java
 // At build time, the processor finds this annotation
 @PipelineStep(
-    order = 1,
     inputType = PaymentRecord.class,
     outputType = PaymentStatus.class,
     stepType = StepOneToOne.class,
     backendType = GenericGrpcReactiveServiceAdapter.class,
-    grpcStub = MutinyProcessPaymentServiceGrpc.MutinyProcessPaymentServiceStub.class,
-    grpcImpl = MutinyProcessPaymentServiceGrpc.ProcessPaymentServiceImplBase.class,
     inboundMapper = PaymentRecordInboundMapper.class,
-    outboundMapper = PaymentStatusOutboundMapper.class,
-    grpcClient = "process-payment",
-    autoPersist = true
+    outboundMapper = PaymentStatusOutboundMapper.class
 )
 @ApplicationScoped
 public class ProcessPaymentService implements StepOneToOne<PaymentRecord, PaymentStatus> {
@@ -201,7 +196,7 @@ The step class acts as a client-side component that:
 public class ServiceNameStep implements StepOneToOne<DomainIn, DomainOut> {
     
     @Inject
-    @GrpcClient("grpc-client-name")
+    @GrpcClient("service-name")
     StubClass grpcClient;
     
     public Uni<DomainOut> applyOneToOne(Uni<DomainIn> input) {
@@ -333,17 +328,12 @@ The annotation processor can be customized through annotation parameters:
 
 ```java
 @PipelineStep(
-    order = 1,
     inputType = PaymentRecord.class,
     outputType = PaymentStatus.class,
     stepType = StepOneToOne.class,
     backendType = CustomGrpcReactiveServiceAdapter.class,  // Custom adapter
-    grpcStub = MutinyProcessPaymentServiceGrpc.MutinyProcessPaymentServiceStub.class,
-    grpcImpl = MutinyProcessPaymentServiceGrpc.ProcessPaymentServiceImplBase.class,
     inboundMapper = PaymentRecordInboundMapper.class,
     outboundMapper = PaymentStatusOutboundMapper.class,
-    grpcClient = "process-payment",
-    autoPersist = true,
     retryLimit = 5,
     retryWait = "PT1S",
     maxBackoff = "PT30S",

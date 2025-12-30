@@ -31,17 +31,12 @@ Create your service class with the `@PipelineStep` annotation:
 
 ```java
 @PipelineStep(
-    order = 1,
     inputType = PaymentRecord.class,
     outputType = PaymentStatus.class,
     stepType = StepOneToOne.class,
     backendType = GenericGrpcReactiveServiceAdapter.class,
-    grpcStub = MutinyProcessPaymentServiceGrpc.MutinyProcessPaymentServiceStub.class,
-    grpcImpl = MutinyProcessPaymentServiceGrpc.ProcessPaymentServiceImplBase.class,
     inboundMapper = PaymentRecordMapper.class,
     outboundMapper = PaymentStatusMapper.class,
-    grpcClient = "process-payment",
-    autoPersist = true
 )
 @ApplicationScoped
 public class ProcessPaymentService implements ReactiveService<PaymentRecord, PaymentStatus> {

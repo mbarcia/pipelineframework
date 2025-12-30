@@ -166,15 +166,11 @@ Each generated service includes a placeholder `apply()` method that you need to 
 ```java
 // process-customer-svc/src/main/java/com/example/app/processcustomer/service/ProcessProcessCustomerService.java
 @PipelineStep(
-   order = 1,
    inputType = CustomerInput.class,
    outputType = CustomerOutput.class,
    stepType = StepOneToOne.class,
-   grpcStub = MutinyProcessCustomerServiceGrpc.MutinyProcessCustomerServiceStub.class,
-   grpcImpl = MutinyProcessCustomerServiceGrpc.ProcessCustomerServiceImplBase.class,
    inboundMapper = CustomerInputMapper.class,
-   outboundMapper = CustomerOutputMapper.class,
-   grpcClient = "process-customer"
+   outboundMapper = CustomerOutputMapper.class
 )
 public class ProcessProcessCustomerService implements StepOneToOne<CustomerInput, CustomerOutput> {
     @Override

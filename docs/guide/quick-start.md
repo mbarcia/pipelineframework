@@ -28,7 +28,7 @@ Visit [https://app.pipelineframework.org](https://app.pipelineframework.org) in 
 2. Start adding steps by clicking the "+" button
 3. Configure each step by:
    - Setting a descriptive name
-   - Choosing the appropriate cardinality (1-1, Expansion, Reduction, or Side-effect)
+   - Choosing the appropriate cardinality (1-1, Expansion, Reduction, or Side effect)
    - Defining input and output fields with rich Java types
 
 ### 3. Download Your Complete Application

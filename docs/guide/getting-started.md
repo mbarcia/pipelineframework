@@ -165,7 +165,7 @@ Add the following dependency to your `pom.xml`. Both runtime and deployment comp
 
 ### Optional Dependencies for Persistence
 
-If you plan to use the `autoPersist = true` feature for automatic entity persistence, you'll also need to include database dependencies:
+If you plan to use persistence features, you'll also need to include database dependencies:
 
 ```xml
 <dependency>
@@ -178,7 +178,7 @@ If you plan to use the `autoPersist = true` feature for automatic entity persist
 </dependency>
 ```
 
-If you don't need persistence functionality, you can omit these dependencies and set `autoPersist = false` on all your pipeline steps.
+If you don't need persistence functionality, you can omit these dependencies.
 
 ### Basic Configuration
 
@@ -211,21 +211,15 @@ service ProcessCustomerService {
 
 #### 2. Create Your Service Class
 
-Create a class that implements one of the step interfaces. Use the `inputGrpcType` and `outputGrpcType` parameters to explicitly specify the gRPC types that should be used in the generated client step interface:
+Create a class that implements one of the step interfaces and annotate it with `@PipelineStep`:
 
 ```java
 @PipelineStep(
-   order = 1,
    inputType = CustomerInput.class,
    outputType = CustomerOutput.class,
-   inputGrpcType = CustomerInput.class,
-   outputGrpcType = CustomerOutput.class,
    stepType = StepOneToOne.class,
-   grpcStub = MutinyProcessCustomerServiceGrpc.MutinyProcessCustomerServiceStub.class,
-   grpcImpl = MutinyProcessCustomerServiceGrpc.ProcessCustomerServiceImplBase.class,
    inboundMapper = CustomerInputMapper.class,
-   outboundMapper = CustomerOutputMapper.class,
-   grpcClient = "process-customer"
+   outboundMapper = CustomerOutputMapper.class
 )
 @ApplicationScoped
 public class ProcessCustomerService implements StepOneToOne<CustomerInput, CustomerOutput> {

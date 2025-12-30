@@ -21,6 +21,8 @@ Start here to create your first pipeline applications:
 - [Backend Services](/guide/backend-services): Implement the business logic for your steps
 - [Mappers and DTOs](/guide/mappers-and-dtos): Handle data transformation between object types
 - [Configuration](/guide/configuration): Manage your pipeline configuration settings
+- [Plugins and Aspects](/guide/plugins-authoring): How to write plugins for cross-cutting concerns
+- [Using Plugins](/guide/using-plugins): How to apply plugins to your pipeline using aspects
 - [Error Handling & DLQ](/guide/error-handling): Implement error handling and dead letter queue functionality
 - [Observability](/guide/observability): Monitor and observe your pipeline applications
 - [Best Practices](/guide/best-practices): Follow recommended approaches for pipeline applications
@@ -42,6 +44,8 @@ Understand the business value and capabilities:
 
 ### For Architects
 Deep-dive into design patterns and enterprise considerations:
+
+- [Plugin Architecture](/guide/plugins-architecture): Understanding the AOP-style plugin and aspect system
 
 - [Architecture](/reference/architecture): System design patterns and principles
 - [Observability](/guide/observability): Enterprise monitoring and tracing strategies

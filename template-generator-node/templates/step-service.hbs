@@ -13,7 +13,6 @@ import lombok.Getter;
 import org.jboss.logging.Logger;
 
 @PipelineStep(
-    order = {{order}},
     inputType = {{basePackage}}.common.domain.{{inputTypeName}}.class,
     outputType = {{basePackage}}.common.domain.{{outputTypeName}}.class,
     stepType = org.pipelineframework.step.{{stepType}}.class,

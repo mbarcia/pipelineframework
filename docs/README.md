@@ -53,7 +53,6 @@ For complete documentation including detailed reference implementation, YAML con
 - [Error Handling](/guide/error-handling): Managing errors and dead letter queues
 - [Observability](/guide/observability): Monitoring and observing pipeline applications
 - [Best Practices](/guide/best-practices): Recommended practices for pipeline development
-- [Local Steps](/guide/local-steps): Creating pipeline steps that run locally within the orchestrator
 
 ### Architecture
 - [Architecture](/reference/architecture): Core concepts and architectural patterns

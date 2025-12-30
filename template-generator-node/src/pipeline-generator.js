@@ -177,7 +177,7 @@ class PipelineGenerator {
                     step.outputTypeName.replace(/.*\./, '') : '';
             }
             
-            processedStep.order = i + 1;
+            processedStep.portOffset = i + 1;
             
             // Determine stepType based on cardinality if not already present
             if (!processedStep.stepType) {

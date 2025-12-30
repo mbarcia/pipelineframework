@@ -674,6 +674,8 @@ class HandlebarsTemplateEngine {
         // Generate the service class
         await this.generateStepServiceClass(appName, basePackage, step, stepPath, stepIndex, allSteps);
 
+        step.portOffset = stepIndex + 1;
+
         // Generate application.properties
         await this.generateApplicationProperties(step, basePackage, stepPath);
 
@@ -760,7 +762,7 @@ class HandlebarsTemplateEngine {
         // Process steps to add additional properties for template
         context.steps = steps.map((step, index) => ({
             ...step,
-            order: index + 1,
+            portOffset: index + 1,
             serviceNameForPackage: step.serviceName.replace('-svc', '').replace(/-/g, '_'),
             serviceNameFormatted: this.formatForProtoClassName(step.serviceName) // This will be 'Process' + entity name
         }));

@@ -45,6 +45,7 @@ dependency-reduced-pom.xml
 # VitePress build output and cache
 docs/.vitepress/dist/
 docs/.vitepress/cache/
+docs/node_modules/
 
 # Web UI build output
 web-ui/build/
