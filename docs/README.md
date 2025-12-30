@@ -56,6 +56,7 @@ For complete documentation including detailed reference implementation, YAML con
 
 ### Architecture
 - [Architecture](/reference/architecture): Core concepts and architectural patterns
+- [Annotation Processor Architecture](/reference/annotation-processor-architecture): Build-time IR, bindings, and renderers
 - [Annotations](/annotations/pipeline-step): Detailed annotation reference
 - [Pipeline Compilation](/guide/pipeline-compilation): How the annotation processor works
 - [Common Module Structure](/guide/common-module-structure): Shared components structure

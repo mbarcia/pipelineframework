@@ -49,5 +49,6 @@ The framework allows you to define pipeline steps as simple classes annotated wi
 
 ### Reference
 - [Architecture](/reference/architecture): Deep dive into the framework architecture
+- [Annotation Processor Architecture](/reference/annotation-processor-architecture): Build-time IR, bindings, and renderers
 
 This approach reduces boilerplate code and ensures consistency across your pipeline steps.

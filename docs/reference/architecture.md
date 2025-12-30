@@ -2,6 +2,10 @@
 
 The Pipeline Framework is designed as a modular, extensible system for building reactive pipeline processing applications. Understanding its architecture is key to leveraging its full potential. Built on an immutable architecture, the framework ensures data integrity by preserving all transformations and maintaining a complete audit trail.
 
+## Related Architecture Topics
+
+- [Annotation Processor Architecture](/reference/annotation-processor-architecture.html): Deep dive into the build-time IR, bindings, and renderers
+
 ## Core Concepts
 
 ### Pipeline

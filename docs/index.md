@@ -87,6 +87,7 @@ To get started with The Pipeline Framework, explore these guides:
 
 ### Reference
 - [Architecture](/reference/architecture.html): Deep dive into the framework architecture
+- [Annotation Processor Architecture](/reference/annotation-processor-architecture.html): Build-time IR, bindings, and renderers
 - [Framework Overview](/FRAMEWORK_OVERVIEW.html): Complete architecture and comparison to original spec
 - [Reference Implementation](/REFERENCE_IMPLEMENTATION.html): Complete implementation guide with examples
 - [YAML Configuration Schema](/YAML_SCHEMA.html): Complete YAML schema documentation

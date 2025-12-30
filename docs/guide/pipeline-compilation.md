@@ -2,6 +2,8 @@
 
 This guide explains how The Pipeline Framework's annotation processor works to automatically generate pipeline applications and adapters at build time.
 
+For the architecture overview of the processor, see [Annotation Processor Architecture](/reference/annotation-processor-architecture.html).
+
 ## Overview
 
 The Pipeline Framework uses annotation processing to automatically generate the necessary infrastructure for pipeline execution. When you annotate your services with `@PipelineStep`, the framework's annotation processor:
@@ -333,11 +335,7 @@ The annotation processor can be customized through annotation parameters:
     stepType = StepOneToOne.class,
     backendType = CustomGrpcReactiveServiceAdapter.class,  // Custom adapter
     inboundMapper = PaymentRecordInboundMapper.class,
-    outboundMapper = PaymentStatusOutboundMapper.class,
-    retryLimit = 5,
-    retryWait = "PT1S",
-    maxBackoff = "PT30S",
-    jitter = true
+    outboundMapper = PaymentStatusOutboundMapper.class
 )
 ```
 

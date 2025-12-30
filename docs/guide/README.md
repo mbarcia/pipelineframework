@@ -39,6 +39,7 @@ Learn how to test pipeline applications effectively:
 Understand the business value and capabilities:
 
 - [Architecture](/reference/architecture): High-level overview of the system design
+- [Annotation Processor Architecture](/reference/annotation-processor-architecture): Build-time IR, bindings, and renderers
 - [Reference Implementation](/REFERENCE_IMPLEMENTATION): See a real-world example
 - [Canvas Guide](/CANVAS_GUIDE): Learn about the visual design tool for non-technical stakeholders
 
@@ -48,6 +49,7 @@ Deep-dive into design patterns and enterprise considerations:
 - [Plugin Architecture](/guide/plugins-architecture): Understanding the AOP-style plugin and aspect system
 
 - [Architecture](/reference/architecture): System design patterns and principles
+- [Annotation Processor Architecture](/reference/annotation-processor-architecture): Build-time IR, bindings, and renderers
 - [Observability](/guide/observability): Enterprise monitoring and tracing strategies
 - [Error Handling & DLQ](/guide/error-handling): Resilience and fault-tolerance patterns
 - [Configuration](/guide/configuration): Environment-specific settings and deployment strategies
@@ -57,6 +59,7 @@ Deep-dive into design patterns and enterprise considerations:
 Get a strategic overview for technical leadership:
 
 - [Architecture](/reference/architecture): System capabilities and technology stack
+- [Annotation Processor Architecture](/reference/annotation-processor-architecture): Build-time IR, bindings, and renderers
 - [YAML Schema](/YAML_SCHEMA): Infrastructure-as-code configuration options
 - [Best Practices](/guide/best-practices): Organizational implementation guidelines
 - [Observability](/guide/observability): Enterprise monitoring strategies
