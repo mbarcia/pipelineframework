@@ -436,6 +436,7 @@ class HandlebarsTemplateEngine {
         await fs.ensureDir(path.join(commonPath, 'src/main/java', this.toPath(basePackage + '.common.dto')));
         await fs.ensureDir(path.join(commonPath, 'src/main/java', this.toPath(basePackage + '.common.mapper')));
         await fs.ensureDir(path.join(commonPath, 'src/main/proto'));
+        await fs.ensureDir(path.join(commonPath, 'src/main/resources'));
 
         // Generate common POM
         await this.generateCommonPom(appName, basePackage, commonPath);
@@ -458,6 +459,9 @@ class HandlebarsTemplateEngine {
 
         // Generate common converters
         await this.generateCommonConverters(basePackage, commonPath);
+
+        // Generate application.properties
+        await this.generateCommonApplicationProperties(commonPath);
     }
 
     async generateCommonPom(appName, basePackage, commonPath) {
@@ -651,6 +655,12 @@ class HandlebarsTemplateEngine {
         const rendered = this.render('common-converters', context);
         const convertersPath = path.join(commonPath, 'src/main/java', this.toPath(basePackage + '.common.mapper'), 'CommonConverters.java');
         await fs.writeFile(convertersPath, rendered);
+    }
+
+    async generateCommonApplicationProperties(commonPath) {
+        const rendered = this.render('common-application-properties', {});
+        const appPropsPath = path.join(commonPath, 'src/main/resources', 'application.properties');
+        await fs.writeFile(appPropsPath, rendered);
     }
 
     async generateStepService(appName, basePackage, step, outputPath, stepIndex, allSteps) {
