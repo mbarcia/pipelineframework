@@ -20,56 +20,25 @@ import java.math.BigDecimal;
 import java.nio.file.Path;
 import java.util.Currency;
 import java.util.UUID;
+import jakarta.inject.Inject;
 
-import org.junit.jupiter.api.BeforeEach;
+import io.quarkus.test.junit.QuarkusTest;
 import org.junit.jupiter.api.Test;
 import org.pipelineframework.csv.common.domain.PaymentRecord;
+import org.pipelineframework.csv.grpc.InputCsvFileProcessingSvc;
 import org.pipelineframework.csv.grpc.PaymentsProcessingSvc;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
+@QuarkusTest
 class SendPaymentRequestMapperTest {
 
-    private SendPaymentRequestMapper mapper;
-    private CommonConverters commonConverters;
-    private PaymentRecordMapper paymentRecordMapper;
+    @Inject
+    SendPaymentRequestMapper mapper;
 
-    @BeforeEach
-    void setUp() {
-        commonConverters = new CommonConverters();
-
-        // Create PaymentRecordMapperImpl and set its dependencies
-        PaymentRecordMapperImpl paymentRecordMapperImpl = new PaymentRecordMapperImpl();
-        try {
-            java.lang.reflect.Field commonConvertersField =
-                    PaymentRecordMapperImpl.class.getDeclaredField("commonConverters");
-            commonConvertersField.setAccessible(true);
-            commonConvertersField.set(paymentRecordMapperImpl, commonConverters);
-            paymentRecordMapper = paymentRecordMapperImpl;
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to set PaymentRecordMapper dependencies", e);
-        }
-
-        // Create SendPaymentRequestMapperImpl and set its dependencies
-        SendPaymentRequestMapperImpl sendPaymentRequestMapperImpl =
-                new SendPaymentRequestMapperImpl();
-        try {
-            java.lang.reflect.Field commonConvertersField =
-                    SendPaymentRequestMapperImpl.class.getDeclaredField("commonConverters");
-            commonConvertersField.setAccessible(true);
-            commonConvertersField.set(sendPaymentRequestMapperImpl, commonConverters);
-
-            java.lang.reflect.Field paymentRecordMapperField =
-                    SendPaymentRequestMapperImpl.class.getDeclaredField("paymentRecordMapper");
-            paymentRecordMapperField.setAccessible(true);
-            paymentRecordMapperField.set(sendPaymentRequestMapperImpl, paymentRecordMapper);
-
-            mapper = sendPaymentRequestMapperImpl;
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to set SendPaymentRequestMapper dependencies", e);
-        }
-    }
+    @Inject
+    PaymentRecordMapper paymentRecordMapper;
 
     // Create a nested entity if required
     private PaymentRecord createTestPaymentRecord() {
@@ -86,6 +55,9 @@ class SendPaymentRequestMapperTest {
     @Test
     void testGrpcToDomain() {
         // Given
+        PaymentRecord domainRecord = createTestPaymentRecord();
+        InputCsvFileProcessingSvc.PaymentRecord grpcRecord =
+                paymentRecordMapper.toGrpc(paymentRecordMapper.toDto(domainRecord));
         PaymentsProcessingSvc.SendPaymentRequest grpc =
                 PaymentsProcessingSvc.SendPaymentRequest.newBuilder()
                         .setMsisdn("123456789")
@@ -94,6 +66,7 @@ class SendPaymentRequestMapperTest {
                         .setReference("test-ref")
                         .setUrl("http://test.com")
                         .setPaymentRecordId(UUID.randomUUID().toString())
+                        .setPaymentRecord(grpcRecord)
                         .build();
 
         // When
@@ -107,57 +80,63 @@ class SendPaymentRequestMapperTest {
         assertEquals("test-ref", domain.getReference());
         assertEquals("http://test.com", domain.getUrl());
         assertNotNull(domain.getPaymentRecordId());
+        assertEquals(domainRecord.getCsvPaymentsInputFilePath(), domain.getPaymentRecord().getCsvPaymentsInputFilePath());
     }
 
-    // @Test
-    // void testDomainToGrpc() {
-    //   // Given
-    //   SendPaymentRequestMapper.SendPaymentRequest domain =
-    //       new SendPaymentRequestMapper.SendPaymentRequest();
-    //   domain.setMsisdn("123456789");
-    //   domain.setAmount(new BigDecimal("100.50"));
-    //   domain.setCurrency(Currency.getInstance("EUR"));
-    //   domain.setReference("test-ref");
-    //   domain.setUrl("http://test.com");
-    //   domain.setPaymentRecordId(UUID.randomUUID());
+    @Test
+    void testGrpcToDomainMapsPaymentRecord() {
+        // Given
+        PaymentRecord domainRecord = createTestPaymentRecord();
+        InputCsvFileProcessingSvc.PaymentRecord grpcRecord =
+                paymentRecordMapper.toGrpc(paymentRecordMapper.toDto(domainRecord));
+        PaymentsProcessingSvc.SendPaymentRequest grpc =
+                PaymentsProcessingSvc.SendPaymentRequest.newBuilder()
+                        .setMsisdn("123456789")
+                        .setAmount("100.50")
+                        .setCurrency("EUR")
+                        .setReference("test-ref")
+                        .setUrl("http://test.com")
+                        .setPaymentRecordId(domainRecord.getId().toString())
+                        .setPaymentRecord(grpcRecord)
+                        .build();
 
-    //   // When
-    //   PaymentStatusSvc.SendPaymentRequest grpc = mapper.toDtoToGrpc(domain);
+        // When
+        SendPaymentRequestMapper.SendPaymentRequest domain = mapper.fromGrpcFromDto(grpc);
 
-    //   // Then
-    //   assertNotNull(grpc);
-    //   assertEquals("123456789", grpc.getMsisdn());
-    //   assertEquals("100.50", grpc.getAmount());
-    //   assertEquals("EUR", grpc.getCurrency());
-    //   assertEquals("test-ref", grpc.getReference());
-    //   assertEquals("http://test.com", grpc.getUrl());
-    //   assertNotNull(grpc.getPaymentRecordId());
-    // }
+        // Then
+        assertNotNull(domain.getPaymentRecord());
+        assertEquals(domainRecord.getId(), domain.getPaymentRecord().getId());
+        assertEquals(domainRecord.getCsvId(), domain.getPaymentRecord().getCsvId());
+        assertEquals(domainRecord.getRecipient(), domain.getPaymentRecord().getRecipient());
+        assertEquals(domainRecord.getAmount(), domain.getPaymentRecord().getAmount());
+        assertEquals(domainRecord.getCurrency(), domain.getPaymentRecord().getCurrency());
+        assertEquals(domainRecord.getCsvPaymentsInputFilePath(), domain.getPaymentRecord().getCsvPaymentsInputFilePath());
+    }
 
-    // @Test
-    // void testSerializeDeserialize() throws Exception {
-    //   // Build a simple DTO-like object for testing
-    //   PaymentStatusSvc.SendPaymentRequest.Builder builder =
-    //       PaymentStatusSvc.SendPaymentRequest.newBuilder()
-    //           .setMsisdn("123456789")
-    //           .setAmount("100.50")
-    //           .setCurrency("EUR")
-    //           .setReference("test-ref")
-    //           .setUrl("http://test.com")
-    //           .setPaymentRecordId(UUID.randomUUID().toString());
-    //
-    //   PaymentStatusSvc.SendPaymentRequest request = builder.build();
-    //
-    //   ObjectMapper mapper = new ObjectMapper();
-    //
-    //   // Serialize to JSON
-    //   String json = mapper.writeValueAsString(request);
-    //
-    //   // Deserialize back
-    //   PaymentStatusSvc.SendPaymentRequest deserialized =
-    //       mapper.readValue(json, PaymentStatusSvc.SendPaymentRequest.class);
-    //
-    //   // Assert equality
-    //   assertEquals(request, deserialized);
-    // }
+    @Test
+    void testDomainToGrpcMapsPaymentRecord() {
+        // Given
+        PaymentRecord domainRecord = createTestPaymentRecord();
+        SendPaymentRequestMapper.SendPaymentRequest domain =
+                new SendPaymentRequestMapper.SendPaymentRequest()
+                        .setMsisdn("123456789")
+                        .setAmount(new BigDecimal("100.50"))
+                        .setCurrency(Currency.getInstance("EUR"))
+                        .setReference("test-ref")
+                        .setUrl("http://test.com")
+                        .setPaymentRecordId(domainRecord.getId())
+                        .setPaymentRecord(domainRecord);
+
+        // When
+        PaymentsProcessingSvc.SendPaymentRequest grpc = mapper.toDtoToGrpc(domain);
+
+        // Then
+        assertNotNull(grpc.getPaymentRecord());
+        assertEquals(domainRecord.getId().toString(), grpc.getPaymentRecord().getId());
+        assertEquals(domainRecord.getCsvId(), grpc.getPaymentRecord().getCsvId());
+        assertEquals(domainRecord.getRecipient(), grpc.getPaymentRecord().getRecipient());
+        assertEquals(domainRecord.getAmount().toPlainString(), grpc.getPaymentRecord().getAmount());
+        assertEquals(domainRecord.getCurrency().getCurrencyCode(), grpc.getPaymentRecord().getCurrency());
+        assertEquals(domainRecord.getCsvPaymentsInputFilePath().toString(), grpc.getPaymentRecord().getCsvPaymentsInputFilePath());
+    }
 }
