@@ -47,10 +47,11 @@ public abstract class GrpcServiceStreamingAdapter<GrpcIn, GrpcOut, DomainIn, Dom
   protected abstract ReactiveStreamingService<DomainIn, DomainOut> getService();
 
   /**
- * Convert a gRPC request object into the domain input representation.
- *
- * @return the domain input corresponding to the provided gRPC input
- */
+   * Convert a gRPC request object into the domain input representation.
+   *
+   * @param grpcIn the gRPC input request message for a single streaming invocation
+   * @return the domain input corresponding to the provided gRPC input
+   */
   protected abstract DomainIn fromGrpc(GrpcIn grpcIn);
 
   /**
