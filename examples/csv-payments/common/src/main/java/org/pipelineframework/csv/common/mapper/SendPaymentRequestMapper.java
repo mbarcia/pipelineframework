@@ -38,18 +38,18 @@ import org.pipelineframework.csv.grpc.PaymentsProcessingSvc;
 public interface SendPaymentRequestMapper extends org.pipelineframework.mapper.Mapper<PaymentsProcessingSvc.SendPaymentRequest, SendPaymentRequestMapper.SendPaymentRequest, SendPaymentRequestMapper.SendPaymentRequest> {
 
   SendPaymentRequestMapper INSTANCE = Mappers.getMapper( SendPaymentRequestMapper.class );
-  
-  @Override
-  @Mapping(source = "amount", target = "amount", qualifiedByName = "stringToBigDecimal")
-  @Mapping(source = "currency", target = "currency", qualifiedByName = "stringToCurrency")
-  @Mapping(source = "paymentRecordId", target = "paymentRecordId", qualifiedByName = "stringToUUID")
-  SendPaymentRequest fromGrpc(PaymentsProcessingSvc.SendPaymentRequest grpcRequest);
 
   @Override
   @Mapping(source = "amount", target = "amount", qualifiedByName = "bigDecimalToString")
   @Mapping(source = "currency", target = "currency", qualifiedByName = "currencyToString")
   @Mapping(source = "paymentRecordId", target = "paymentRecordId", qualifiedByName = "uuidToString")
   PaymentsProcessingSvc.SendPaymentRequest toGrpc(SendPaymentRequest dto);
+
+  @Override
+  @Mapping(source = "amount", target = "amount", qualifiedByName = "stringToBigDecimal")
+  @Mapping(source = "currency", target = "currency", qualifiedByName = "stringToCurrency")
+  @Mapping(source = "paymentRecordId", target = "paymentRecordId", qualifiedByName = "stringToUUID")
+  SendPaymentRequest fromGrpc(PaymentsProcessingSvc.SendPaymentRequest grpcRequest);
 
   @Setter
   @Getter
