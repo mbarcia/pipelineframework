@@ -114,10 +114,14 @@ public class PipelineStepIRExtractor {
      * @return a TypeMapping containing resolved `TypeName` values and an `enabled` flag set to `true` only when both domain and mapper are present
      */
     private TypeMapping extractTypeMapping(TypeMirror domainType, TypeMirror mapperType) {
-        if (domainType == null || domainType.toString().equals("void") || domainType.toString().equals("java.lang.Void")) {
+        if (domainType == null
+                || domainType.getKind() == javax.lang.model.type.TypeKind.VOID
+                || domainType.toString().equals("java.lang.Void")) {
             return new TypeMapping(null, null, false);
         }
-        if (mapperType == null || mapperType.toString().equals("void") || mapperType.toString().equals("java.lang.Void")) {
+        if (mapperType == null
+                || mapperType.getKind() == javax.lang.model.type.TypeKind.VOID
+                || mapperType.toString().equals("java.lang.Void")) {
             return new TypeMapping(TypeName.get(domainType), null, false);
         }
 
