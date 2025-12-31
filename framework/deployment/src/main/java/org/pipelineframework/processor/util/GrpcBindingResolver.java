@@ -98,12 +98,6 @@ public class GrpcBindingResolver {
         // This handles complex dependency scenarios including imported files and transitive dependencies
         java.util.Map<String, Descriptors.FileDescriptor> builtFileDescriptors = new java.util.HashMap<>();
 
-        // Create a mapping from file names to their FileDescriptorProto
-        java.util.Map<String, DescriptorProtos.FileDescriptorProto> protoMap = new java.util.HashMap<>();
-        for (DescriptorProtos.FileDescriptorProto fileProto : descriptorSet.getFileList()) {
-            protoMap.put(fileProto.getName(), fileProto);
-        }
-
         // Build file descriptors in dependency order using topological sort approach
         boolean allBuilt = false;
         int maxIterations = descriptorSet.getFileCount() * 2; // Prevent infinite loops
