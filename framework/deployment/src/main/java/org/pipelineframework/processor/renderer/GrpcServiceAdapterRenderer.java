@@ -22,6 +22,7 @@ import org.pipelineframework.processor.util.GrpcJavaTypeResolver;
  * @param target The generation target for this renderer
  */
 public record GrpcServiceAdapterRenderer(GenerationTarget target) implements PipelineRenderer<GrpcBinding> {
+    private static final GrpcJavaTypeResolver GRPC_TYPE_RESOLVER = new GrpcJavaTypeResolver();
 
     @Override
     public void render(GrpcBinding binding, GenerationContext ctx) throws IOException {
@@ -109,8 +110,7 @@ public record GrpcServiceAdapterRenderer(GenerationTarget target) implements Pip
 
     private ClassName determineGrpcBaseClass(GrpcBinding binding, Messager messager) {
         // Use the new GrpcJavaTypeResolver to determine the gRPC implementation base class
-        GrpcJavaTypeResolver grpcTypeResolver = new GrpcJavaTypeResolver();
-        GrpcJavaTypeResolver.GrpcJavaTypes types = grpcTypeResolver.resolve(binding, messager);
+        GrpcJavaTypeResolver.GrpcJavaTypes types = GRPC_TYPE_RESOLVER.resolve(binding, messager);
         return types.implBase();
     }
 
@@ -120,8 +120,7 @@ public record GrpcServiceAdapterRenderer(GenerationTarget target) implements Pip
                 ClassName.get("org.pipelineframework.grpc", "GrpcReactiveServiceAdapter");
 
         // Use the GrpcJavaTypeResolver to get the proper gRPC types from the binding
-        GrpcJavaTypeResolver grpcTypeResolver = new GrpcJavaTypeResolver();
-        GrpcJavaTypeResolver.GrpcJavaTypes grpcTypes = grpcTypeResolver.resolve(binding, messager);
+        GrpcJavaTypeResolver.GrpcJavaTypes grpcTypes = GRPC_TYPE_RESOLVER.resolve(binding, messager);
 
         // Validate that required gRPC types are available
         if (grpcTypes.grpcParameterType() == null || grpcTypes.grpcReturnType() == null) {
@@ -169,8 +168,7 @@ public record GrpcServiceAdapterRenderer(GenerationTarget target) implements Pip
                 ClassName.get("org.pipelineframework.grpc", "GrpcServiceStreamingAdapter");
 
         // Use the GrpcJavaTypeResolver to get the proper gRPC types from the binding
-        GrpcJavaTypeResolver grpcTypeResolver = new GrpcJavaTypeResolver();
-        GrpcJavaTypeResolver.GrpcJavaTypes grpcTypes = grpcTypeResolver.resolve(binding, messager);
+        GrpcJavaTypeResolver.GrpcJavaTypes grpcTypes = GRPC_TYPE_RESOLVER.resolve(binding, messager);
 
         // Validate that required gRPC types are available
         if (grpcTypes.grpcParameterType() == null || grpcTypes.grpcReturnType() == null) {
@@ -218,8 +216,7 @@ public record GrpcServiceAdapterRenderer(GenerationTarget target) implements Pip
                 ClassName.get("org.pipelineframework.grpc", "GrpcServiceClientStreamingAdapter");
 
         // Use the GrpcJavaTypeResolver to get the proper gRPC types from the binding
-        GrpcJavaTypeResolver grpcTypeResolver = new GrpcJavaTypeResolver();
-        GrpcJavaTypeResolver.GrpcJavaTypes grpcTypes = grpcTypeResolver.resolve(binding, messager);
+        GrpcJavaTypeResolver.GrpcJavaTypes grpcTypes = GRPC_TYPE_RESOLVER.resolve(binding, messager);
 
         // Validate that required gRPC types are available
         if (grpcTypes.grpcParameterType() == null || grpcTypes.grpcReturnType() == null) {
@@ -268,8 +265,7 @@ public record GrpcServiceAdapterRenderer(GenerationTarget target) implements Pip
                 ClassName.get("org.pipelineframework.grpc", "GrpcServiceBidirectionalStreamingAdapter");
 
         // Use the GrpcJavaTypeResolver to get the proper gRPC types from the binding
-        GrpcJavaTypeResolver grpcTypeResolver = new GrpcJavaTypeResolver();
-        GrpcJavaTypeResolver.GrpcJavaTypes grpcTypes = grpcTypeResolver.resolve(binding, messager);
+        GrpcJavaTypeResolver.GrpcJavaTypes grpcTypes = GRPC_TYPE_RESOLVER.resolve(binding, messager);
 
         // Validate that required gRPC types are available
         if (grpcTypes.grpcParameterType() == null || grpcTypes.grpcReturnType() == null) {
@@ -321,8 +317,7 @@ public record GrpcServiceAdapterRenderer(GenerationTarget target) implements Pip
         TypeName serviceType = model.serviceClassName();
 
         // Use the GrpcJavaTypeResolver to get the proper gRPC types from the binding
-        GrpcJavaTypeResolver grpcTypeResolver = new GrpcJavaTypeResolver();
-        GrpcJavaTypeResolver.GrpcJavaTypes grpcTypes = grpcTypeResolver.resolve(binding, messager);
+        GrpcJavaTypeResolver.GrpcJavaTypes grpcTypes = GRPC_TYPE_RESOLVER.resolve(binding, messager);
 
         // Validate that required gRPC types are available
         if (grpcTypes.grpcParameterType() == null || grpcTypes.grpcReturnType() == null) {
