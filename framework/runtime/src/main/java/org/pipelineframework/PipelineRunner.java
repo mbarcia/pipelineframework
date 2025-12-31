@@ -145,10 +145,12 @@ public class PipelineRunner implements AutoCloseable {
 
         // Build the ordered list based on the pipeline configuration
         List<Object> orderedSteps = new ArrayList<>();
+        Set<Object> addedSteps = new HashSet<>();
         for (String stepClassName : filteredPipelineOrder) {
             Object step = stepMap.get(stepClassName);
             if (step != null) {
                 orderedSteps.add(step);
+                addedSteps.add(step);
             } else {
                 logger.warnf("Step class %s was specified in pipeline order but was not found in the available steps", stepClassName);
             }
@@ -156,7 +158,7 @@ public class PipelineRunner implements AutoCloseable {
 
         // Add any remaining steps that weren't specified in the pipeline order
         for (Object step : steps) {
-            if (!orderedSteps.contains(step)) {
+            if (!addedSteps.contains(step)) {
                 logger.debugf("Adding step %s that wasn't specified in pipeline order", step.getClass().getName());
                 orderedSteps.add(step);
             }
