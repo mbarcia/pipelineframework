@@ -109,7 +109,7 @@ When your `.proto` files don't match your pipeline model, you'll see build-time 
 - **Typical failure scenarios**: Incorrect service names, wrong method names, mismatched streaming semantics, incompatible message types
 
 Example error message:
-```
+```text
 [ERROR] Pipeline step 'ValidatePayment' expects service 'ProcessValidatePaymentService' with method 'remoteProcess',
 but found service 'ValidatePaymentService' with method 'validate'. 
 Update your .proto file to match the expected naming convention.
