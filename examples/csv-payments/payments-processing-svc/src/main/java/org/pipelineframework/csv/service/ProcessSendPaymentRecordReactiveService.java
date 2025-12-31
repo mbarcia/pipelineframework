@@ -80,12 +80,14 @@ public class ProcessSendPaymentRecordReactiveService
     );    
     
     
-    String serviceId = this.getClass().toString();
-    MDC.put("serviceId", serviceId);
     Logger logger = Logger.getLogger(this.getClass());
-    logger.infof("Executed command on %s --> %s", paymentRecord, result);
-    MDC.remove("serviceId");
 
-    return result;
+    return result
+        .invoke(ackPaymentSent -> {
+          String serviceId = this.getClass().toString();
+          MDC.put("serviceId", serviceId);
+          logger.infof("Executed command on %s --> %s", paymentRecord, ackPaymentSent);
+          MDC.remove("serviceId");
+        });
   }
 }
