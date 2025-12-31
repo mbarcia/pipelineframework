@@ -37,7 +37,7 @@ public class PipelineStepValidator {
         isValid &= validateTypeMapping(model.outputMapping());
 
         // Validate that mappers exist when domain types are specified
-        if (model.inputMapping().domainType() != null &&
+        if (model.inboundDomainType() != null &&
             !model.inputMapping().hasMapper()) {
             processingEnv.getMessager().printMessage(
                 Diagnostic.Kind.ERROR,
@@ -46,7 +46,7 @@ public class PipelineStepValidator {
             isValid = false;
         }
 
-        if (model.outputMapping().domainType() != null &&
+        if (model.outboundDomainType() != null &&
             !model.outputMapping().hasMapper()) {
             processingEnv.getMessager().printMessage(
                 Diagnostic.Kind.ERROR,

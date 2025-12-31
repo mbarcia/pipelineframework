@@ -126,10 +126,10 @@ public class RestResourceRenderer implements PipelineRenderer<RestBinding> {
         // For REST resources, we use appropriate DTO types, not gRPC types
         // The DTO types should be derived from domain types using the same
         // transformation logic as the original getDtoType method would have used
-        TypeName inputDtoClassName = model.inputMapping().domainType() != null ?
-            convertDomainToDtoType(model.inputMapping().domainType()) : ClassName.OBJECT;
-        TypeName outputDtoClassName = model.outputMapping().domainType() != null ?
-            convertDomainToDtoType(model.outputMapping().domainType()) : ClassName.OBJECT;
+        TypeName inputDtoClassName = model.inboundDomainType() != null ?
+            convertDomainToDtoType(model.inboundDomainType()) : ClassName.OBJECT;
+        TypeName outputDtoClassName = model.outboundDomainType() != null ?
+            convertDomainToDtoType(model.outboundDomainType()) : ClassName.OBJECT;
 
         // Create the process method based on service type (determined from streaming shape)
         MethodSpec processMethod = switch (model.streamingShape()) {
@@ -175,7 +175,7 @@ public class RestResourceRenderer implements PipelineRenderer<RestBinding> {
 
         // Add the implementation code
         methodBuilder.addStatement("$T inputDomain = $L.fromDto(inputDto)",
-                model.inputMapping().domainType(),
+                model.inboundDomainType(),
                 inboundMapperFieldName);
 
         methodBuilder.addStatement("return domainService.process(inputDomain).map(output -> $L.toDto(output))",
@@ -211,7 +211,7 @@ public class RestResourceRenderer implements PipelineRenderer<RestBinding> {
 
         // Add the implementation code
         methodBuilder.addStatement("$T inputDomain = $L.fromDto(inputDto)",
-                model.inputMapping().domainType(),
+                model.inboundDomainType(),
                 inboundMapperFieldName);
 
         // Return the stream, allowing errors to propagate to the exception mapper
@@ -248,7 +248,7 @@ public class RestResourceRenderer implements PipelineRenderer<RestBinding> {
         // Add the implementation code
         methodBuilder.addStatement("$T<$T> domainInputs = inputDtos.map(input -> $L.fromDto(input))",
                 ClassName.get(Multi.class),
-                model.inputMapping().domainType(),
+                model.inboundDomainType(),
                 inboundMapperFieldName);
 
         methodBuilder.addStatement("return domainService.process(domainInputs).map(output -> $L.toDto(output))",
@@ -292,7 +292,7 @@ public class RestResourceRenderer implements PipelineRenderer<RestBinding> {
         // Add the implementation code
         methodBuilder.addStatement("$T<$T> domainInputs = inputDtos.map(input -> $L.fromDto(input))",
                 ClassName.get(Multi.class),
-                model.inputMapping().domainType(),
+                model.inboundDomainType(),
                 inboundMapperFieldName);
 
         methodBuilder.addStatement("return domainService.process(domainInputs).map(output -> $L.toDto(output))",

@@ -130,8 +130,8 @@ public record GrpcServiceAdapterRenderer(GenerationTarget target) implements Pip
         // Create the inline adapter
         TypeSpec inlineAdapter = inlineAdapterBuilder(binding, grpcAdapterClassName);
 
-        TypeName inputDomainTypeUnary = model.inputMapping().domainType();
-        TypeName outputDomainTypeUnary = model.outputMapping().domainType();
+        TypeName inputDomainTypeUnary = model.inboundDomainType();
+        TypeName outputDomainTypeUnary = model.outboundDomainType();
 
         // Validate that required domain types are available
         if (inputDomainTypeUnary == null || outputDomainTypeUnary == null) {
@@ -179,8 +179,8 @@ public record GrpcServiceAdapterRenderer(GenerationTarget target) implements Pip
         // Create the inline adapter
         TypeSpec inlineAdapter = inlineAdapterBuilder(binding, grpcAdapterClassName);
 
-        TypeName inputDomainTypeUnaryStreaming = model.inputMapping().domainType();
-        TypeName outputDomainTypeUnaryStreaming = model.outputMapping().domainType();
+        TypeName inputDomainTypeUnaryStreaming = model.inboundDomainType();
+        TypeName outputDomainTypeUnaryStreaming = model.outboundDomainType();
 
         // Validate that required domain types are available
         if (inputDomainTypeUnaryStreaming == null || outputDomainTypeUnaryStreaming == null) {
@@ -228,8 +228,8 @@ public record GrpcServiceAdapterRenderer(GenerationTarget target) implements Pip
         // Create the inline adapter
         TypeSpec inlineAdapter = inlineAdapterBuilder(binding, grpcAdapterClassName);
 
-        TypeName inputDomainTypeStreamingUnary = model.inputMapping().domainType();
-        TypeName outputDomainTypeStreamingUnary = model.outputMapping().domainType();
+        TypeName inputDomainTypeStreamingUnary = model.inboundDomainType();
+        TypeName outputDomainTypeStreamingUnary = model.outboundDomainType();
 
         // Validate that required domain types are available
         if (inputDomainTypeStreamingUnary == null || outputDomainTypeStreamingUnary == null) {
@@ -278,8 +278,8 @@ public record GrpcServiceAdapterRenderer(GenerationTarget target) implements Pip
         // Create the inline adapter
         TypeSpec inlineAdapterStreaming = inlineAdapterBuilder(binding, grpcAdapterClassName);
 
-        TypeName inputDomainTypeStreamingStreaming = model.inputMapping().domainType();
-        TypeName outputDomainTypeStreamingStreaming = model.outputMapping().domainType();
+        TypeName inputDomainTypeStreamingStreaming = model.inboundDomainType();
+        TypeName outputDomainTypeStreamingStreaming = model.outboundDomainType();
 
         // Validate that required domain types are available
         if (inputDomainTypeStreamingStreaming == null || outputDomainTypeStreamingStreaming == null) {
@@ -329,8 +329,8 @@ public record GrpcServiceAdapterRenderer(GenerationTarget target) implements Pip
 
         TypeName inputGrpcType = grpcTypes.grpcParameterType(); // Get the correct input gRPC type
         TypeName outputGrpcType = grpcTypes.grpcReturnType(); // Get the correct output gRPC type
-        TypeName inputDomainType = model.inputMapping().domainType();
-        TypeName outputDomainType = model.outputMapping().domainType();
+        TypeName inputDomainType = model.inboundDomainType();
+        TypeName outputDomainType = model.outboundDomainType();
 
         // Validate that required domain types are available
         if (inputDomainType == null || outputDomainType == null) {
