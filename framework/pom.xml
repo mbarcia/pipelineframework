@@ -70,9 +70,6 @@
     <modules>
         <module>runtime</module>
         <module>deployment</module>
-        <module>plugin-api</module>
-        <module>plugin-runtime</module>
-        <module>plugins/persistence</module>
     </modules>
 
     <dependencyManagement>
