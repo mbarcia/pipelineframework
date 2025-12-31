@@ -119,7 +119,7 @@ public class PipelineStepProcessor extends AbstractProcessingTool {
         } catch (IOException e) {
             processingEnv.getMessager().printMessage(Diagnostic.Kind.WARNING,
                 "Failed to load protobuf FileDescriptorSet: " + e.getMessage() +
-                ". Falling back to annotation-based type resolution. " +
+                ". gRPC generation will fail for services that require descriptor-based resolution. " +
                 "Please ensure protobuf compilation happens before annotation processing.");
         }
 
