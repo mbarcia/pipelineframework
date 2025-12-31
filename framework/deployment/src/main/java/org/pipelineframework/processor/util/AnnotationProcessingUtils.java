@@ -59,6 +59,7 @@ public final class AnnotationProcessingUtils {
                         return (TypeMirror) unwrappedValue;
                     }
                 }
+                break; // Exit after finding the element even if it's not the correct type
             }
         }
         return null;
