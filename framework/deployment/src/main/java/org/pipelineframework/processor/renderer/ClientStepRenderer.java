@@ -88,7 +88,7 @@ public record ClientStepRenderer(GenerationTarget target) implements PipelineRen
                             "grpcClient",
                             Modifier.PRIVATE)
                     .addAnnotation(AnnotationSpec.builder(GrpcClient.class)
-                            .addMember("value", "$S", binding.serviceName().replace("Service", "")) // Using service name as default
+                            .addMember("value", "$S", toGrpcClientName(binding.serviceName()))
                             .build())
                     .build();
 
@@ -205,6 +205,18 @@ public record ClientStepRenderer(GenerationTarget target) implements PipelineRen
     private TypeName resolveGrpcStubType(GrpcBinding binding) {
         GrpcJavaTypeResolver grpcTypeResolver = new GrpcJavaTypeResolver();
         return grpcTypeResolver.resolve(binding).stub();
+    }
+
+    private static String toGrpcClientName(String serviceName) {
+        if (serviceName == null || serviceName.isBlank()) {
+            return "";
+        }
+
+        String baseName = serviceName.replaceFirst("Service$", "");
+        String withBoundaryHyphens = baseName
+                .replaceAll("([A-Z]+)([A-Z][a-z])", "$1-$2")
+                .replaceAll("([a-z0-9])([A-Z])", "$1-$2");
+        return withBoundaryHyphens.toLowerCase();
     }
 
     private String determineRoleForClientStep(GrpcBinding binding) {

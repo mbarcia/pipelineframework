@@ -198,9 +198,8 @@ public class GrpcBindingResolver {
 
         // Check if there are other methods and emit warning if so
         if (serviceDescriptor.getMethods().size() > 1) {
-            System.out.println(
-                String.format("Warning for step '%s': Service '%s' contains multiple RPC methods. Only '%s' will be bound.",
-                    stepModel.serviceName(), serviceDescriptor.getName(), expectedMethodName));
+            System.out.printf("Warning for step '%s': Service '%s' contains multiple RPC methods. Only '%s' will be bound.%n",
+                stepModel.serviceName(), serviceDescriptor.getName(), expectedMethodName);
         }
 
         return foundMethod;
