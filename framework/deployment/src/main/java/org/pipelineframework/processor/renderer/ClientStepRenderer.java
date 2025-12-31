@@ -135,59 +135,61 @@ public record ClientStepRenderer(GenerationTarget target) implements PipelineRen
                 break;
         }
 
-        // Add the apply method implementation based on the streaming shape
-        switch (model.streamingShape()) {
-            case UNARY_STREAMING:
-                // For OneToMany: Input -> Multi<Output> (StepOneToMany interface has applyOneToMany(Input in) method)
-                MethodSpec applyOneToManyMethod = MethodSpec.methodBuilder("applyOneToMany")
-                        .addAnnotation(Override.class)
-                        .addModifiers(Modifier.PUBLIC)
-                        .returns(ParameterizedTypeName.get(ClassName.get(Multi.class),
-                                outputGrpcType))
-                        .addParameter(inputGrpcType, "input")
-                        .addStatement("return this.grpcClient.remoteProcess(input)")
-                        .build();
-                clientStepBuilder.addMethod(applyOneToManyMethod);
-                break;
-            case STREAMING_UNARY:
-                // For ManyToOne: Multi<Input> -> Uni<Output> (ManyToOne interface has applyBatchMulti(Multi<Input> in) method)
-                MethodSpec applyBatchMultiMethod = MethodSpec.methodBuilder("applyBatchMulti")
-                        .addAnnotation(Override.class)
-                        .addModifiers(Modifier.PUBLIC)
-                        .returns(ParameterizedTypeName.get(ClassName.get(Uni.class),
-                                outputGrpcType))
-                        .addParameter(ParameterizedTypeName.get(ClassName.get(Multi.class),
-                                inputGrpcType), "inputs")
-                        .addStatement("return this.grpcClient.remoteProcess(inputs)")
-                        .build();
-                clientStepBuilder.addMethod(applyBatchMultiMethod);
-                break;
-            case STREAMING_STREAMING:
-                // For ManyToMany: Multi<Input> -> Multi<Output> (ManyToMany interface has applyTransform(Multi<Input> in) method)
-                MethodSpec applyTransformMethod = MethodSpec.methodBuilder("applyTransform")
-                        .addAnnotation(Override.class)
-                        .addModifiers(Modifier.PUBLIC)
-                        .returns(ParameterizedTypeName.get(ClassName.get(Multi.class),
-                                outputGrpcType))
-                        .addParameter(ParameterizedTypeName.get(ClassName.get(Multi.class),
-                                inputGrpcType), "inputs")
-                        .addStatement("return this.grpcClient.remoteProcess(inputs)")
-                        .build();
-                clientStepBuilder.addMethod(applyTransformMethod);
-                break;
-            case UNARY_UNARY:
-            default:
-                // Default to OneToOne: Input -> Uni<Output> (StepOneToOne interface has applyOneToOne(Input in) method)
-                MethodSpec applyOneToOneMethod = MethodSpec.methodBuilder("applyOneToOne")
-                        .addAnnotation(Override.class)
-                        .addModifiers(Modifier.PUBLIC)
-                        .returns(ParameterizedTypeName.get(ClassName.get(Uni.class),
-                                outputGrpcType))
-                        .addParameter(inputGrpcType, "input")
-                        .addStatement("return this.grpcClient.remoteProcess(input)")
-                        .build();
-                clientStepBuilder.addMethod(applyOneToOneMethod);
-                break;
+        if (grpcClientType != null) {
+            // Add the apply method implementation based on the streaming shape
+            switch (model.streamingShape()) {
+                case UNARY_STREAMING:
+                    // For OneToMany: Input -> Multi<Output> (StepOneToMany interface has applyOneToMany(Input in) method)
+                    MethodSpec applyOneToManyMethod = MethodSpec.methodBuilder("applyOneToMany")
+                            .addAnnotation(Override.class)
+                            .addModifiers(Modifier.PUBLIC)
+                            .returns(ParameterizedTypeName.get(ClassName.get(Multi.class),
+                                    outputGrpcType))
+                            .addParameter(inputGrpcType, "input")
+                            .addStatement("return this.grpcClient.remoteProcess(input)")
+                            .build();
+                    clientStepBuilder.addMethod(applyOneToManyMethod);
+                    break;
+                case STREAMING_UNARY:
+                    // For ManyToOne: Multi<Input> -> Uni<Output> (ManyToOne interface has applyBatchMulti(Multi<Input> in) method)
+                    MethodSpec applyBatchMultiMethod = MethodSpec.methodBuilder("applyBatchMulti")
+                            .addAnnotation(Override.class)
+                            .addModifiers(Modifier.PUBLIC)
+                            .returns(ParameterizedTypeName.get(ClassName.get(Uni.class),
+                                    outputGrpcType))
+                            .addParameter(ParameterizedTypeName.get(ClassName.get(Multi.class),
+                                    inputGrpcType), "inputs")
+                            .addStatement("return this.grpcClient.remoteProcess(inputs)")
+                            .build();
+                    clientStepBuilder.addMethod(applyBatchMultiMethod);
+                    break;
+                case STREAMING_STREAMING:
+                    // For ManyToMany: Multi<Input> -> Multi<Output> (ManyToMany interface has applyTransform(Multi<Input> in) method)
+                    MethodSpec applyTransformMethod = MethodSpec.methodBuilder("applyTransform")
+                            .addAnnotation(Override.class)
+                            .addModifiers(Modifier.PUBLIC)
+                            .returns(ParameterizedTypeName.get(ClassName.get(Multi.class),
+                                    outputGrpcType))
+                            .addParameter(ParameterizedTypeName.get(ClassName.get(Multi.class),
+                                    inputGrpcType), "inputs")
+                            .addStatement("return this.grpcClient.remoteProcess(inputs)")
+                            .build();
+                    clientStepBuilder.addMethod(applyTransformMethod);
+                    break;
+                case UNARY_UNARY:
+                default:
+                    // Default to OneToOne: Input -> Uni<Output> (StepOneToOne interface has applyOneToOne(Input in) method)
+                    MethodSpec applyOneToOneMethod = MethodSpec.methodBuilder("applyOneToOne")
+                            .addAnnotation(Override.class)
+                            .addModifiers(Modifier.PUBLIC)
+                            .returns(ParameterizedTypeName.get(ClassName.get(Uni.class),
+                                    outputGrpcType))
+                            .addParameter(inputGrpcType, "input")
+                            .addStatement("return this.grpcClient.remoteProcess(input)")
+                            .build();
+                    clientStepBuilder.addMethod(applyOneToOneMethod);
+                    break;
+            }
         }
 
         return clientStepBuilder.build();
