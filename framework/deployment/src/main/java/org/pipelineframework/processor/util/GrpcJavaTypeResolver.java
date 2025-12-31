@@ -1,5 +1,8 @@
 package org.pipelineframework.processor.util;
 
+import javax.annotation.processing.Messager;
+import javax.tools.Diagnostic;
+
 import com.google.protobuf.Descriptors;
 import com.squareup.javapoet.ClassName;
 import org.pipelineframework.processor.ir.GrpcBinding;
@@ -32,6 +35,18 @@ public class GrpcJavaTypeResolver {
      * @throws IllegalArgumentException if the service descriptor is invalid
      */
     public GrpcJavaTypes resolve(GrpcBinding binding) {
+        return resolve(binding, null);
+    }
+
+    /**
+     * Resolves the gRPC Java types for a given GrpcBinding, emitting warnings via messager when possible.
+     *
+     * @param binding The pipeline step binding containing the service descriptor
+     * @param messager Messager for diagnostics, or null to skip warnings
+     * @return GrpcJavaTypes containing the resolved stub, impl base, parameter and return class names
+     * @throws IllegalArgumentException if the service descriptor is invalid
+     */
+    public GrpcJavaTypes resolve(GrpcBinding binding, Messager messager) {
         Object serviceDescriptorObj = binding.serviceDescriptor();
         if (!(serviceDescriptorObj instanceof Descriptors.ServiceDescriptor serviceDescriptor)) {
             throw new IllegalArgumentException("Service descriptor is not of expected type Descriptors.ServiceDescriptor");
@@ -76,7 +91,11 @@ public class GrpcJavaTypeResolver {
             } catch (Exception e) {
                 // In some test scenarios, the service descriptor might not have complete file information
                 // This is acceptable as long as we have the parameter and return types
-                System.out.println("Warning: Could not derive gRPC stub/impl base class names: " + e.getMessage());
+                if (messager != null) {
+                    messager.printMessage(
+                            Diagnostic.Kind.WARNING,
+                            "Could not derive gRPC stub/impl base class names: " + e.getMessage());
+                }
             }
 
             return new GrpcJavaTypes(

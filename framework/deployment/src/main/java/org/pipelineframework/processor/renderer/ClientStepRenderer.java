@@ -17,6 +17,7 @@
 package org.pipelineframework.processor.renderer;
 
 import java.io.IOException;
+import javax.annotation.processing.Messager;
 import javax.lang.model.element.Modifier;
 
 import com.squareup.javapoet.*;
@@ -42,7 +43,7 @@ public record ClientStepRenderer(GenerationTarget target) implements PipelineRen
 
     @Override
     public void render(GrpcBinding binding, GenerationContext ctx) throws IOException {
-        TypeSpec clientStepClass = buildClientStepClass(binding);
+        TypeSpec clientStepClass = buildClientStepClass(binding, ctx.processingEnv().getMessager());
 
         // Write the generated class
         JavaFile javaFile = JavaFile.builder(
@@ -55,13 +56,13 @@ public record ClientStepRenderer(GenerationTarget target) implements PipelineRen
         }
     }
 
-    private TypeSpec buildClientStepClass(GrpcBinding binding) {
+    private TypeSpec buildClientStepClass(GrpcBinding binding, Messager messager) {
         PipelineStepModel model = binding.model();
         String clientStepClassName = getClientStepClassName(binding);
 
         // Use the gRPC types resolved via GrpcJavaTypeResolver
         GrpcJavaTypeResolver grpcTypeResolver = new GrpcJavaTypeResolver();
-        GrpcJavaTypeResolver.GrpcJavaTypes grpcTypes = grpcTypeResolver.resolve(binding);
+        GrpcJavaTypeResolver.GrpcJavaTypes grpcTypes = grpcTypeResolver.resolve(binding, messager);
         TypeName inputGrpcType = grpcTypes.grpcParameterType();
         TypeName outputGrpcType = grpcTypes.grpcReturnType();
 
@@ -80,7 +81,7 @@ public record ClientStepRenderer(GenerationTarget target) implements PipelineRen
                         .build());
 
         // Add gRPC client field with @GrpcClient annotation
-        TypeName grpcClientType = resolveGrpcStubType(binding);
+        TypeName grpcClientType = resolveGrpcStubType(binding, messager);
 
         if (grpcClientType != null) {
             FieldSpec grpcClientField = FieldSpec.builder(
@@ -202,9 +203,9 @@ public record ClientStepRenderer(GenerationTarget target) implements PipelineRen
         return clientStepClassName;
     }
 
-    private TypeName resolveGrpcStubType(GrpcBinding binding) {
+    private TypeName resolveGrpcStubType(GrpcBinding binding, Messager messager) {
         GrpcJavaTypeResolver grpcTypeResolver = new GrpcJavaTypeResolver();
-        return grpcTypeResolver.resolve(binding).stub();
+        return grpcTypeResolver.resolve(binding, messager).stub();
     }
 
     private static String toGrpcClientName(String serviceName) {

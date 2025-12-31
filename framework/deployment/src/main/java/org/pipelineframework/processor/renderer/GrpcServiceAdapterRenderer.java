@@ -1,6 +1,7 @@
 package org.pipelineframework.processor.renderer;
 
 import java.io.IOException;
+import javax.annotation.processing.Messager;
 import javax.lang.model.element.Modifier;
 
 import com.squareup.javapoet.*;
@@ -24,7 +25,7 @@ public record GrpcServiceAdapterRenderer(GenerationTarget target) implements Pip
 
     @Override
     public void render(GrpcBinding binding, GenerationContext ctx) throws IOException {
-        TypeSpec grpcServiceClass = buildGrpcServiceClass(binding);
+        TypeSpec grpcServiceClass = buildGrpcServiceClass(binding, ctx.processingEnv().getMessager());
 
         // Write the generated class
         JavaFile javaFile = JavaFile.builder(
@@ -37,14 +38,14 @@ public record GrpcServiceAdapterRenderer(GenerationTarget target) implements Pip
         }
     }
 
-    private TypeSpec buildGrpcServiceClass(GrpcBinding binding) {
+    private TypeSpec buildGrpcServiceClass(GrpcBinding binding, Messager messager) {
         PipelineStepModel model = binding.model();
         String simpleClassName;
         // For gRPC services: ${ServiceName}GrpcService
         simpleClassName = binding.serviceName() + PipelineStepProcessor.GRPC_SERVICE_SUFFIX;
 
         // Determine the appropriate gRPC service base class based on configuration
-        ClassName grpcBaseClassName = determineGrpcBaseClass(binding);
+        ClassName grpcBaseClassName = determineGrpcBaseClass(binding, messager);
 
         TypeSpec.Builder grpcServiceBuilder = TypeSpec.classBuilder(simpleClassName)
                 .addModifiers(Modifier.PUBLIC)
@@ -90,37 +91,37 @@ public record GrpcServiceAdapterRenderer(GenerationTarget target) implements Pip
         // Add the required gRPC service method implementation based on streaming shape
         switch (model.streamingShape()) {
             case UNARY_UNARY:
-                addUnaryUnaryMethod(grpcServiceBuilder, binding);
+                addUnaryUnaryMethod(grpcServiceBuilder, binding, messager);
                 break;
             case UNARY_STREAMING:
-                addUnaryStreamingMethod(grpcServiceBuilder, binding);
+                addUnaryStreamingMethod(grpcServiceBuilder, binding, messager);
                 break;
             case STREAMING_UNARY:
-                addStreamingUnaryMethod(grpcServiceBuilder, binding);
+                addStreamingUnaryMethod(grpcServiceBuilder, binding, messager);
                 break;
             case STREAMING_STREAMING:
-                addStreamingStreamingMethod(grpcServiceBuilder, binding);
+                addStreamingStreamingMethod(grpcServiceBuilder, binding, messager);
                 break;
         }
 
         return grpcServiceBuilder.build();
     }
 
-    private ClassName determineGrpcBaseClass(GrpcBinding binding) {
+    private ClassName determineGrpcBaseClass(GrpcBinding binding, Messager messager) {
         // Use the new GrpcJavaTypeResolver to determine the gRPC implementation base class
         GrpcJavaTypeResolver grpcTypeResolver = new GrpcJavaTypeResolver();
-        GrpcJavaTypeResolver.GrpcJavaTypes types = grpcTypeResolver.resolve(binding);
+        GrpcJavaTypeResolver.GrpcJavaTypes types = grpcTypeResolver.resolve(binding, messager);
         return types.implBase();
     }
 
-    private void addUnaryUnaryMethod(TypeSpec.Builder builder, GrpcBinding binding) {
+    private void addUnaryUnaryMethod(TypeSpec.Builder builder, GrpcBinding binding, Messager messager) {
         PipelineStepModel model = binding.model();
         ClassName grpcAdapterClassName =
                 ClassName.get("org.pipelineframework.grpc", "GrpcReactiveServiceAdapter");
 
         // Use the GrpcJavaTypeResolver to get the proper gRPC types from the binding
         GrpcJavaTypeResolver grpcTypeResolver = new GrpcJavaTypeResolver();
-        GrpcJavaTypeResolver.GrpcJavaTypes grpcTypes = grpcTypeResolver.resolve(binding);
+        GrpcJavaTypeResolver.GrpcJavaTypes grpcTypes = grpcTypeResolver.resolve(binding, messager);
 
         // Validate that required gRPC types are available
         if (grpcTypes.grpcParameterType() == null || grpcTypes.grpcReturnType() == null) {
@@ -128,7 +129,7 @@ public record GrpcServiceAdapterRenderer(GenerationTarget target) implements Pip
         }
 
         // Create the inline adapter
-        TypeSpec inlineAdapter = inlineAdapterBuilder(binding, grpcAdapterClassName);
+        TypeSpec inlineAdapter = inlineAdapterBuilder(binding, grpcAdapterClassName, messager);
 
         TypeName inputDomainTypeUnary = model.inboundDomainType();
         TypeName outputDomainTypeUnary = model.outboundDomainType();
@@ -162,14 +163,14 @@ public record GrpcServiceAdapterRenderer(GenerationTarget target) implements Pip
         builder.addMethod(remoteProcessMethodBuilder.build());
     }
 
-    private void addUnaryStreamingMethod(TypeSpec.Builder builder, GrpcBinding binding) {
+    private void addUnaryStreamingMethod(TypeSpec.Builder builder, GrpcBinding binding, Messager messager) {
         PipelineStepModel model = binding.model();
         ClassName grpcAdapterClassName =
                 ClassName.get("org.pipelineframework.grpc", "GrpcServiceStreamingAdapter");
 
         // Use the GrpcJavaTypeResolver to get the proper gRPC types from the binding
         GrpcJavaTypeResolver grpcTypeResolver = new GrpcJavaTypeResolver();
-        GrpcJavaTypeResolver.GrpcJavaTypes grpcTypes = grpcTypeResolver.resolve(binding);
+        GrpcJavaTypeResolver.GrpcJavaTypes grpcTypes = grpcTypeResolver.resolve(binding, messager);
 
         // Validate that required gRPC types are available
         if (grpcTypes.grpcParameterType() == null || grpcTypes.grpcReturnType() == null) {
@@ -177,7 +178,7 @@ public record GrpcServiceAdapterRenderer(GenerationTarget target) implements Pip
         }
 
         // Create the inline adapter
-        TypeSpec inlineAdapter = inlineAdapterBuilder(binding, grpcAdapterClassName);
+        TypeSpec inlineAdapter = inlineAdapterBuilder(binding, grpcAdapterClassName, messager);
 
         TypeName inputDomainTypeUnaryStreaming = model.inboundDomainType();
         TypeName outputDomainTypeUnaryStreaming = model.outboundDomainType();
@@ -211,14 +212,14 @@ public record GrpcServiceAdapterRenderer(GenerationTarget target) implements Pip
         builder.addMethod(remoteProcessMethodBuilder.build());
     }
 
-    private void addStreamingUnaryMethod(TypeSpec.Builder builder, GrpcBinding binding) {
+    private void addStreamingUnaryMethod(TypeSpec.Builder builder, GrpcBinding binding, Messager messager) {
         PipelineStepModel model = binding.model();
         ClassName grpcAdapterClassName =
                 ClassName.get("org.pipelineframework.grpc", "GrpcServiceClientStreamingAdapter");
 
         // Use the GrpcJavaTypeResolver to get the proper gRPC types from the binding
         GrpcJavaTypeResolver grpcTypeResolver = new GrpcJavaTypeResolver();
-        GrpcJavaTypeResolver.GrpcJavaTypes grpcTypes = grpcTypeResolver.resolve(binding);
+        GrpcJavaTypeResolver.GrpcJavaTypes grpcTypes = grpcTypeResolver.resolve(binding, messager);
 
         // Validate that required gRPC types are available
         if (grpcTypes.grpcParameterType() == null || grpcTypes.grpcReturnType() == null) {
@@ -226,7 +227,7 @@ public record GrpcServiceAdapterRenderer(GenerationTarget target) implements Pip
         }
 
         // Create the inline adapter
-        TypeSpec inlineAdapter = inlineAdapterBuilder(binding, grpcAdapterClassName);
+        TypeSpec inlineAdapter = inlineAdapterBuilder(binding, grpcAdapterClassName, messager);
 
         TypeName inputDomainTypeStreamingUnary = model.inboundDomainType();
         TypeName outputDomainTypeStreamingUnary = model.outboundDomainType();
@@ -261,14 +262,14 @@ public record GrpcServiceAdapterRenderer(GenerationTarget target) implements Pip
         builder.addMethod(remoteProcessMethodBuilder.build());
     }
 
-    private void addStreamingStreamingMethod(TypeSpec.Builder builder, GrpcBinding binding) {
+    private void addStreamingStreamingMethod(TypeSpec.Builder builder, GrpcBinding binding, Messager messager) {
         PipelineStepModel model = binding.model();
         ClassName grpcAdapterClassName =
                 ClassName.get("org.pipelineframework.grpc", "GrpcServiceBidirectionalStreamingAdapter");
 
         // Use the GrpcJavaTypeResolver to get the proper gRPC types from the binding
         GrpcJavaTypeResolver grpcTypeResolver = new GrpcJavaTypeResolver();
-        GrpcJavaTypeResolver.GrpcJavaTypes grpcTypes = grpcTypeResolver.resolve(binding);
+        GrpcJavaTypeResolver.GrpcJavaTypes grpcTypes = grpcTypeResolver.resolve(binding, messager);
 
         // Validate that required gRPC types are available
         if (grpcTypes.grpcParameterType() == null || grpcTypes.grpcReturnType() == null) {
@@ -276,7 +277,7 @@ public record GrpcServiceAdapterRenderer(GenerationTarget target) implements Pip
         }
 
         // Create the inline adapter
-        TypeSpec inlineAdapterStreaming = inlineAdapterBuilder(binding, grpcAdapterClassName);
+        TypeSpec inlineAdapterStreaming = inlineAdapterBuilder(binding, grpcAdapterClassName, messager);
 
         TypeName inputDomainTypeStreamingStreaming = model.inboundDomainType();
         TypeName outputDomainTypeStreamingStreaming = model.outboundDomainType();
@@ -313,14 +314,15 @@ public record GrpcServiceAdapterRenderer(GenerationTarget target) implements Pip
 
     private TypeSpec inlineAdapterBuilder(
             GrpcBinding binding,
-            ClassName grpcAdapterClassName
+            ClassName grpcAdapterClassName,
+            Messager messager
     ) {
         PipelineStepModel model = binding.model();
         TypeName serviceType = model.serviceClassName();
 
         // Use the GrpcJavaTypeResolver to get the proper gRPC types from the binding
         GrpcJavaTypeResolver grpcTypeResolver = new GrpcJavaTypeResolver();
-        GrpcJavaTypeResolver.GrpcJavaTypes grpcTypes = grpcTypeResolver.resolve(binding);
+        GrpcJavaTypeResolver.GrpcJavaTypes grpcTypes = grpcTypeResolver.resolve(binding, messager);
 
         // Validate that required gRPC types are available
         if (grpcTypes.grpcParameterType() == null || grpcTypes.grpcReturnType() == null) {
