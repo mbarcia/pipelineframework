@@ -55,7 +55,7 @@ For complete documentation including detailed reference implementation, YAML con
 - [Best Practices](/guide/best-practices): Recommended practices for pipeline development
 - [Migrations](/guide/migrations): Upgrade notes and breaking changes
 
-### Architecture
+### Technical Architecture & Design
 - [Architecture](/reference/architecture): Core concepts and architectural patterns
 - [Annotation Processor Architecture](/reference/annotation-processor-architecture): Build-time IR, bindings, and renderers
 - [Annotations](/annotations/pipeline-step): Detailed annotation reference
