@@ -386,7 +386,6 @@ public class RestResourceRenderer implements PipelineRenderer<RestBinding> {
     /**
      * Map an exception thrown by a resource method to an appropriate RestResponse.
      *
-     * @param ex the exception to map
      * @return a RestResponse with `BAD_REQUEST` and message "Invalid request" when `ex` is an `IllegalArgumentException`; otherwise a RestResponse with `INTERNAL_SERVER_ERROR` and message "An unexpected error occurred"
      */
     private MethodSpec createExceptionMapperMethod() {
