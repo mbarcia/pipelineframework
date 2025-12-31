@@ -37,7 +37,8 @@ The cardinality of the step. Available options:
 - `ONE_TO_ONE`: Single input to single output
 - `EXPANSION`: Single input to multiple outputs
 - `REDUCTION`: Multiple inputs to single output
-- `SIDE_EFFECT`: Side-effect processing (input=output)
+- `SIDE_EFFECT`: Side effect processing (input=output)
+- `MANY_TO_MANY`: Multiple inputs to multiple outputs
 
 ### `inputTypeName` (string, required)
 Name of the input type.
@@ -50,19 +51,6 @@ Name of the output type.
 
 ### `outputFields` (array of field objects, required)
 List of fields in the output type.
-
-### `parallel` (boolean, optional)
-Enable concurrency for processing individual items within a single stream. When set to true, allows
-processing multiple items from the same input stream concurrently. For StepOneToOne steps, enables concurrent
-processing of multiple input items instead of sequential processing. For StepOneToMany steps, enables concurrent
-processing of the output streams produced by each item. Default is false (no parallelism).
-
-Example:
-```yaml
-parallel: true
-```
-
-
 
 ### Additional Generated Properties
 The following properties are automatically generated from the step name:
@@ -90,6 +78,8 @@ Java type of the field. Most conversions are handled automatically by MapStruct,
 - `AtomicInteger`, `AtomicLong`
 - `List<String>` (custom list serialization)
 
+Custom domain types are also allowed (including types produced by previous steps). The schema does not validate cross-step references.
+
 ### `protoType` (string, required)
 Protobuf type of the field. Available options:
 - `string`
@@ -97,6 +87,8 @@ Protobuf type of the field. Available options:
 - `int64`
 - `double`
 - `bool`
+
+Custom message types are also allowed (including messages defined by other steps).
 
 ## Complete Example
 
@@ -204,7 +196,7 @@ steps:
     type: "String"
     protoType: "string"
 
-  # Step 4: Log Results (side-effect step)
+  # Step 4: Log Results (side effect step)
 - name: "Log Results"
   cardinality: "SIDE_EFFECT"
   inputTypeName: "AggregatedResult"
@@ -224,7 +216,7 @@ steps:
   - name: "timestamp"
     type: "String"
     protoType: "string"
-  outputTypeName: "AggregatedResult"  # Side-effect step returns same type as input
+  outputTypeName: "AggregatedResult"  # Side effect step returns same type as input
   outputFields:
   - name: "summaryId"
     type: "UUID"
@@ -263,5 +255,5 @@ When you use the template generator with a YAML configuration:
 
 1. **Validate**: The configuration is validated against the JSON schema
 2. **Process**: Additional properties are generated from step names
-3. **Generate**: Complete Maven multi-module project with all components
+3. **Generate**: Complete Maven multimodule project with all components
 4. **Output**: Ready-to-build application in the specified output directory
