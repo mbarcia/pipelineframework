@@ -81,9 +81,10 @@ public class PipelineStepIRExtractor {
         try {
             serviceClassName = ClassName.get(serviceClass);
         } catch (Exception e) {
-            serviceClassName = null;
-        }
-        if (serviceClassName == null) {
+            processingEnv.getMessager().printMessage(
+                javax.tools.Diagnostic.Kind.NOTE,
+                "Could not obtain ClassName directly, falling back to bestGuess: " + e.getMessage(),
+                serviceClass);
             serviceClassName = ClassName.bestGuess(qualifiedServiceName);
         }
 
