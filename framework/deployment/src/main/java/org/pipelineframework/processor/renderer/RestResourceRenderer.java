@@ -69,6 +69,7 @@ public class RestResourceRenderer implements PipelineRenderer<RestBinding> {
      */
     private TypeSpec buildRestResourceClass(RestBinding binding) {
         PipelineStepModel model = binding.model();
+        validateRestMappings(model);
 
         String serviceClassName = binding.serviceName();
 
@@ -197,6 +198,7 @@ public class RestResourceRenderer implements PipelineRenderer<RestBinding> {
             TypeName inputDtoClassName, TypeName outputDtoClassName,
             String inboundMapperFieldName, String outboundMapperFieldName,
             PipelineStepModel model) {
+        validateRestMappings(model);
 
         TypeName uniOutputDto = ParameterizedTypeName.get(ClassName.get(Uni.class), outputDtoClassName);
 
@@ -240,6 +242,7 @@ public class RestResourceRenderer implements PipelineRenderer<RestBinding> {
             TypeName inputDtoClassName, TypeName outputDtoClassName,
             String inboundMapperFieldName, String outboundMapperFieldName,
             PipelineStepModel model) {
+        validateRestMappings(model);
 
         TypeName multiOutputDto = ParameterizedTypeName.get(ClassName.get(Multi.class), outputDtoClassName);
 
@@ -292,6 +295,7 @@ public class RestResourceRenderer implements PipelineRenderer<RestBinding> {
             TypeName inputDtoClassName, TypeName outputDtoClassName,
             String inboundMapperFieldName, String outboundMapperFieldName,
             PipelineStepModel model) {
+        validateRestMappings(model);
 
         TypeName multiInputDto = ParameterizedTypeName.get(ClassName.get(Multi.class), inputDtoClassName);
         TypeName uniOutputDto = ParameterizedTypeName.get(ClassName.get(Uni.class), outputDtoClassName);
@@ -338,6 +342,7 @@ public class RestResourceRenderer implements PipelineRenderer<RestBinding> {
             TypeName inputDtoClassName, TypeName outputDtoClassName,
             String inboundMapperFieldName, String outboundMapperFieldName,
             PipelineStepModel model) {
+        validateRestMappings(model);
 
         TypeName multiInputDto = ParameterizedTypeName.get(ClassName.get(Multi.class), inputDtoClassName);
         TypeName multiOutputDto = ParameterizedTypeName.get(ClassName.get(Multi.class), outputDtoClassName);
@@ -478,6 +483,27 @@ public class RestResourceRenderer implements PipelineRenderer<RestBinding> {
             // Add Dto suffix to the class name
             String dtoSimpleName = simpleName + "Dto";
             return ClassName.get(packageName, dtoSimpleName);
+        }
+    }
+
+    private void validateRestMappings(PipelineStepModel model) {
+        if (model == null) {
+            throw new IllegalStateException("REST resource generation requires a non-null PipelineStepModel");
+        }
+        if (model.inputMapping() == null || model.outputMapping() == null) {
+            throw new IllegalStateException(String.format(
+                "REST resource generation for '%s' requires input/output mappings to be present",
+                model.serviceName()));
+        }
+        if (!model.inputMapping().hasMapper() || model.inputMapping().domainType() == null) {
+            throw new IllegalStateException(String.format(
+                "REST resource generation for '%s' requires a non-null input domain type and inbound mapper",
+                model.serviceName()));
+        }
+        if (!model.outputMapping().hasMapper() || model.outputMapping().domainType() == null) {
+            throw new IllegalStateException(String.format(
+                "REST resource generation for '%s' requires a non-null output domain type and outbound mapper",
+                model.serviceName()));
         }
     }
 }
