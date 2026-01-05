@@ -17,32 +17,30 @@
 package org.pipelineframework.rest;
 
 import io.smallrye.mutiny.Multi;
-import org.pipelineframework.service.ReactiveStreamingService;
+import org.pipelineframework.service.ReactiveBidirectionalStreamingService;
 
 /**
- * Base class for streaming REST resources that bridges reactive streaming services to REST endpoints.
+ * Base adapter for REST resources that accept and return streaming DTOs.
  *
  * @param <DtoIn> The DTO input type
  * @param <DtoOut> The DTO output type
  * @param <DomainIn> The domain input type
  * @param <DomainOut> The domain output type
  */
-public abstract class RestReactiveStreamingServiceAdapter<DtoIn, DtoOut, DomainIn, DomainOut> {
+public abstract class RestReactiveBidirectionalStreamingServiceAdapter<DtoIn, DtoOut, DomainIn, DomainOut> {
 
     /**
-     * Initialises a RestReactiveStreamingServiceAdapter instance.
-     *
-     * Provided for subclassing; no initialisation logic is performed.
+     * Default constructor for RestReactiveBidirectionalStreamingServiceAdapter.
      */
-    public RestReactiveStreamingServiceAdapter() {
+    public RestReactiveBidirectionalStreamingServiceAdapter() {
     }
 
     /**
-     * Provides the reactive streaming service that processes domain inputs into domain outputs.
+     * Provide the bidirectional streaming service that processes domain inputs into domain outputs.
      *
-     * @return the {@link ReactiveStreamingService} instance that processes {@code DomainIn} into {@code DomainOut}
+     * @return the {@link ReactiveBidirectionalStreamingService} instance that processes {@code DomainIn} into {@code DomainOut}
      */
-    protected abstract ReactiveStreamingService<DomainIn, DomainOut> getService();
+    protected abstract ReactiveBidirectionalStreamingService<DomainIn, DomainOut> getService();
 
     /**
      * Convert a REST DTO input into the corresponding domain object.
@@ -61,17 +59,17 @@ public abstract class RestReactiveStreamingServiceAdapter<DtoIn, DtoOut, DomainI
     protected abstract DtoOut toDto(DomainOut domainOut);
 
     /**
-     * Process a REST request through the reactive streaming domain service.
+     * Process a REST request stream through the bidirectional streaming domain service.
      *
-     * Converts the REST DTO to a domain input, invokes the streaming service, and converts
-     * each resulting domain output back to a REST DTO.
+     * Converts the REST DTO stream to a domain stream, invokes the bidirectional service,
+     * and converts each resulting domain output back to a REST DTO.
      *
-     * @param dtoRequest the incoming REST DTO to process
+     * @param dtoRequests the incoming REST DTO stream to process
      * @return the stream of REST DTO responses corresponding to processed domain outputs
      */
-    public Multi<DtoOut> remoteProcess(DtoIn dtoRequest) {
-        DomainIn entity = fromDto(dtoRequest);
-        Multi<DomainOut> processedResult = getService().process(entity);
+    public Multi<DtoOut> remoteProcess(Multi<DtoIn> dtoRequests) {
+        Multi<DomainIn> domainStream = dtoRequests.onItem().transform(this::fromDto);
+        Multi<DomainOut> processedResult = getService().process(domainStream);
         return processedResult.onItem().transform(this::toDto);
     }
 }

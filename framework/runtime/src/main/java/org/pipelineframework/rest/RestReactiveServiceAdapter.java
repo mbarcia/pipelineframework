@@ -16,16 +16,18 @@
 
 package org.pipelineframework.rest;
 
+import io.smallrye.mutiny.Uni;
 import org.pipelineframework.service.ReactiveService;
 
 /**
- * Base adapter for REST resources that process domain inputs via a ReactiveService and convert outputs to DTOs.
- * 
+ * Base adapter for REST resources that process DTO inputs via a ReactiveService and convert outputs to DTOs.
+ *
+ * @param <DtoIn> The DTO input type
+ * @param <DtoOut> The DTO output type
  * @param <DomainIn> The domain input type
  * @param <DomainOut> The domain output type
- * @param <DtoOut> The DTO output type
  */
-public abstract class RestReactiveServiceAdapter<DomainIn, DomainOut, DtoOut> {
+public abstract class RestReactiveServiceAdapter<DtoIn, DtoOut, DomainIn, DomainOut> {
 
     /**
      * Default constructor for RestReactiveServiceAdapter.
@@ -34,19 +36,42 @@ public abstract class RestReactiveServiceAdapter<DomainIn, DomainOut, DtoOut> {
     }
 
     /**
- * Supply the ReactiveService that performs processing of domain inputs to domain outputs.
- *
- * Implementations must provide the service instance the adapter will delegate domain processing to.
- *
- * @return the {@code ReactiveService<DomainIn, DomainOut>} instance used to process domain inputs into domain outputs
- */
+     * Supply the ReactiveService that performs processing of domain inputs to domain outputs.
+     *
+     * Implementations must provide the service instance the adapter will delegate domain processing to.
+     *
+     * @return the {@code ReactiveService<DomainIn, DomainOut>} instance used to process domain inputs into domain outputs
+     */
     protected abstract ReactiveService<DomainIn, DomainOut> getService();
 
     /**
- * Converts a processed domain object to its REST DTO representation.
- *
- * @param domainOut the processed domain model instance to convert
- * @return the DTO representation to be returned by the REST resource
- */
+     * Convert a REST DTO input into the corresponding domain object.
+     *
+     * @param dtoIn the REST input DTO to convert
+     * @return the domain input object produced from the DTO
+     */
+    protected abstract DomainIn fromDto(DtoIn dtoIn);
+
+    /**
+     * Converts a processed domain object to its REST DTO representation.
+     *
+     * @param domainOut the processed domain model instance to convert
+     * @return the DTO representation to be returned by the REST resource
+     */
     protected abstract DtoOut toDto(DomainOut domainOut);
+
+    /**
+     * Process a REST request through the reactive domain service.
+     *
+     * Converts the REST DTO to a domain input, invokes the domain reactive service, and converts
+     * the resulting domain output back to a REST DTO.
+     *
+     * @param dtoRequest the incoming REST DTO to process
+     * @return the REST DTO response corresponding to the processed domain output
+     */
+    public Uni<DtoOut> remoteProcess(DtoIn dtoRequest) {
+        DomainIn entity = fromDto(dtoRequest);
+        Uni<DomainOut> processedResult = getService().process(entity);
+        return processedResult.onItem().transform(this::toDto);
+    }
 }
