@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+option java_package = "org.pipelineframework.search.grpc";
+
+import "crawl-source-svc.proto";
+
+
+message ParsedDocument {
+  string docId = 5;
+  string title = 6;
+  string content = 7;
+  string extractedAt = 8;
+}
+
+service ProcessParseDocumentService {
+  rpc remoteProcess(RawDocument) returns (ParsedDocument);
+}
+
+service ObservePersistenceParsedDocumentSideEffectService {
+  rpc remoteProcess(ParsedDocument) returns (ParsedDocument);
+}
+
+service ObserveCacheInvalidateParsedDocumentSideEffectService {
+  rpc remoteProcess(ParsedDocument) returns (ParsedDocument);
+}
+
+service ObserveCacheInvalidateAllParsedDocumentSideEffectService {
+  rpc remoteProcess(ParsedDocument) returns (ParsedDocument);
+}

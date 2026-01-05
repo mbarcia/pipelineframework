@@ -1,0 +1,33 @@
+# Search Pipeline
+
+This is a generated pipeline application built with the Pipeline Framework.
+
+## Prerequisites
+
+- Java 21
+- Maven 3.8+
+
+## Verifying the Generated Application
+
+To verify that the application was generated correctly:
+
+```bash
+cd Search Pipeline
+./mvnw clean verify
+```
+
+This will compile all modules, run tests, and verify that there are no syntax or dependency issues.
+
+## Running the Application
+
+### In Development Mode
+
+Use the Quarkus plugin in IntelliJ IDEA or run with:
+
+```bash
+./mvnw compile quarkus:dev
+```
+
+## Architecture
+
+This application follows the pipeline pattern with multiple microservices, each responsible for a specific step in the processing workflow. Services communicate via gRPC, and the orchestrator coordinates the overall pipeline execution.

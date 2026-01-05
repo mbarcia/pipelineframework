@@ -14,22 +14,23 @@
  * limitations under the License.
  */
 
-package org.pipelineframework.csv.resource;
+package org.pipelineframework.search.resource;
 
-import static io.restassured.RestAssured.given;
-import static org.hamcrest.CoreMatchers.notNullValue;
+import java.util.UUID;
 
 import io.quarkus.test.junit.QuarkusIntegrationTest;
 import io.restassured.RestAssured;
 import io.restassured.config.SSLConfig;
 import io.restassured.http.ContentType;
-import java.util.UUID;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import static io.restassured.RestAssured.given;
+import static org.hamcrest.Matchers.notNullValue;
+
 @QuarkusIntegrationTest
-class ProcessAckPaymentSentResourceIT {
+class ProcessCrawlSourceResourceIT {
 
     @BeforeAll
     static void setUp() {
@@ -37,8 +38,8 @@ class ProcessAckPaymentSentResourceIT {
         RestAssured.useRelaxedHTTPSValidation();
         RestAssured.config =
                 RestAssured.config().sslConfig(SSLConfig.sslConfig().relaxedHTTPSValidation());
-        // Update the port to match the HTTPS port
-        RestAssured.port = 8445;
+        RestAssured.port =
+                Integer.parseInt(System.getProperty("quarkus.http.test-ssl-port", "8444"));
     }
 
     @AfterAll
@@ -48,62 +49,12 @@ class ProcessAckPaymentSentResourceIT {
     }
 
     @Test
-    void testProcessAckPaymentEndpointWithValidData() {
-        // Create a test DTO with valid structure
+    void testProcessCrawlSourceWithValidData() {
         String requestBody =
                 """
                 {
-                  "id": "%s",
-                  "conversationId": "%s",
-                  "paymentRecordId": "%s",
-                  "message": "Payment sent successfully",
-                  "status": 200
-                }
-                """
-                        .formatted(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID());
-
-        given().contentType(ContentType.JSON)
-                .body(requestBody)
-                .when()
-                .post("/api/v1/process-ack-payment-sent/process")
-                .then()
-                .statusCode(200)
-                .body("id", notNullValue())
-                .body("reference", notNullValue())
-                .body("status", notNullValue());
-    }
-
-    @Test
-    void testProcessAckPaymentEndpointWithInvalidUUID() {
-        // Create a test DTO with invalid UUID
-        String requestBody =
-                """
-                {
-                  "id": "invalid-uuid",
-                  "conversationId": "invalid-uuid",
-                  "paymentRecordId": "invalid-uuid",
-                  "message": "Payment sent successfully",
-                  "status": 200
-                }
-                """;
-
-        given().contentType(ContentType.JSON)
-                .body(requestBody)
-                .when()
-                .post("/api/v1/process-ack-payment-sent/process")
-                .then()
-                .statusCode(500);
-    }
-
-    @Test
-    void testProcessAckPaymentEndpointWithMissingRequiredFields() {
-        // Create a test DTO with missing required fields but with valid conversationId
-        String requestBody =
-                """
-                {
-                  "conversationId": "%s",
-                  "message": "Payment sent successfully",
-                  "status": 200
+                  "docId": "%s",
+                  "sourceUrl": "https://example.com/docs/alpha"
                 }
                 """
                         .formatted(UUID.randomUUID());
@@ -111,8 +62,47 @@ class ProcessAckPaymentSentResourceIT {
         given().contentType(ContentType.JSON)
                 .body(requestBody)
                 .when()
-                .post("/api/v1/process-ack-payment-sent/process")
+                .post("/api/v1/process-crawl-source/process")
+                .then()
+                .statusCode(200)
+                .body("docId", notNullValue())
+                .body("rawContent", notNullValue())
+                .body("fetchedAt", notNullValue());
+    }
+
+    @Test
+    void testProcessCrawlSourceWithInvalidUUID() {
+        String requestBody =
+                """
+                {
+                  "docId": "invalid-uuid",
+                  "sourceUrl": "https://example.com/docs/alpha"
+                }
+                """;
+
+        given().contentType(ContentType.JSON)
+                .body(requestBody)
+                .when()
+                .post("/api/v1/process-crawl-source/process")
                 .then()
                 .statusCode(500);
+    }
+
+    @Test
+    void testProcessCrawlSourceWithMissingRequiredFields() {
+        String requestBody =
+                """
+                {
+                  "docId": "%s"
+                }
+                """
+                        .formatted(UUID.randomUUID());
+
+        given().contentType(ContentType.JSON)
+                .body(requestBody)
+                .when()
+                .post("/api/v1/process-crawl-source/process")
+                .then()
+                .statusCode(400);
     }
 }
