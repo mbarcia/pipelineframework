@@ -344,6 +344,9 @@ public class PipelineStepProcessor extends AbstractProcessingTool {
                         if (model.deploymentRole() == DeploymentRole.PLUGIN_SERVER && !pluginHost) {
                             break;
                         }
+                        if (model.sideEffect() && model.deploymentRole() == DeploymentRole.PLUGIN_SERVER) {
+                            generateSideEffectBean(model, resolveRoleOutputDir(DeploymentRole.REST_SERVER));
+                        }
                         if (restBinding == null) {
                             processingEnv.getMessager().printMessage(Diagnostic.Kind.WARNING,
                                 "Skipping REST resource generation for '" + model.generatedName() +

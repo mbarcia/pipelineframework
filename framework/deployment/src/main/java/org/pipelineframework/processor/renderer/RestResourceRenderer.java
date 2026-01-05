@@ -97,7 +97,7 @@ public class RestResourceRenderer implements PipelineRenderer<RestBinding> {
 
         // Add service field with @Inject
         FieldSpec serviceField = FieldSpec.builder(
-            model.serviceClassName(),
+            resolveServiceType(model),
             "domainService")
             .addAnnotation(AnnotationSpec.builder(ClassName.get("jakarta.inject", "Inject")).build())
             .build();
@@ -163,25 +163,43 @@ public class RestResourceRenderer implements PipelineRenderer<RestBinding> {
         // For REST resources, we use appropriate DTO types, not gRPC types
         // The DTO types should be derived from domain types using the same
         // transformation logic as the original getDtoType method would have used
-        TypeName inputDtoClassName = model.inboundDomainType() != null ?
-            convertDomainToDtoType(model.inboundDomainType()) : ClassName.OBJECT;
-        TypeName outputDtoClassName = model.outboundDomainType() != null ?
-            convertDomainToDtoType(model.outboundDomainType()) : ClassName.OBJECT;
+        TypeName inputDtoClassName = model.inboundDomainType() != null
+            ? convertDomainToDtoType(model.inboundDomainType())
+            : ClassName.OBJECT;
+        TypeName outputDtoClassName = model.outboundDomainType() != null
+            ? convertDomainToDtoType(model.outboundDomainType())
+            : ClassName.OBJECT;
+
+        TypeName domainInputType = model.inboundDomainType() != null
+            ? model.inboundDomainType()
+            : ClassName.OBJECT;
+        TypeName domainOutputType = model.outboundDomainType() != null
+            ? model.outboundDomainType()
+            : ClassName.OBJECT;
+
+        ClassName adapterClass = resolveRestAdapterClass(model);
+        TypeName adapterType = ParameterizedTypeName.get(
+            adapterClass,
+            inputDtoClassName,
+            outputDtoClassName,
+            domainInputType,
+            domainOutputType);
+        resourceBuilder.superclass(adapterType);
+
+        resourceBuilder.addMethod(createGetServiceMethod(model));
+        resourceBuilder.addMethod(createFromDtoMethod(model, inputDtoClassName, inboundMapperFieldName));
+        resourceBuilder.addMethod(createToDtoMethod(model, outputDtoClassName, outboundMapperFieldName));
 
         // Create the process method based on service type (determined from streaming shape)
         MethodSpec processMethod = switch (model.streamingShape()) {
             case UNARY_STREAMING -> createReactiveStreamingServiceProcessMethod(
-                    inputDtoClassName, outputDtoClassName,
-                    inboundMapperFieldName, outboundMapperFieldName, model);
+                    inputDtoClassName, outputDtoClassName, model);
             case STREAMING_UNARY -> createReactiveStreamingClientServiceProcessMethod(
-                    inputDtoClassName, outputDtoClassName,
-                    inboundMapperFieldName, outboundMapperFieldName, model);
+                    inputDtoClassName, outputDtoClassName, model);
             case STREAMING_STREAMING -> createReactiveBidirectionalStreamingServiceProcessMethod(
-                    inputDtoClassName, outputDtoClassName,
-                    inboundMapperFieldName, outboundMapperFieldName, model);
+                    inputDtoClassName, outputDtoClassName, model);
             default -> createReactiveServiceProcessMethod(
-                    inputDtoClassName, outputDtoClassName,
-                    inboundMapperFieldName, outboundMapperFieldName, model, ctx);
+                    inputDtoClassName, outputDtoClassName, model, ctx);
         };
 
         resourceBuilder.addMethod(processMethod);
@@ -197,20 +215,16 @@ public class RestResourceRenderer implements PipelineRenderer<RestBinding> {
      * Create the REST POST "process" method for a unary reactive service endpoint.
      *
      * The generated method is a public POST handler at path "/process" that accepts an input DTO,
-     * converts it to the inbound domain type using the inbound mapper, delegates to the injected
-     * domain service, and maps the service result to an output DTO using the outbound mapper.
+     * delegates to the adapter's remoteProcess method, and returns a Uni of output DTOs.
      *
      * @param inputDtoClassName           the DTO type used as the method parameter
      * @param outputDtoClassName          the DTO type produced by the method
-     * @param inboundMapperFieldName      name of the injected inbound mapper field used to convert DTO to domain
-     * @param outboundMapperFieldName     name of the injected outbound mapper field used to convert domain to DTO
      * @param model                       the pipeline step model used to determine domain types and execution mode
      * @param ctx                         generation context carrying enabled aspects and deployment role
      * @return                            a MethodSpec for the generated REST "process" method that returns a `Uni` of the output DTO
      */
     private MethodSpec createReactiveServiceProcessMethod(
             TypeName inputDtoClassName, TypeName outputDtoClassName,
-            String inboundMapperFieldName, String outboundMapperFieldName,
             PipelineStepModel model,
             GenerationContext ctx) {
         validateRestMappings(model);
@@ -227,13 +241,7 @@ public class RestResourceRenderer implements PipelineRenderer<RestBinding> {
             .returns(uniOutputDto)
             .addParameter(inputDtoClassName, "inputDto");
 
-        // Add the implementation code
-        methodBuilder.addStatement("$T inputDomain = $L.fromDto(inputDto)",
-                model.inboundDomainType(),
-                inboundMapperFieldName);
-
-        methodBuilder.addStatement("return domainService.process(inputDomain).map(output -> $L.toDto(output))",
-                outboundMapperFieldName);
+        methodBuilder.addStatement("return remoteProcess(inputDto)");
 
         // Add @RunOnVirtualThread annotation if the property is enabled
         if (model.executionMode() == org.pipelineframework.processor.ir.ExecutionMode.VIRTUAL_THREADS) {
@@ -248,14 +256,11 @@ public class RestResourceRenderer implements PipelineRenderer<RestBinding> {
      *
      * @param inputDtoClassName           the DTO type accepted by the endpoint
      * @param outputDtoClassName          the DTO type emitted by the returned stream
-     * @param inboundMapperFieldName      name of the injected inbound mapper field used to convert the input DTO to the domain type
-     * @param outboundMapperFieldName     name of the injected outbound mapper field used to convert domain outputs to DTOs
      * @param model                       pipeline step model used to determine domain types and execution mode
      * @return                            a `Multi` that emits output DTO instances converted from the service's domain outputs
      */
     private MethodSpec createReactiveStreamingServiceProcessMethod(
             TypeName inputDtoClassName, TypeName outputDtoClassName,
-            String inboundMapperFieldName, String outboundMapperFieldName,
             PipelineStepModel model) {
         validateRestMappings(model);
 
@@ -274,14 +279,7 @@ public class RestResourceRenderer implements PipelineRenderer<RestBinding> {
             .returns(multiOutputDto)
             .addParameter(inputDtoClassName, "inputDto");
 
-        // Add the implementation code
-        methodBuilder.addStatement("$T inputDomain = $L.fromDto(inputDto)",
-                model.inboundDomainType(),
-                inboundMapperFieldName);
-
-        // Return the stream, allowing errors to propagate to the exception mapper
-        methodBuilder.addStatement("return domainService.process(inputDomain).map(output -> $L.toDto(output))",
-                outboundMapperFieldName);
+        methodBuilder.addStatement("return remoteProcess(inputDto)");
 
         // Add @RunOnVirtualThread annotation if the property is enabled
         if (model.executionMode() == org.pipelineframework.processor.ir.ExecutionMode.VIRTUAL_THREADS) {
@@ -295,20 +293,15 @@ public class RestResourceRenderer implements PipelineRenderer<RestBinding> {
      * Builds the reactive client-streaming "process" JAX-RS method for the generated REST resource.
      *
      * The generated method is a public POST endpoint at path "/process" that accepts a Multi of input DTOs,
-     * maps each DTO to its domain representation using the inbound mapper field, delegates processing to the
-     * injected domain service, then maps the service result to an output DTO using the outbound mapper field.
-     * If the pipeline step's execution mode is `VIRTUAL_THREADS`, the method will be annotated to run on a virtual thread.
+     * delegates processing to the adapter's remoteProcess method, and returns a Uni of output DTOs.
      *
      * @param inputDtoClassName    the TypeName used for individual input DTOs
      * @param outputDtoClassName   the TypeName used for the output DTO
-     * @param inboundMapperFieldName  the name of the injected inbound mapper field used to convert DTOs to domain objects
-     * @param outboundMapperFieldName the name of the injected outbound mapper field used to convert domain objects to DTOs
      * @param model                the pipeline step model that influences method generation (for example execution mode)
      * @return                     a MethodSpec representing the generated "process" method
      */
     private MethodSpec createReactiveStreamingClientServiceProcessMethod(
             TypeName inputDtoClassName, TypeName outputDtoClassName,
-            String inboundMapperFieldName, String outboundMapperFieldName,
             PipelineStepModel model) {
         validateRestMappings(model);
 
@@ -326,14 +319,7 @@ public class RestResourceRenderer implements PipelineRenderer<RestBinding> {
             .addParameter(ParameterSpec.builder(multiInputDto, "inputDtos")
                 .build());
 
-        // Add the implementation code
-        methodBuilder.addStatement("$T<$T> domainInputs = inputDtos.map(input -> $L.fromDto(input))",
-                ClassName.get(Multi.class),
-                model.inboundDomainType(),
-                inboundMapperFieldName);
-
-        methodBuilder.addStatement("return domainService.process(domainInputs).map(output -> $L.toDto(output))",
-                outboundMapperFieldName);
+        methodBuilder.addStatement("return remoteProcess(inputDtos)");
 
         // Add @RunOnVirtualThread annotation if the property is enabled
         if (model.executionMode() == org.pipelineframework.processor.ir.ExecutionMode.VIRTUAL_THREADS) {
@@ -348,14 +334,11 @@ public class RestResourceRenderer implements PipelineRenderer<RestBinding> {
      *
      * @param inputDtoClassName      the DTO type for incoming stream elements
      * @param outputDtoClassName     the DTO type for outgoing stream elements
-     * @param inboundMapperFieldName name of the injected mapper field used to convert incoming DTOs to domain objects
-     * @param outboundMapperFieldName name of the injected mapper field used to convert domain outputs to DTOs
      * @param model                  the pipeline step model that influences streaming shape and execution mode; if the execution mode is VIRTUAL_THREADS the generated method will be annotated with `@RunOnVirtualThread`
      * @return                       a `Multi` of output DTO instances produced by mapping the domain service's outputs to DTOs
      */
     private MethodSpec createReactiveBidirectionalStreamingServiceProcessMethod(
             TypeName inputDtoClassName, TypeName outputDtoClassName,
-            String inboundMapperFieldName, String outboundMapperFieldName,
             PipelineStepModel model) {
         validateRestMappings(model);
 
@@ -381,14 +364,7 @@ public class RestResourceRenderer implements PipelineRenderer<RestBinding> {
             .returns(multiOutputDto)
             .addParameter(multiInputDto, "inputDtos");
 
-        // Add the implementation code
-        methodBuilder.addStatement("$T<$T> domainInputs = inputDtos.map(input -> $L.fromDto(input))",
-                ClassName.get(Multi.class),
-                model.inboundDomainType(),
-                inboundMapperFieldName);
-
-        methodBuilder.addStatement("return domainService.process(domainInputs).map(output -> $L.toDto(output))",
-                outboundMapperFieldName);
+        methodBuilder.addStatement("return remoteProcess(inputDtos)");
 
         // Add @RunOnVirtualThread annotation if the property is enabled
         if (model.executionMode() == org.pipelineframework.processor.ir.ExecutionMode.VIRTUAL_THREADS) {
@@ -396,6 +372,96 @@ public class RestResourceRenderer implements PipelineRenderer<RestBinding> {
         }
 
         return methodBuilder.build();
+    }
+
+    private ClassName resolveRestAdapterClass(PipelineStepModel model) {
+        return switch (model.streamingShape()) {
+            case UNARY_STREAMING -> ClassName.get(
+                "org.pipelineframework.rest", "RestReactiveStreamingServiceAdapter");
+            case STREAMING_UNARY -> ClassName.get(
+                "org.pipelineframework.rest", "RestReactiveStreamingClientServiceAdapter");
+            case STREAMING_STREAMING -> ClassName.get(
+                "org.pipelineframework.rest", "RestReactiveBidirectionalStreamingServiceAdapter");
+            default -> ClassName.get(
+                "org.pipelineframework.rest", "RestReactiveServiceAdapter");
+        };
+    }
+
+    private MethodSpec createGetServiceMethod(PipelineStepModel model) {
+        TypeName domainInputType = model.inboundDomainType() != null
+            ? model.inboundDomainType()
+            : ClassName.OBJECT;
+        TypeName domainOutputType = model.outboundDomainType() != null
+            ? model.outboundDomainType()
+            : ClassName.OBJECT;
+        TypeName serviceType = switch (model.streamingShape()) {
+            case UNARY_STREAMING -> ParameterizedTypeName.get(
+                ClassName.get("org.pipelineframework.service", "ReactiveStreamingService"),
+                domainInputType,
+                domainOutputType);
+            case STREAMING_UNARY -> ParameterizedTypeName.get(
+                ClassName.get("org.pipelineframework.service", "ReactiveStreamingClientService"),
+                domainInputType,
+                domainOutputType);
+            case STREAMING_STREAMING -> ParameterizedTypeName.get(
+                ClassName.get("org.pipelineframework.service", "ReactiveBidirectionalStreamingService"),
+                domainInputType,
+                domainOutputType);
+            default -> ParameterizedTypeName.get(
+                ClassName.get("org.pipelineframework.service", "ReactiveService"),
+                domainInputType,
+                domainOutputType);
+        };
+
+        return MethodSpec.methodBuilder("getService")
+            .addAnnotation(Override.class)
+            .addModifiers(Modifier.PROTECTED)
+            .returns(serviceType)
+            .addStatement("return domainService")
+            .build();
+    }
+
+    private TypeName resolveServiceType(PipelineStepModel model) {
+        if (!model.sideEffect()) {
+            return model.serviceClassName();
+        }
+        TypeName outputDomainType = model.outboundDomainType();
+        if (outputDomainType == null) {
+            return model.serviceClassName();
+        }
+        return ParameterizedTypeName.get(model.serviceClassName(), outputDomainType);
+    }
+
+    private MethodSpec createFromDtoMethod(
+            PipelineStepModel model,
+            TypeName inputDtoClassName,
+            String inboundMapperFieldName) {
+        TypeName domainInputType = model.inboundDomainType() != null
+            ? model.inboundDomainType()
+            : ClassName.OBJECT;
+        return MethodSpec.methodBuilder("fromDto")
+            .addAnnotation(Override.class)
+            .addModifiers(Modifier.PROTECTED)
+            .returns(domainInputType)
+            .addParameter(inputDtoClassName, "dto")
+            .addStatement("return $L.fromDto(dto)", inboundMapperFieldName)
+            .build();
+    }
+
+    private MethodSpec createToDtoMethod(
+            PipelineStepModel model,
+            TypeName outputDtoClassName,
+            String outboundMapperFieldName) {
+        TypeName domainOutputType = model.outboundDomainType() != null
+            ? model.outboundDomainType()
+            : ClassName.OBJECT;
+        return MethodSpec.methodBuilder("toDto")
+            .addAnnotation(Override.class)
+            .addModifiers(Modifier.PROTECTED)
+            .returns(outputDtoClassName)
+            .addParameter(domainOutputType, "domain")
+            .addStatement("return $L.toDto(domain)", outboundMapperFieldName)
+            .build();
     }
 
     /**
