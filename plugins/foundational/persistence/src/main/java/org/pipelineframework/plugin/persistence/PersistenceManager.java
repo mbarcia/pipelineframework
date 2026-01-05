@@ -14,15 +14,19 @@
  * limitations under the License.
  */
 
-package org.pipelineframework.persistence;
+package org.pipelineframework.plugin.persistence;
 
-import io.smallrye.mutiny.Uni;
+import java.util.List;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
-import java.util.List;
+
+import io.quarkus.arc.Unremovable;
+import io.quarkus.hibernate.reactive.panache.common.WithTransaction;
+import io.smallrye.mutiny.Uni;
 import org.jboss.logging.Logger;
+import org.pipelineframework.persistence.PersistenceProvider;
 
 /**
  * Manager for persistence operations that delegates to registered PersistenceProvider implementations.
@@ -31,6 +35,7 @@ import org.jboss.logging.Logger;
  * type of entity and thread context, then delegating the operation to that provider.</p>
  */
 @ApplicationScoped
+@Unremovable
 public class PersistenceManager {
 
     private static final Logger LOG = Logger.getLogger(PersistenceManager.class);
@@ -48,8 +53,19 @@ public class PersistenceManager {
 
     @PostConstruct
     void init() {
-        this.providers = providerInstance.stream().toList();
-        LOG.infof("Initialised %s persistence providers", providers.size());
+        LOG.debug("PersistenceManager init() called");
+        LOG.debugf("Provider instance available: %s", providerInstance != null);
+
+        if (providerInstance != null) {
+            this.providers = providerInstance.stream().toList();
+            LOG.infof("Initialised %s persistence providers", providers.size());
+            for (int i = 0; i < providers.size(); i++) {
+                LOG.debugf("Provider %d: %s", i, providers.get(i).getClass().getName());
+            }
+        } else {
+            LOG.warn("providerInstance is null!");
+            this.providers = List.of();
+        }
     }
 
     /**
@@ -59,6 +75,7 @@ public class PersistenceManager {
      * @param entity the entity to persist
      * @return the persisted entity if a suitable provider handled it, otherwise the original entity; if the input was null the Uni emits `null`
      */
+    @WithTransaction
     public <T> Uni<T> persist(T entity) {
         if (entity == null) {
             LOG.debug("Entity is null, returning empty Uni");

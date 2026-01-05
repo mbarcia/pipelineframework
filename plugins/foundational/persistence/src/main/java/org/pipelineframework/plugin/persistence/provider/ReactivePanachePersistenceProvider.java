@@ -14,14 +14,15 @@
  * limitations under the License.
  */
 
-package org.pipelineframework.persistence.provider;
+package org.pipelineframework.plugin.persistence.provider;
+
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.persistence.PersistenceException;
 
 import io.quarkus.arc.Unremovable;
 import io.quarkus.hibernate.reactive.panache.Panache;
 import io.quarkus.hibernate.reactive.panache.PanacheEntityBase;
 import io.smallrye.mutiny.Uni;
-import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.persistence.PersistenceException;
 import org.jboss.logging.Logger;
 import org.pipelineframework.persistence.PersistenceProvider;
 

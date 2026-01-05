@@ -14,20 +14,24 @@
  * limitations under the License.
  */
 
-package org.pipelineframework.plugin.runtime;
+package org.pipelineframework.domain;
 
-/**
- * Exception thrown when a plugin cannot be resolved at runtime.
- */
-public class PluginResolutionException extends RuntimeException {
+import lombok.Getter;
+
+@Getter
+public class TestEntity {
 
     /**
      * Create a PluginResolutionException with the specified detail message.
      *
      * @param message the detail message describing why the plugin could not be resolved
      */
-    public PluginResolutionException(String message) {
-        super(message);
+    // Getters and setters
+    private String name;
+    private String description;
+
+    public TestEntity() {
+        super();
     }
 
     /**
@@ -36,7 +40,9 @@ public class PluginResolutionException extends RuntimeException {
      * @param message the detail message explaining why the plugin could not be resolved
      * @param cause the underlying cause of the resolution failure, or {@code null} if none
      */
-    public PluginResolutionException(String message, Throwable cause) {
-        super(message, cause);
+    public TestEntity(String name, String description) {
+        super();
+        this.name = name;
+        this.description = description;
     }
 }

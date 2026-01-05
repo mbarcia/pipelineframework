@@ -14,11 +14,13 @@
  * limitations under the License.
  */
 
-package org.pipelineframework.persistence;
+package org.pipelineframework.plugin.persistence;
+
+import jakarta.enterprise.context.ApplicationScoped;
 
 import io.smallrye.mutiny.Uni;
-import jakarta.enterprise.context.ApplicationScoped;
 import org.pipelineframework.domain.TestEntity;
+import org.pipelineframework.persistence.PersistenceProvider;
 
 /** Test persistence provider for TestEntity used in unit tests. */
 @ApplicationScoped

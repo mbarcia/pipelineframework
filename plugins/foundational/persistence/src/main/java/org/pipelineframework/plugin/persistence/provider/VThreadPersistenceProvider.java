@@ -14,14 +14,15 @@
  * limitations under the License.
  */
 
-package org.pipelineframework.persistence.provider;
+package org.pipelineframework.plugin.persistence.provider;
+
+import jakarta.enterprise.context.Dependent;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EntityManager;
 
 import io.quarkus.arc.Arc;
 import io.quarkus.arc.InjectableInstance;
 import io.smallrye.mutiny.Uni;
-import jakarta.enterprise.context.Dependent;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EntityManager;
 import org.jboss.logging.Logger;
 import org.pipelineframework.persistence.PersistenceProvider;
 
@@ -32,7 +33,7 @@ import org.pipelineframework.persistence.PersistenceProvider;
 @Dependent
 public class VThreadPersistenceProvider implements PersistenceProvider<Object> {
 
-  private static final Logger LOG = Logger.getLogger(VThreadPersistenceProvider.class);
+  private final Logger logger = Logger.getLogger(VThreadPersistenceProvider.class);
 
   private final InjectableInstance<EntityManager> entityManagerInstance;
 
@@ -60,9 +61,9 @@ public class VThreadPersistenceProvider implements PersistenceProvider<Object> {
     }
     
     return Uni.createFrom().item(() -> {
-      if (!entityManagerInstance.isResolvable()) {
+        if (!entityManagerInstance.isResolvable()) {
         throw new IllegalStateException("No EntityManager available for VThreadPersistenceProvider");
-      }
+        }
 
         try (EntityManager em = entityManagerInstance.get()) {
             em.getTransaction().begin();

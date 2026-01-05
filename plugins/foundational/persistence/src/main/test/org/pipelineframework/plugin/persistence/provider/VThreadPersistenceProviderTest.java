@@ -14,25 +14,27 @@
  * limitations under the License.
  */
 
-package org.pipelineframework.persistence.provider;
+package org.pipelineframework.plugin.persistence.provider;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import java.lang.reflect.Field;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityTransaction;
 
 import io.quarkus.arc.InjectableInstance;
 import io.quarkus.test.junit.QuarkusTest;
 import io.smallrye.mutiny.Uni;
 import io.smallrye.mutiny.helpers.test.UniAssertSubscriber;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.EntityTransaction;
-import java.lang.reflect.Field;
 import lombok.Getter;
 import lombok.Setter;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 /**
  * Comprehensive unit tests for VThreadPersistenceProvider. Tests entity persistence, transaction
@@ -282,7 +284,7 @@ class VThreadPersistenceProviderTest {
         Object persistedEntity = subscriber.getItem();
         assertSame(entity, persistedEntity, "Should return the same entity reference");
         assertInstanceOf(TestEntity.class, persistedEntity);
-        assertEquals("test-value", ((TestEntity) persistedEntity).getValue());
+        Assertions.assertEquals("test-value", ((TestEntity) persistedEntity).getValue());
     }
 
     @Test

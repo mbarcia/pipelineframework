@@ -14,23 +14,26 @@
  * limitations under the License.
  */
 
-package org.pipelineframework.persistence;
+package org.pipelineframework.plugin.persistence;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import java.lang.reflect.Field;
+import java.util.List;
+import java.util.stream.Stream;
+import jakarta.enterprise.inject.Instance;
 
 import io.quarkus.hibernate.reactive.panache.PanacheEntityBase;
 import io.smallrye.mutiny.Uni;
 import io.smallrye.mutiny.helpers.test.UniAssertSubscriber;
-import jakarta.enterprise.inject.Instance;
-import java.lang.reflect.Field;
-import java.util.List;
-import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
-import org.pipelineframework.persistence.provider.ReactivePanachePersistenceProvider;
+import org.pipelineframework.persistence.PersistenceProvider;
+import org.pipelineframework.plugin.persistence.provider.ReactivePanachePersistenceProvider;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 class PersistenceManagerTest {
 
@@ -95,7 +98,7 @@ class PersistenceManagerTest {
     void persist_WithSupportedProvider_ShouldUseProvider() {
         // Since ReactivePanachePersistenceProvider is bound to PanacheEntityBase,
         // we need to use a PanacheEntityBase entity
-        PanacheEntityBase entity = mock(PanacheEntityBase.class);
+        PanacheEntityBase entity = Mockito.mock(PanacheEntityBase.class);
 
         // Create a mock that extends ReactivePanachePersistenceProvider to pass the instanceof
         // check
