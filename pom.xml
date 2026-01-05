@@ -54,7 +54,7 @@
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
         <enablePreview>true</enablePreview>
-        <quarkus.platform.version>3.29.4</quarkus.platform.version>
+        <quarkus.platform.version>3.30.5</quarkus.platform.version>
         <quarkus.platform.group-id>io.quarkus.platform</quarkus.platform.group-id>
         <quarkus.platform.artifact-id>quarkus-bom</quarkus.platform.artifact-id>
         <quarkus.java.source>21</quarkus.java.source>
@@ -74,6 +74,10 @@
         <module>framework</module>
         <!-- Example projects -->
         <module>examples/csv-payments</module>
+        <module>examples/search</module>
+        <!-- Plugins -->
+        <module>plugins/foundational/persistence</module>
+        <module>plugins/foundational/cache</module>
     </modules>
 
     <dependencyManagement>
