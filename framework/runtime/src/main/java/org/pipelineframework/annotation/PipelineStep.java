@@ -16,11 +16,12 @@
 
 package org.pipelineframework.annotation;
 
-
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+
+import io.quarkus.cache.CacheKeyGenerator;
 
 /**
  * Annotation to mark a class as a pipeline step (both client and server).
@@ -98,4 +99,10 @@ public @interface PipelineStep {
      * @return the plugin service type for side effect processing
      */
     Class<?> sideEffect() default Void.class;
+
+    /**
+     * Optional cache key generator override for this step.
+     * @return the cache key generator class to use, or CacheKeyGenerator.class to use the default
+     */
+    Class<? extends CacheKeyGenerator> cacheKeyGenerator() default CacheKeyGenerator.class;
 }

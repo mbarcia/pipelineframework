@@ -16,25 +16,14 @@
 
 package org.pipelineframework.plugin.cache;
 
-/**
- * Cache policy applied by the cache plugin.
- */
-public enum CachePolicy {
-    CACHE_ONLY,
-    RETURN_CACHED,
-    SKIP_IF_PRESENT,
-    REQUIRE_CACHE;
+import org.pipelineframework.step.NonRetryableException;
 
-    static CachePolicy fromConfig(String value) {
-        if (value == null || value.isBlank()) {
-            return CACHE_ONLY;
-        }
-        String normalized = value.trim().replace('-', '_').toUpperCase();
-        for (CachePolicy policy : values()) {
-            if (policy.name().equals(normalized)) {
-                return policy;
-            }
-        }
-        return CACHE_ONLY;
+/**
+ * Raised when a required cache entry is missing.
+ */
+public class CacheMissException extends NonRetryableException {
+
+    public CacheMissException(String message) {
+        super(message);
     }
 }

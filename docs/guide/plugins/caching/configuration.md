@@ -60,6 +60,33 @@ If you need a custom `CacheKeyGenerator`, set the annotation processor option:
 -Apipeline.cache.keyGenerator=com.example.MyCacheKeyGenerator
 ```
 
+## Per-step key generator override
+
+Set a cache key generator on an individual step:
+
+```java
+import org.pipelineframework.annotation.PipelineStep;
+import org.pipelineframework.cache.DocIdCacheKeyGenerator;
+
+@PipelineStep(
+    inputType = CrawlRequest.class,
+    outputType = RawDocument.class,
+    cacheKeyGenerator = DocIdCacheKeyGenerator.class
+)
+public class CrawlSourceService {
+}
+```
+
+Per-step overrides take precedence over the build-time `-Apipeline.cache.keyGenerator`.
+
+Built-in generators:
+
+- `PipelineCacheKeyGenerator` (default)
+- `DocIdCacheKeyGenerator`
+- `IdCacheKeyGenerator`
+
+These generators read the first method parameter (record accessor, getter, or field) and fall back to the default key format when the property is missing.
+
 ## Cache keys
 
 Inputs must implement `CacheKey`:

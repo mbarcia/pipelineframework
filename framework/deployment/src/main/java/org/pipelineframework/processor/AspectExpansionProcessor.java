@@ -142,6 +142,7 @@ public class AspectExpansionProcessor {
                 .enabledTargets(recomputedTargets) // Recompute targets
                 .deploymentRole(DeploymentRole.PLUGIN_SERVER)
                 .sideEffect(true)
+                .cacheKeyGenerator(originalModel.cacheKeyGenerator())
                 .build();
 
         return new ResolvedStep(syntheticModel, null, null);

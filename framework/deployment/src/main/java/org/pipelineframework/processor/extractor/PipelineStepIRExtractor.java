@@ -4,6 +4,7 @@ import java.util.EnumSet;
 import java.util.Set;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.TypeMirror;
 
@@ -71,6 +72,8 @@ public class PipelineStepIRExtractor {
             AnnotationProcessingUtils.getAnnotationValue(annotationMirror, "outputType"),
             AnnotationProcessingUtils.getAnnotationValue(annotationMirror, "outboundMapper"));
 
+        ClassName cacheKeyGenerator = resolveCacheKeyGenerator(annotationMirror);
+
         String qualifiedServiceName = serviceClass.getQualifiedName().toString();
         ClassName serviceClassName = null;
         try {
@@ -102,6 +105,7 @@ public class PipelineStepIRExtractor {
             .enabledTargets(targets)
             .executionMode(executionMode)
             .deploymentRole(DeploymentRole.PIPELINE_SERVER)
+            .cacheKeyGenerator(cacheKeyGenerator)
             .build();
 
         return new ExtractResult(model);
@@ -167,5 +171,25 @@ public class PipelineStepIRExtractor {
         }
         // Default to UNARY_UNARY for OneToOne
         return StreamingShape.UNARY_UNARY;
+    }
+
+    private ClassName resolveCacheKeyGenerator(AnnotationMirror annotationMirror) {
+        TypeMirror typeMirror = AnnotationProcessingUtils.getAnnotationValue(annotationMirror, "cacheKeyGenerator");
+        if (typeMirror == null) {
+            return null;
+        }
+
+        TypeElement defaultElement = processingEnv.getElementUtils()
+            .getTypeElement("io.quarkus.cache.CacheKeyGenerator");
+        if (defaultElement != null && processingEnv.getTypeUtils().isSameType(typeMirror, defaultElement.asType())) {
+            return null;
+        }
+
+        Element element = processingEnv.getTypeUtils().asElement(typeMirror);
+        if (element instanceof TypeElement typeElement) {
+            return ClassName.get(typeElement);
+        }
+
+        return ClassName.bestGuess(typeMirror.toString());
     }
 }

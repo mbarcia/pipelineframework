@@ -14,27 +14,21 @@
  * limitations under the License.
  */
 
-package org.pipelineframework.plugin.cache;
+package org.pipelineframework.cache;
+
+import jakarta.enterprise.context.ApplicationScoped;
+
+import io.quarkus.arc.Unremovable;
 
 /**
- * Cache policy applied by the cache plugin.
+ * Cache key generator that uses a docId property from the first method parameter.
  */
-public enum CachePolicy {
-    CACHE_ONLY,
-    RETURN_CACHED,
-    SKIP_IF_PRESENT,
-    REQUIRE_CACHE;
+@ApplicationScoped
+@Unremovable
+public class DocIdCacheKeyGenerator extends PropertyCacheKeyGenerator {
 
-    static CachePolicy fromConfig(String value) {
-        if (value == null || value.isBlank()) {
-            return CACHE_ONLY;
-        }
-        String normalized = value.trim().replace('-', '_').toUpperCase();
-        for (CachePolicy policy : values()) {
-            if (policy.name().equals(normalized)) {
-                return policy;
-            }
-        }
-        return CACHE_ONLY;
+    @Override
+    protected String propertyName() {
+        return "docId";
     }
 }

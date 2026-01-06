@@ -7,8 +7,11 @@ Caching policies control how the orchestrator treats cache hits and writes.
 Set `pipeline.cache.policy`:
 
 - `cache-only`: always cache the item and continue
-- `return-cached`: return cached value if present, otherwise compute and cache
+- `return-cached`: use latest cached if present, otherwise compute and cache
 - `skip-if-present`: if the key exists, skip caching and return the original item
+- `require-cache`: return cached value if present, otherwise fail the step
+
+`require-cache` raises `CacheMissException`, which the runner treats as non-retryable.
 
 ## Policy decision flow
 
@@ -26,6 +29,10 @@ flowchart TD
   B -->|skip-if-present| H{Cache hit?}
   H -->|Yes| I[Return input unchanged]
   H -->|No| C
+
+  B -->|require-cache| J{Cache hit?}
+  J -->|Yes| K[Return cached output]
+  J -->|No| L[Fail step]
 ```
 
 ## Per-request overrides

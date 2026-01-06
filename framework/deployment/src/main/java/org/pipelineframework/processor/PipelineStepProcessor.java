@@ -478,7 +478,8 @@ public class PipelineStepProcessor extends AbstractProcessingTool {
             targets,
             model.executionMode(),
             model.deploymentRole(),
-            model.sideEffect());
+            model.sideEffect(),
+            model.cacheKeyGenerator());
     }
 
     private java.util.Set<GenerationTarget> resolveTransportTargets() {

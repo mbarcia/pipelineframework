@@ -38,7 +38,7 @@ Pass via `maven-compiler-plugin` with `-A` arguments.
 | --- | --- | --- | --- |
 | `-Apipeline.generatedSourcesDir` | path | none | Base directory for role-specific generated sources. |
 | `-Apipeline.generatedSourcesRoot` | path | none | Legacy alias of `pipeline.generatedSourcesDir`. |
-| `-Apipeline.cache.keyGenerator` | class name | none | Fully-qualified `CacheKeyGenerator` used for `@CacheResult`. |
+| `-Apipeline.cache.keyGenerator` | class name | none | Global `CacheKeyGenerator` used for `@CacheResult` when steps don't override it. |
 
 ### REST Path Overrides (Build-Time)
 
@@ -70,7 +70,7 @@ Prefix: `pipeline.cache`
 | Property | Type | Default | Description |
 | --- | --- | --- | --- |
 | `pipeline.cache.provider` | string | none | Cache provider name (for example `redis`, `caffeine`, `memory`). |
-| `pipeline.cache.policy` | string | `cache-only` | Default cache policy (`cache-only`, `return-cached`, `skip-if-present`). |
+| `pipeline.cache.policy` | string | `cache-only` | Default cache policy (`cache-only`, `return-cached`, `skip-if-present`, `require-cache`). |
 | `pipeline.cache.ttl` | duration | none | Default cache TTL. |
 | `pipeline.cache.caffeine.name` | string | `pipeline-cache` | Cache name for the Caffeine provider. |
 | `pipeline.cache.caffeine.maximum-size` | long | `10000` | Maximum cache size for the Caffeine provider. |

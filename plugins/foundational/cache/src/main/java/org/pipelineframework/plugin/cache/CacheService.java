@@ -60,7 +60,15 @@ public class CacheService<T> implements ReactiveSideEffectService<T> {
             return Uni.createFrom().nullItem();
         }
 
+        PipelineContext context = PipelineContextHolder.get();
+        String overridePolicy = context != null ? context.cachePolicy() : null;
+        CachePolicy policy = CachePolicy.fromConfig(overridePolicy != null ? overridePolicy : policyValue);
+
         if (!(item instanceof CacheKey cacheKey)) {
+            if (policy == CachePolicy.REQUIRE_CACHE) {
+                return Uni.createFrom().failure(new CacheMissException(
+                    "Item type %s does not implement CacheKey".formatted(item.getClass().getName())));
+            }
             logger.warnf("Item type %s does not implement CacheKey, skipping cache", item.getClass().getName());
             return Uni.createFrom().item(item);
         }
@@ -70,11 +78,12 @@ public class CacheService<T> implements ReactiveSideEffectService<T> {
             item.getClass().getName());
 
         assert cacheManager != null;
-        PipelineContext context = PipelineContextHolder.get();
-        String overridePolicy = context != null ? context.cachePolicy() : null;
-        CachePolicy policy = CachePolicy.fromConfig(overridePolicy != null ? overridePolicy : policyValue);
         String key = cacheKey.cacheKey();
         if (key == null || key.isBlank()) {
+            if (policy == CachePolicy.REQUIRE_CACHE) {
+                return Uni.createFrom().failure(new CacheMissException(
+                    "CacheKey is empty for item type %s".formatted(item.getClass().getName())));
+            }
             logger.warnf("CacheKey is empty for item type %s, skipping cache", item.getClass().getName());
             return Uni.createFrom().item(item);
         }
@@ -82,6 +91,7 @@ public class CacheService<T> implements ReactiveSideEffectService<T> {
             key = context.versionTag() + ":" + key;
         }
 
+        String finalKey = key;
         return switch (policy) {
             case RETURN_CACHED -> cacheManager.get(key)
                 .onItem().transformToUni(cached -> cached
@@ -94,6 +104,12 @@ public class CacheService<T> implements ReactiveSideEffectService<T> {
                     ? Uni.createFrom().item(item)
                     : cacheManager.cache(item).replaceWith(item))
                 .onFailure().invoke(failure -> logger.error("Failed to cache item", failure));
+            case REQUIRE_CACHE -> cacheManager.get(key)
+                .onItem().transformToUni(cached -> cached
+                    .map(value -> Uni.createFrom().item((T) value))
+                    .orElseGet(() -> Uni.createFrom().failure(new CacheMissException(
+                        "Cache entry missing for key %s".formatted(finalKey)))))
+                .onFailure().invoke(failure -> logger.error("Failed to read from cache", failure));
             case CACHE_ONLY -> cacheManager.cache(item)
                 .onItem().invoke(result -> logger.debugf("Cached item of type: %s", result != null ? result.getClass().getName() : "null"))
                 .onFailure().invoke(failure -> logger.error("Failed to cache item", failure))

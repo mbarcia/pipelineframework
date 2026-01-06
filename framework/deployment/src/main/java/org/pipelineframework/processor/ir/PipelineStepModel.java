@@ -21,6 +21,7 @@ import com.squareup.javapoet.TypeName;
  * @param executionMode Gets the execution mode for this service.
  * @param deploymentRole Gets the deployment role for the service implementation.
  * @param sideEffect Gets whether the step is a synthetic side-effect observer.
+ * @param cacheKeyGenerator Gets the cache key generator override class for this step, if any.
  */
 public record PipelineStepModel(
         String serviceName,
@@ -33,7 +34,8 @@ public record PipelineStepModel(
         Set<GenerationTarget> enabledTargets,
         ExecutionMode executionMode,
         DeploymentRole deploymentRole,
-        boolean sideEffect
+        boolean sideEffect,
+        ClassName cacheKeyGenerator
 ) {
     /**
          * Creates a new PipelineStepModel with the supplied service identity, type mappings and generation configuration.
@@ -47,6 +49,7 @@ public record PipelineStepModel(
          * @param enabledTargets   the set of enabled generation targets; must not be null
          * @param executionMode    the execution mode for the service; must not be null
          * @param deploymentRole   the deployment role for the service implementation; must not be null
+         * @param cacheKeyGenerator the cache key generator override for this step; may be null
          * @throws IllegalArgumentException if any parameter documented as 'must not be null' is null
          */
     @SuppressWarnings("ConstantValue")
@@ -60,7 +63,8 @@ public record PipelineStepModel(
             Set<GenerationTarget> enabledTargets,
             ExecutionMode executionMode,
             DeploymentRole deploymentRole,
-            boolean sideEffect) {
+            boolean sideEffect,
+            ClassName cacheKeyGenerator) {
         // Validate non-null invariants
         if (serviceName == null)
             throw new IllegalArgumentException("serviceName cannot be null");
@@ -90,6 +94,7 @@ public record PipelineStepModel(
         this.executionMode = executionMode;
         this.deploymentRole = deploymentRole;
         this.sideEffect = sideEffect;
+        this.cacheKeyGenerator = cacheKeyGenerator;
     }
 
     /**
@@ -132,6 +137,7 @@ public record PipelineStepModel(
         private ExecutionMode executionMode;
         private DeploymentRole deploymentRole = DeploymentRole.PIPELINE_SERVER;
         private boolean sideEffect;
+        private ClassName cacheKeyGenerator;
 
         /**
          * Sets the service name.
@@ -266,6 +272,17 @@ public record PipelineStepModel(
         }
 
         /**
+         * Sets the cache key generator override for this step.
+         *
+         * @param cacheKeyGenerator the cache key generator class to use; may be null
+         * @return this builder instance
+         */
+        public Builder cacheKeyGenerator(ClassName cacheKeyGenerator) {
+            this.cacheKeyGenerator = cacheKeyGenerator;
+            return this;
+        }
+
+        /**
          * Create a PipelineStepModel populated from the builder's current state.
          *
          * @return a PipelineStepModel populated with the builder's state
@@ -301,7 +318,8 @@ public record PipelineStepModel(
                     enabledTargets,
                     executionMode,
                     deploymentRole,
-                    sideEffect);
+                    sideEffect,
+                    cacheKeyGenerator);
         }
     }
 }

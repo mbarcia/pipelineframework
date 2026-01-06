@@ -606,7 +606,7 @@ public class RestResourceRenderer implements PipelineRenderer<RestBinding> {
 
         AnnotationSpec cacheAnnotation = AnnotationSpec.builder(ClassName.get("io.quarkus.cache", "CacheResult"))
             .addMember("cacheName", "$S", "pipeline-cache")
-            .addMember("keyGenerator", "$T.class", resolveCacheKeyGenerator(ctx))
+            .addMember("keyGenerator", "$T.class", resolveCacheKeyGenerator(model, ctx))
             .build();
 
         return method.toBuilder()
@@ -614,7 +614,10 @@ public class RestResourceRenderer implements PipelineRenderer<RestBinding> {
             .build();
     }
 
-    private TypeName resolveCacheKeyGenerator(GenerationContext ctx) {
+    private TypeName resolveCacheKeyGenerator(PipelineStepModel model, GenerationContext ctx) {
+        if (model.cacheKeyGenerator() != null) {
+            return model.cacheKeyGenerator();
+        }
         if (ctx.cacheKeyGenerator() != null) {
             return ctx.cacheKeyGenerator();
         }

@@ -144,6 +144,7 @@ The framework skips retries for:
 
 - `NullPointerException`
 - `NonRetryableException` (or any failure with one in its cause chain)
+- `CacheMissException` from the cache plugin when `pipeline.cache.policy=require-cache`
 
 Use `NonRetryableException` to mark failures that should fail fast:
 

@@ -26,8 +26,7 @@ import org.pipelineframework.cache.CacheKey;
 import org.pipelineframework.context.PipelineContext;
 import org.pipelineframework.context.PipelineContextHolder;
 
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class CacheServiceTest {
@@ -144,6 +143,40 @@ class CacheServiceTest {
 
         assertSame(item, subscriber.getItem());
         verify(cacheManager).cache(item);
+    }
+
+    @Test
+    void process_WithRequireCachePolicy_ShouldReturnCachedWhenPresent() throws Exception {
+        CacheManager cacheManager = mock(CacheManager.class);
+        CacheService<TestItem> service = new CacheService<>(cacheManager);
+        setPolicy(service, "require-cache");
+
+        TestItem item = new TestItem("id-req");
+        TestItem cached = new TestItem("id-req");
+        when(cacheManager.get(item.cacheKey())).thenReturn(Uni.createFrom().item(Optional.of(cached)));
+
+        Uni<TestItem> resultUni = service.process(item);
+        UniAssertSubscriber<TestItem> subscriber = resultUni.subscribe().withSubscriber(UniAssertSubscriber.create());
+        subscriber.awaitItem();
+
+        assertSame(cached, subscriber.getItem());
+        verify(cacheManager, never()).cache(any());
+    }
+
+    @Test
+    void process_WithRequireCachePolicy_ShouldFailOnMiss() throws Exception {
+        CacheManager cacheManager = mock(CacheManager.class);
+        CacheService<TestItem> service = new CacheService<>(cacheManager);
+        setPolicy(service, "require-cache");
+
+        TestItem item = new TestItem("id-miss");
+        when(cacheManager.get(item.cacheKey())).thenReturn(Uni.createFrom().item(Optional.empty()));
+
+        Uni<TestItem> resultUni = service.process(item);
+        UniAssertSubscriber<TestItem> subscriber = resultUni.subscribe().withSubscriber(UniAssertSubscriber.create());
+        subscriber.awaitFailure();
+
+        assertTrue(subscriber.getFailure() instanceof CacheMissException);
     }
 
     @Test
