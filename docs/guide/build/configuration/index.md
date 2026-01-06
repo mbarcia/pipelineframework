@@ -63,6 +63,21 @@ REST client steps use Quarkus REST client configuration:
 
 `client-name` is derived from the service class name in kebab-case with a trailing `Service` removed (for example `ProcessPaymentService` → `process-payment`).
 
+### Cache Configuration
+
+Prefix: `pipeline.cache`
+
+| Property | Type | Default | Description |
+| --- | --- | --- | --- |
+| `pipeline.cache.provider` | string | none | Cache provider name (for example `redis`, `caffeine`, `memory`). |
+| `pipeline.cache.policy` | string | `cache-only` | Default cache policy (`cache-only`, `return-cached`, `skip-if-present`). |
+| `pipeline.cache.ttl` | duration | none | Default cache TTL. |
+| `pipeline.cache.caffeine.name` | string | `pipeline-cache` | Cache name for the Caffeine provider. |
+| `pipeline.cache.caffeine.maximum-size` | long | `10000` | Maximum cache size for the Caffeine provider. |
+| `pipeline.cache.caffeine.expire-after-write` | duration | none | Expire entries after write for the Caffeine provider. |
+| `pipeline.cache.caffeine.expire-after-access` | duration | none | Expire entries after access for the Caffeine provider. |
+| `pipeline.cache.redis.prefix` | string | `pipeline-cache:` | Key prefix for Redis cache entries. |
+
 ### Pipeline Order
 
 | Property | Type | Default | Description |

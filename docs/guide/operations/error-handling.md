@@ -138,6 +138,25 @@ private Uni<PaymentStatus> processPayment(PaymentRecord record) {
 }
 ```
 
+### Retry Filtering
+
+The framework skips retries for:
+
+- `NullPointerException`
+- `NonRetryableException` (or any failure with one in its cause chain)
+
+Use `NonRetryableException` to mark failures that should fail fast:
+
+```java
+throw new NonRetryableException("Invalid payload");
+```
+
+The persistence plugin applies this automatically:
+
+- Duplicate key errors (SQLState `23505`) are treated as success for replay safety.
+- Non-transient database errors are wrapped in `NonRetryableException`.
+- Transient connectivity errors are retried according to the step configuration.
+
 ### Circuit Breaker Pattern
 
 Implement circuit breaker for external service calls:

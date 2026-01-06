@@ -17,6 +17,7 @@
 package org.pipelineframework.step;
 
 import java.time.Duration;
+
 import org.pipelineframework.config.StepConfig;
 
 /**
@@ -78,6 +79,33 @@ default String backpressureStrategy() { return effectiveConfig().backpressureStr
  * @return `true` if the step should run in parallel, `false` otherwise.
  */
 default boolean parallel() { return effectiveConfig().parallel(); }
+
+    /**
+ * Determines whether a failure should be retried by this step.
+ *
+ * @param failure the failure to evaluate
+ * @return {@code true} if the failure is retryable, {@code false} otherwise
+ */
+    default boolean shouldRetry(Throwable failure) {
+        if (failure == null) {
+            return false;
+        }
+        Throwable current = failure;
+        while (current != null) {
+            if (current instanceof NullPointerException) {
+                return false;
+            }
+            if (current instanceof NonRetryableException) {
+                return false;
+            }
+            Throwable next = current.getCause();
+            if (next == current) {
+                break;
+            }
+            current = next;
+        }
+        return true;
+    }
 
     /**
  * Initialises the implementing object using the provided step configuration.
