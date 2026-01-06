@@ -21,6 +21,7 @@ import io.smallrye.mutiny.Multi;
 import jakarta.enterprise.context.Dependent;
 import jakarta.inject.Inject;
 import org.pipelineframework.PipelineExecutionService;
+import org.pipelineframework.annotation.PipelineOrchestrator;
 import {{basePackage}}.common.domain.{{firstInputTypeName}};
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
@@ -31,6 +32,7 @@ import java.util.concurrent.Callable;
  * Main application class for the orchestrator service.
  * This class provides the proper Quarkus integration for the orchestrator CLI.
  */
+@PipelineOrchestrator
 @Command(name = "orchestrator", mixinStandardHelpOptions = true, version = "1.0.0-SNAPSHOT",
          description = "{{appName}} Orchestrator Service")
 @Dependent

@@ -237,6 +237,15 @@ class BrowserTemplateEngine {
             includeCacheInvalidationModule,
             fileCallback);
 
+        const configSnapshot = {
+            appName,
+            basePackage,
+            transport: 'GRPC',
+            steps,
+            aspects: aspectConfig
+        };
+        await fileCallback('pipeline-config.yaml', JSON.stringify(configSnapshot, null, 2));
+
         // Generate utility scripts
         await this.generateUtilityScripts(fileCallback);
 
@@ -276,11 +285,6 @@ class BrowserTemplateEngine {
     async generateCommonModule(appName, basePackage, steps, fileCallback) {
         // Generate common POM
         await this.generateCommonPom(appName, basePackage, fileCallback);
-
-        // Generate proto files for each step
-        for (let i = 0; i < steps.length; i++) {
-            await this.generateProtoFile(steps[i], basePackage, i, steps, fileCallback);
-        }
 
         // Generate entities, DTOs, and mappers for each step
         for (let i = 0; i < steps.length; i++) {
@@ -336,42 +340,6 @@ class BrowserTemplateEngine {
 
         const rendered = this.render('common-pom', context);
         await fileCallback('common/pom.xml', rendered);
-    }
-
-    async generateProtoFile(step, basePackage, stepIndex, allSteps, fileCallback) {
-        // Process input fields to add field numbers
-        if (step.inputFields && Array.isArray(step.inputFields)) {
-            for (let i = 0; i < step.inputFields.length; i++) {
-                step.inputFields[i].fieldNumber = (i + 1).toString();
-            }
-        }
-
-        // Process output fields to add field numbers starting after input fields
-        if (step.outputFields && Array.isArray(step.outputFields)) {
-            const outputStartNumber = (step.inputFields ? step.inputFields.length : 0) + 1;
-            for (let i = 0; i < step.outputFields.length; i++) {
-                step.outputFields[i].fieldNumber = (outputStartNumber + i).toString();
-            }
-        }
-
-        const context = {
-            ...step,
-            basePackage,
-            isExpansion: step.cardinality === 'EXPANSION',
-            isReduction: step.cardinality === 'REDUCTION',
-            isFirstStep: stepIndex === 0,
-            ...(stepIndex > 0 && {
-                previousStepName: allSteps[stepIndex - 1].serviceName,
-                previousStepOutputTypeName: allSteps[stepIndex - 1].outputTypeName
-            }),
-            // Format the service name properly for the proto file
-            serviceNameFormatted: this.formatForClassName(
-                step.name.replace('Process ', '').trim()
-            )
-        };
-
-        const rendered = this.render('proto', context);
-        await fileCallback(`common/src/main/proto/${step.serviceName}.proto`, rendered);
     }
 
     async generateDomainClasses(step, basePackage, stepIndex, fileCallback) {

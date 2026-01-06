@@ -523,18 +523,6 @@ class HandlebarsTemplateEngine {
         // Generate common POM
         await this.generateCommonPom(appName, basePackage, commonPath);
 
-        const transportMode = typeof transport === 'string' && transport.trim()
-            ? transport.trim().toUpperCase()
-            : 'GRPC';
-
-        // Generate proto files for each step
-        for (let i = 0; i < steps.length; i++) {
-            await this.generateProtoFile(steps[i], basePackage, commonPath, i, steps, aspectDefinitions);
-        }
-        if (transportMode === 'GRPC') {
-            await this.generateOrchestratorProto(basePackage, steps, commonPath);
-        }
-
         // Generate entities, DTOs, and mappers for each step
         for (let i = 0; i < steps.length; i++) {
             const step = steps[i];
@@ -605,71 +593,6 @@ class HandlebarsTemplateEngine {
         const rendered = this.render('common-pom', context);
         const pomPath = path.join(commonPath, 'pom.xml');
         await fs.writeFile(pomPath, rendered);
-    }
-
-    async generateProtoFile(step, basePackage, commonPath, stepIndex, allSteps, aspectDefinitions) {
-        // Process input fields to add field numbers
-        if (step.inputFields && Array.isArray(step.inputFields)) {
-            for (let i = 0; i < step.inputFields.length; i++) {
-                step.inputFields[i].fieldNumber = (i + 1).toString();
-            }
-        }
-
-        // Process output fields to add field numbers starting after input fields
-        if (step.outputFields && Array.isArray(step.outputFields)) {
-            const outputStartNumber = (step.inputFields ? step.inputFields.length : 0) + 1;
-            for (let i = 0; i < step.outputFields.length; i++) {
-                step.outputFields[i].fieldNumber = (outputStartNumber + i).toString();
-            }
-        }
-
-        const context = {
-            ...step,
-            basePackage,
-            isExpansion: step.cardinality === 'EXPANSION',
-            isReduction: step.cardinality === 'REDUCTION',
-            isFirstStep: stepIndex === 0,
-            ...(stepIndex > 0 && {
-                previousStepName: allSteps[stepIndex - 1].serviceName,
-                previousStepOutputTypeName: allSteps[stepIndex - 1].outputTypeName
-            }),
-            // Format the service name properly for the proto file
-            serviceNameFormatted: this.formatForClassName(
-                step.name.replace('Process ', '').trim()
-            )
-        };
-        const sideEffectAspects = (aspectDefinitions || []).filter(aspect => {
-            const targets = aspect.enabledTargets || [];
-            return targets.includes('CLIENT_STEP') || targets.includes('GRPC_SERVICE');
-        });
-        context.beforeAspects = sideEffectAspects.filter(aspect => aspect.position === 'BEFORE_STEP');
-        context.afterAspects = sideEffectAspects.filter(aspect => aspect.position === 'AFTER_STEP');
-
-        const rendered = this.render('proto', context);
-        const protoPath = path.join(commonPath, 'src/main/proto', step.serviceName + '.proto');
-        await fs.writeFile(protoPath, rendered);
-    }
-
-    async generateOrchestratorProto(basePackage, steps, commonPath) {
-        if (!Array.isArray(steps) || steps.length === 0) {
-            return;
-        }
-        const firstStep = steps[0];
-        const lastStep = steps[steps.length - 1];
-        const { inputStreaming, outputStreaming } = this.computePipelineStreamingShape(steps);
-        const context = {
-            basePackage,
-            inputProtoFile: `${firstStep.serviceName}.proto`,
-            outputProtoFile: `${lastStep.serviceName}.proto`,
-            outputProtoImport: firstStep.serviceName !== lastStep.serviceName,
-            inputTypeName: firstStep.inputTypeName,
-            outputTypeName: lastStep.outputTypeName,
-            inputStreaming,
-            outputStreaming
-        };
-        const rendered = this.render('orchestrator-proto', context);
-        const protoPath = path.join(commonPath, 'src/main/proto', 'orchestrator.proto');
-        await fs.writeFile(protoPath, rendered);
     }
 
     async generateDomainClasses(step, basePackage, commonPath, stepIndex) {
@@ -1135,16 +1058,6 @@ class HandlebarsTemplateEngine {
 
         // Generate orchestrator application
         await this.generateOrchestratorApplication(appName, basePackage, classPath, steps[0].inputTypeName);
-        await this.generateOrchestratorServerApplication(basePackage, classPath);
-        const transportMode = typeof transport === 'string' && transport.trim()
-            ? transport.trim().toUpperCase()
-            : 'GRPC';
-        const orchestratorContext = this.buildOrchestratorServerContext(basePackage, steps, transportMode);
-        if (transportMode === 'REST') {
-            await this.generateOrchestratorRestResource(orchestratorContext, classPath);
-        } else {
-            await this.generateOrchestratorGrpcService(orchestratorContext, classPath);
-        }
 
         // Generate orchestrator POM
         await this.generateOrchestratorPom(
@@ -1202,58 +1115,6 @@ class HandlebarsTemplateEngine {
         const rendered = this.render('orchestrator-application', context);
         const mainAppPath = path.join(classPath, 'OrchestratorApplication.java');
         await fs.writeFile(mainAppPath, rendered);
-    }
-
-    async generateOrchestratorServerApplication(basePackage, classPath) {
-        const context = { basePackage };
-        const rendered = this.render('orchestrator-server-application', context);
-        const serverAppPath = path.join(classPath, 'OrchestratorServerApplication.java');
-        await fs.writeFile(serverAppPath, rendered);
-    }
-
-    async generateOrchestratorRestResource(context, classPath) {
-        const rendered = this.render('orchestrator-rest-resource', context);
-        const resourcePath = path.join(classPath, 'PipelineRunResource.java');
-        await fs.writeFile(resourcePath, rendered);
-    }
-
-    async generateOrchestratorGrpcService(context, classPath) {
-        const rendered = this.render('orchestrator-grpc-service', context);
-        const servicePath = path.join(classPath, 'OrchestratorGrpcService.java');
-        await fs.writeFile(servicePath, rendered);
-    }
-
-    buildOrchestratorServerContext(basePackage, steps, transportMode) {
-        if (!Array.isArray(steps) || steps.length === 0) {
-            return {};
-        }
-        const firstStep = steps[0];
-        const lastStep = steps[steps.length - 1];
-        const { inputStreaming, outputStreaming } = this.computePipelineStreamingShape(steps);
-        const context = {
-            basePackage,
-            inputStreaming,
-            outputStreaming
-        };
-
-        if (transportMode === 'REST') {
-            context.inputType = `${basePackage}.common.dto.${firstStep.inputTypeName}Dto`;
-            context.outputType = `${basePackage}.common.dto.${lastStep.outputTypeName}Dto`;
-        } else {
-            const firstProtoClass = this.formatForProtoClassName(firstStep.serviceName);
-            const lastProtoClass = this.formatForProtoClassName(lastStep.serviceName);
-            context.inputType = `${basePackage}.grpc.${firstProtoClass}.${firstStep.inputTypeName}`;
-            context.outputType = `${basePackage}.grpc.${lastProtoClass}.${lastStep.outputTypeName}`;
-        }
-
-        const inputSimple = this.simpleTypeName(context.inputType);
-        const outputSimple = this.simpleTypeName(context.outputType);
-        const typeNameCollision = inputSimple === outputSimple && context.inputType !== context.outputType;
-        context.inputTypeRef = typeNameCollision ? context.inputType : inputSimple;
-        context.outputTypeRef = typeNameCollision ? context.outputType : outputSimple;
-        context.inputTypeImport = !typeNameCollision;
-        context.outputTypeImport = !typeNameCollision && context.inputType !== context.outputType;
-        return context;
     }
 
     async generateMvNWFiles(outputPath) {

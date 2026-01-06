@@ -37,6 +37,7 @@ class PipelineGenerator {
         const config = this.loadConfig(configPath);
         const { appName, basePackage, steps, aspects, transport } = config;
         await this.engine.generateApplication(appName, basePackage, steps, aspects, transport, outputPath);
+        await this.copyConfig(configPath, outputPath);
     }
 
     /**
@@ -135,6 +136,11 @@ class PipelineGenerator {
     async saveConfig(config, outputPath) {
         const yamlStr = YAML.dump(config, { lineWidth: -1 });
         await fs.writeFile(outputPath, yamlStr);
+    }
+
+    async copyConfig(configPath, outputPath) {
+        const targetPath = path.join(outputPath, 'pipeline-config.yaml');
+        await fs.copy(configPath, targetPath);
     }
 
     /**
