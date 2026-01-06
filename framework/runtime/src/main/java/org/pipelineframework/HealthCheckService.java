@@ -28,6 +28,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
 import jakarta.enterprise.context.ApplicationScoped;
 
 import io.smallrye.mutiny.Uni;
@@ -247,15 +248,17 @@ public void checkServerTrusted(java.security.cert.X509Certificate[] certs, Strin
 
         // Extract all gRPC client names from the steps
         Set<String> grpcClientNames = new HashSet<>();
+        Set<RestClientInfo> restClients = new HashSet<>();
         for (Object step : steps) {
             if (step != null) {
                 Set<String> stepClientNames = extractGrpcClientNames(step);
                 grpcClientNames.addAll(stepClientNames);
+                restClients.addAll(extractRestClientInfos(step));
             }
         }
 
-        if (grpcClientNames.isEmpty()) {
-            LOG.info("No gRPC client dependencies found. Proceeding with pipeline execution.");
+        if (grpcClientNames.isEmpty() && restClients.isEmpty()) {
+            LOG.info("No gRPC or REST client dependencies found. Proceeding with pipeline execution.");
             return true;
         }
 
@@ -268,7 +271,15 @@ public void checkServerTrusted(java.security.cert.X509Certificate[] certs, Strin
             for (String grpcClientName : grpcClientNames) {
                 if (!isGrpcClientServiceHealthy(grpcClientName)) {
                     allHealthy = false;
-                    unhealthyServices.add(grpcClientName);
+                    unhealthyServices.add("grpc:" + grpcClientName);
+                }
+            }
+
+            // Check the health of each REST client endpoint
+            for (RestClientInfo restClient : restClients) {
+                if (!isRestClientServiceHealthy(restClient)) {
+                    allHealthy = false;
+                    unhealthyServices.add("rest:" + restClient.configKey());
                 }
             }
 
@@ -330,60 +341,12 @@ public void checkServerTrusted(java.security.cert.X509Certificate[] certs, Strin
                                     .getOptionalValue("quarkus.grpc.clients.allow-insecure-ssl", Boolean.class)
                                     .orElse(false));
 
-            HttpClient.Builder clientBuilder = HttpClient.newBuilder()
-                    .connectTimeout(Duration.ofSeconds(5));
-
-            if (useTls) {
-                javax.net.ssl.SSLContext sslContext;
-                if (allowInsecureSSL) {
-                    LOG.warn("Using insecure SSL context with disabled certificate validation for gRPC client '" +
-                            grpcClientName + "'. This setting MUST NOT be enabled in production!");
-                    sslContext = createInsecureSslContext();
-                } else {
-                    // Try to use the same truststore configuration as the gRPC client
-                    sslContext = createSslContextForGrpcClient(grpcClientName);
-                }
-                clientBuilder.sslContext(sslContext);
-            }
-
-            HttpClient serviceHttpClient = clientBuilder.build();
-
             // Construct the health check URL
             String protocol = useTls ? "https" : "http";
             String healthUrl = String.format("%s://%s:%d%s", protocol, host, port, healthPath);
-
-            // Create and execute the HTTP request
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(healthUrl))
-                    .timeout(Duration.ofSeconds(5))  // Increase timeout
-                    .GET()
-                    .build();
-
-            // Use sendAsync with a timeout to avoid blocking indefinitely and handle interruptions better
-            CompletableFuture<HttpResponse<String>> responseFuture =
-                    serviceHttpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString());
-
-            // Wait for the response with timeout
-            HttpResponse<String> response = responseFuture
-                    .orTimeout(5, java.util.concurrent.TimeUnit.SECONDS)
-                    .join(); // This is safe in this context since we have timeout handling
-
-            boolean isHealthy = response.statusCode() == 200;
-            if (isHealthy) {
-                LOG.info("✓ gRPC client '" + grpcClientName + "' service at " + host + ":" + port + " is healthy");
-            } else {
-                LOG.info("✗ gRPC client '" + grpcClientName + "' service at " + host + ":" + port + " is not healthy. Status: " + response.statusCode());
-            }
-
-            return isHealthy;
-        } catch (java.util.concurrent.CompletionException e) {
-            // Handle TimeoutException and other completion-related exceptions
-            if (e.getCause() instanceof java.util.concurrent.TimeoutException) {
-                LOG.info("✗ gRPC client '" + grpcClientName + "' service health check timed out");
-            } else {
-                LOG.info("✗ gRPC client '" + grpcClientName + "' service is not accessible. Error: " + e.getMessage());
-            }
-            return false;
+            String locationLabel = host + ":" + port;
+            return checkHttpServiceHealth("gRPC", grpcClientName, URI.create(healthUrl), locationLabel,
+                allowInsecureSSL, () -> createSslContextForGrpcClient(grpcClientName));
         } catch (Exception e) {
             LOG.info("✗ Error checking health of gRPC client '" + grpcClientName + "' service. Error: " + e.getMessage());
             return false;
@@ -424,4 +387,260 @@ public void checkServerTrusted(java.security.cert.X509Certificate[] certs, Strin
 
         return grpcClientNames;
     }
+
+    /**
+     * Finds REST client config keys declared on the given step by scanning its fields and superclasses for the `@RestClient` annotation.
+     *
+     * If the `@RegisterRestClient` configKey is empty, the fully qualified interface name is used.
+     *
+     * @param step the step instance to inspect for REST client fields
+     * @return a set of discovered REST client infos
+     */
+    public Set<RestClientInfo> extractRestClientInfos(Object step) {
+        Set<RestClientInfo> restClients = new HashSet<>();
+
+        Class<?> currentClass = step.getClass();
+        while (currentClass != null && currentClass != Object.class) {
+            for (Field field : currentClass.getDeclaredFields()) {
+                if (field.isAnnotationPresent(org.eclipse.microprofile.rest.client.inject.RestClient.class)) {
+                    Class<?> restClientType = field.getType();
+                    RestClientInfo info = resolveRestClientInfo(restClientType);
+                    if (info != null) {
+                        restClients.add(info);
+                    }
+                }
+            }
+            currentClass = currentClass.getSuperclass();
+        }
+
+        return restClients;
+    }
+
+    private RestClientInfo resolveRestClientInfo(Class<?> restClientType) {
+        if (restClientType == null) {
+            return null;
+        }
+        org.eclipse.microprofile.rest.client.inject.RegisterRestClient register =
+            restClientType.getAnnotation(org.eclipse.microprofile.rest.client.inject.RegisterRestClient.class);
+        String configKey = null;
+        if (register != null && register.configKey() != null && !register.configKey().isBlank()) {
+            configKey = register.configKey();
+        }
+        if (configKey == null || configKey.isBlank()) {
+            configKey = restClientType.getName();
+        }
+        return new RestClientInfo(configKey, restClientType.getName());
+    }
+
+    private boolean isRestClientServiceHealthy(RestClientInfo restClient) {
+        String baseUrl = resolveRestClientBaseUrl(restClient);
+        if (baseUrl == null || baseUrl.isBlank()) {
+            LOG.info("✗ REST client '" + restClient.configKey() + "' base URL is not configured.");
+            return false;
+        }
+
+        String healthPath = resolveRestClientHealthPath(restClient);
+        URI baseUri;
+        try {
+            baseUri = URI.create(baseUrl);
+        } catch (IllegalArgumentException e) {
+            LOG.info("✗ REST client '" + restClient.configKey() + "' has invalid base URL: " + baseUrl);
+            return false;
+        }
+
+        String combinedPath = combinePaths(baseUri.getPath(), healthPath);
+        URI healthUri = URI.create(String.format("%s://%s:%d%s",
+            baseUri.getScheme(),
+            baseUri.getHost(),
+            baseUri.getPort() == -1 ? ("https".equalsIgnoreCase(baseUri.getScheme()) ? 443 : 80) : baseUri.getPort(),
+            combinedPath));
+
+        boolean allowInsecureSSL = ConfigProvider.getConfig()
+            .getOptionalValue("quarkus.rest-client." + restClient.configKey() + ".allow-insecure-ssl", Boolean.class)
+            .orElse(
+                ConfigProvider.getConfig()
+                    .getOptionalValue("quarkus.rest-client.allow-insecure-ssl", Boolean.class)
+                    .orElse(false));
+        return checkHttpServiceHealth("REST", restClient.configKey(), healthUri, healthUri.toString(),
+            allowInsecureSSL, this::createSslContextFromGlobalTrustStore);
+    }
+
+    private boolean checkHttpServiceHealth(
+        String clientType,
+        String clientName,
+        URI healthUri,
+        String locationLabel,
+        boolean allowInsecureSSL,
+        Supplier<javax.net.ssl.SSLContext> sslContextSupplier
+    ) {
+        boolean useTls = "https".equalsIgnoreCase(healthUri.getScheme());
+
+        HttpClient.Builder clientBuilder = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(5));
+
+        if (useTls) {
+            javax.net.ssl.SSLContext sslContext;
+            if (allowInsecureSSL) {
+                LOG.warn("Using insecure SSL context with disabled certificate validation for " + clientType +
+                    " client '" + clientName + "'. This setting MUST NOT be enabled in production!");
+                sslContext = createInsecureSslContext();
+            } else if (sslContextSupplier != null) {
+                sslContext = sslContextSupplier.get();
+            } else {
+                try {
+                    sslContext = javax.net.ssl.SSLContext.getDefault();
+                } catch (Exception ex) {
+                    LOG.error("Failed to get default SSL context", ex);
+                    return false;
+                }
+            }
+            if (sslContext != null) {
+                clientBuilder.sslContext(sslContext);
+            }
+        }
+
+        HttpClient serviceHttpClient = clientBuilder.build();
+
+        HttpRequest request = HttpRequest.newBuilder()
+            .uri(healthUri)
+            .timeout(Duration.ofSeconds(5))
+            .GET()
+            .build();
+
+        try {
+            CompletableFuture<HttpResponse<String>> responseFuture =
+                serviceHttpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString());
+
+            HttpResponse<String> response = responseFuture
+                .orTimeout(5, java.util.concurrent.TimeUnit.SECONDS)
+                .join();
+
+            boolean isHealthy = response.statusCode() == 200;
+            String label = clientType + " client '" + clientName + "'";
+            if (isHealthy) {
+                LOG.info("✓ " + label + " service at " + locationLabel + " is healthy");
+            } else {
+                LOG.info("✗ " + label + " service at " + locationLabel +
+                    " is not healthy. Status: " + response.statusCode());
+            }
+            return isHealthy;
+        } catch (java.util.concurrent.CompletionException e) {
+            if (e.getCause() instanceof java.util.concurrent.TimeoutException) {
+                LOG.info("✗ " + clientType + " client '" + clientName + "' service health check timed out");
+            } else {
+                LOG.info("✗ " + clientType + " client '" + clientName + "' service is not accessible. Error: " + e.getMessage());
+            }
+            return false;
+        } catch (Exception e) {
+            LOG.info("✗ Error checking health of " + clientType + " client '" + clientName +
+                "' service. Error: " + e.getMessage());
+            return false;
+        }
+    }
+
+    private javax.net.ssl.SSLContext createSslContextFromGlobalTrustStore() {
+        try {
+            String trustStorePath = ConfigProvider.getConfig()
+                .getOptionalValue("quarkus.tls.trust-store.jks.path", String.class)
+                .orElse(ConfigProvider.getConfig()
+                    .getOptionalValue("quarkus.tls.trust-store.path", String.class)
+                    .orElse(null));
+
+            if (trustStorePath == null || trustStorePath.isBlank()) {
+                return javax.net.ssl.SSLContext.getDefault();
+            }
+
+            String trustStorePassword = ConfigProvider.getConfig()
+                .getOptionalValue("quarkus.tls.trust-store.jks.password", String.class)
+                .orElse(ConfigProvider.getConfig()
+                    .getOptionalValue("quarkus.tls.trust-store.password", String.class)
+                    .orElse("secret"));
+
+            InputStream trustStoreStream = getTrustStoreStream(trustStorePath);
+            if (trustStoreStream == null) {
+                LOG.warn("Truststore file not found: " + trustStorePath);
+                return javax.net.ssl.SSLContext.getDefault();
+            }
+
+            javax.net.ssl.TrustManagerFactory tmf = javax.net.ssl.TrustManagerFactory.getInstance(
+                javax.net.ssl.TrustManagerFactory.getDefaultAlgorithm());
+
+            String keyStoreType = determineKeyStoreType(trustStorePath);
+            java.security.KeyStore ts = java.security.KeyStore.getInstance(keyStoreType);
+            try (trustStoreStream) {
+                ts.load(trustStoreStream, trustStorePassword.toCharArray());
+            }
+            tmf.init(ts);
+
+            javax.net.ssl.SSLContext sslContext = javax.net.ssl.SSLContext.getInstance("TLS");
+            sslContext.init(null, tmf.getTrustManagers(), null);
+            return sslContext;
+        } catch (Exception e) {
+            LOG.warn("Failed to create SSL context from global truststore, falling back to default", e);
+            try {
+                return javax.net.ssl.SSLContext.getDefault();
+            } catch (Exception ex) {
+                LOG.error("Failed to get default SSL context", ex);
+                throw new RuntimeException(ex);
+            }
+        }
+    }
+
+    private String resolveRestClientBaseUrl(RestClientInfo restClient) {
+        String key = restClient.configKey();
+        String url = resolveRestClientConfigValue(key, "url");
+        if (url != null && !url.isBlank()) {
+            return url;
+        }
+        return resolveRestClientConfigValue(key, "uri");
+    }
+
+    private String resolveRestClientHealthPath(RestClientInfo restClient) {
+        String key = restClient.configKey();
+        String path = resolveRestClientConfigValue(key, "health-path");
+        if (path != null && !path.isBlank()) {
+            return path;
+        }
+        return ConfigProvider.getConfig()
+            .getOptionalValue("quarkus.rest-client.health-path", String.class)
+            .orElse("/q/health");
+    }
+
+    private String resolveRestClientConfigValue(String configKey, String suffix) {
+        String directKey = "quarkus.rest-client." + configKey + "." + suffix;
+        String value = ConfigProvider.getConfig()
+            .getOptionalValue(directKey, String.class)
+            .orElse(null);
+        if (value != null) {
+            return value;
+        }
+
+        String quotedKey = "quarkus.rest-client.\"" + configKey + "\"." + suffix;
+        return ConfigProvider.getConfig()
+            .getOptionalValue(quotedKey, String.class)
+            .orElse(null);
+    }
+
+    private String combinePaths(String basePath, String healthPath) {
+        String normalizedBase = (basePath == null || basePath.isBlank()) ? "" : basePath;
+        String normalizedHealth = (healthPath == null || healthPath.isBlank()) ? "/q/health" : healthPath;
+
+        if (!normalizedHealth.startsWith("/")) {
+            normalizedHealth = "/" + normalizedHealth;
+        }
+
+        if (normalizedBase.isEmpty() || "/".equals(normalizedBase)) {
+            return normalizedHealth;
+        }
+
+        if (normalizedBase.endsWith("/") && normalizedHealth.startsWith("/")) {
+            return normalizedBase + normalizedHealth.substring(1);
+        }
+        if (!normalizedBase.endsWith("/") && !normalizedHealth.startsWith("/")) {
+            return normalizedBase + "/" + normalizedHealth;
+        }
+        return normalizedBase + normalizedHealth;
+    }
+
+    private record RestClientInfo(String configKey, String interfaceName) {}
 }
