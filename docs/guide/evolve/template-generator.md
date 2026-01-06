@@ -106,6 +106,9 @@ Generate the complete application from your configuration:
 java -jar template-generator-1.0.0.jar --config my-pipeline-config.yaml --output ./my-pipeline-app
 ```
 
+The generator copies your config into `pipeline-config.yaml` at the project root so the build can
+recreate `.proto` definitions during `generate-sources`.
+
 ## Generated Application Structure
 
 The template generator creates a complete Maven multi-module project:

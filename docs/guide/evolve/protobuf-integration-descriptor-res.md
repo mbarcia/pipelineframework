@@ -15,6 +15,15 @@ The build will fail for gRPC services if descriptor sets are not generated. Use 
 supported by your Quarkus/protobuf build, or supply `protobuf.descriptor.path`/`protobuf.descriptor.file` to the
 annotation processor.
 
+## Template-Driven Proto Generation
+
+When `pipeline-config.yaml` is present, you can generate step and orchestrator `.proto` files at build time
+before compilation. The default template output wires the `PipelineProtoGenerator` into the `common` module's
+`generate-sources` phase so protobuf definitions stay in sync with the pipeline template used by Canvas.
+
+This keeps descriptor sets consistent with the pipeline model while preserving descriptor-driven resolution
+inside the annotation processor.
+
 ## Default Descriptor Locations
 
 If no annotation processor options are provided, the framework searches for:
@@ -134,7 +143,8 @@ Follow these guidelines to maintain compatibility:
 
 The Pipeline Framework explicitly does not:
 
-- **No proto regeneration**: Once generated, the framework won't regenerate your `.proto` files
+- **No proto regeneration in the annotation processor**: The processor never rewrites `.proto` files. If you opt into
+  template-driven generation (via `PipelineProtoGenerator` in `generate-sources`), that happens before compilation.
 - **No runtime validation**: All validation occurs at build time, not at runtime
 - **No reflection-based discovery**: The framework uses compiled descriptors, not runtime inspection of annotations
 

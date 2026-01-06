@@ -18,6 +18,9 @@ The pipeline YAML controls global settings used by the annotation processor.
 | --- | --- | --- | --- |
 | `transport` | enum | `GRPC` | Global transport for generated adapters (`GRPC` or `REST`). |
 
+If `pipeline-config.yaml` (the template configuration produced by Canvas or the template generator) is present,
+the build can also use it to generate protobuf definitions and orchestrator endpoints at compile time.
+
 ### CLI Build Options (Quarkus Build-Time)
 
 Prefix: `pipeline-cli`
@@ -39,6 +42,7 @@ Pass via `maven-compiler-plugin` with `-A` arguments.
 | `-Apipeline.generatedSourcesDir` | path | none | Base directory for role-specific generated sources. |
 | `-Apipeline.generatedSourcesRoot` | path | none | Legacy alias of `pipeline.generatedSourcesDir`. |
 | `-Apipeline.cache.keyGenerator` | class name | none | Global `CacheKeyGenerator` used for `@CacheResult` when steps don't override it. |
+| `-Apipeline.orchestrator.generate` | boolean | `false` | Generate orchestrator endpoint even without `@PipelineOrchestrator`. |
 
 ### REST Path Overrides (Build-Time)
 

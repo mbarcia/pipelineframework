@@ -25,6 +25,9 @@ orchestrator-svc/
     └── application.properties
 ```
 
+The generated `OrchestratorApplication` is annotated with `@PipelineOrchestrator` so the annotation processor
+can generate the server endpoint (REST or gRPC, based on `pipeline-config.yaml`) at compile time.
+
 ## Input Options
 
 The generated runtime supports several ways to specify input:

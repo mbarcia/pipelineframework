@@ -15,9 +15,13 @@ import javax.tools.Diagnostic;
 
 import com.google.protobuf.DescriptorProtos;
 import com.squareup.javapoet.*;
+import org.pipelineframework.annotation.PipelineOrchestrator;
 import org.pipelineframework.annotation.PipelinePlugin;
 import org.pipelineframework.annotation.PipelineStep;
 import org.pipelineframework.config.pipeline.PipelineYamlConfigLocator;
+import org.pipelineframework.config.template.PipelineTemplateConfig;
+import org.pipelineframework.config.template.PipelineTemplateConfigLoader;
+import org.pipelineframework.config.template.PipelineTemplateStep;
 import org.pipelineframework.processor.config.PipelineAspectConfigLoader;
 import org.pipelineframework.processor.config.PipelineStepConfigLoader;
 import org.pipelineframework.processor.extractor.PipelineStepIRExtractor;
@@ -36,14 +40,16 @@ import org.pipelineframework.processor.validator.PipelineStepValidator;
 @SuppressWarnings("unused")
 @SupportedAnnotationTypes({
     "org.pipelineframework.annotation.PipelineStep",
-    "org.pipelineframework.annotation.PipelinePlugin"
+    "org.pipelineframework.annotation.PipelinePlugin",
+    "org.pipelineframework.annotation.PipelineOrchestrator"
 })
 @SupportedOptions({
     "protobuf.descriptor.path",  // Optional: path to directory containing descriptor files
     "protobuf.descriptor.file",  // Optional: path to a specific descriptor file
     "pipeline.generatedSourcesDir", // Optional: base directory for role-specific generated sources
     "pipeline.generatedSourcesRoot", // Optional: legacy alias for generated sources base directory
-    "pipeline.cache.keyGenerator" // Optional: fully-qualified CacheKeyGenerator class for @CacheResult
+    "pipeline.cache.keyGenerator", // Optional: fully-qualified CacheKeyGenerator class for @CacheResult
+    "pipeline.orchestrator.generate" // Optional: enable orchestrator endpoint generation
 })
 @SupportedSourceVersion(SourceVersion.RELEASE_21)
 public class PipelineStepProcessor extends AbstractProcessingTool {
@@ -88,12 +94,15 @@ public class PipelineStepProcessor extends AbstractProcessingTool {
     private ClientStepRenderer clientRenderer;
     private RestClientStepRenderer restClientRenderer;
     private RestResourceRenderer restRenderer;
+    private OrchestratorServerRenderer orchestratorRenderer;
     private GrpcBindingResolver bindingResolver;
     private RestBindingResolver restBindingResolver;
     private RoleMetadataGenerator roleMetadataGenerator;
     private Path generatedSourcesRoot;
     private java.util.List<org.pipelineframework.processor.ir.PipelineAspectModel> pipelineAspects = java.util.List.of();
     private boolean pluginHost;
+    private boolean orchestratorGenerated;
+    private PipelineTemplateConfig pipelineTemplateConfig;
     private final java.util.Set<String> generatedSideEffectBeanKeys = new java.util.HashSet<>();
     private TransportMode transportMode = TransportMode.GRPC;
 
@@ -120,11 +129,13 @@ public class PipelineStepProcessor extends AbstractProcessingTool {
         this.clientRenderer = new ClientStepRenderer(GenerationTarget.CLIENT_STEP);
         this.restClientRenderer = new RestClientStepRenderer();
         this.restRenderer = new RestResourceRenderer();
+        this.orchestratorRenderer = new OrchestratorServerRenderer();
         this.bindingResolver = new GrpcBindingResolver();
         this.restBindingResolver = new RestBindingResolver();
         this.roleMetadataGenerator = new RoleMetadataGenerator(processingEnv);
         this.generatedSourcesRoot = resolveGeneratedSourcesRoot(processingEnv);
         this.pipelineAspects = loadPipelineAspects(processingEnv);
+        this.pipelineTemplateConfig = loadPipelineTemplateConfig(processingEnv);
         this.transportMode = loadPipelineTransport(processingEnv);
     }
 
@@ -143,15 +154,20 @@ public class PipelineStepProcessor extends AbstractProcessingTool {
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
         java.util.Set<? extends Element> pipelineStepElements =
             roundEnv.getElementsAnnotatedWith(PipelineStep.class);
+        java.util.Set<? extends Element> orchestratorElements =
+            roundEnv.getElementsAnnotatedWith(PipelineOrchestrator.class);
+        boolean generateOrchestrator = shouldGenerateOrchestrator(orchestratorElements);
 
-        if (annotations.isEmpty()) {
-            // Only write metadata when no more annotations to process (end of last round)
-            if (roundEnv.processingOver()) {
-                try {
-                    roleMetadataGenerator.writeRoleMetadata();
-                } catch (IOException e) {
-                    processingEnv.getMessager().printMessage(javax.tools.Diagnostic.Kind.ERROR,
-                        "Failed to write role metadata: " + e.getMessage());
+        if (pipelineStepElements.isEmpty() && !generateOrchestrator) {
+            if (annotations.isEmpty()) {
+                // Only write metadata when no more annotations to process (end of last round)
+                if (roundEnv.processingOver()) {
+                    try {
+                        roleMetadataGenerator.writeRoleMetadata();
+                    } catch (IOException e) {
+                        processingEnv.getMessager().printMessage(javax.tools.Diagnostic.Kind.ERROR,
+                            "Failed to write role metadata: " + e.getMessage());
+                    }
                 }
             }
             return false;
@@ -177,20 +193,25 @@ public class PipelineStepProcessor extends AbstractProcessingTool {
                 expectedServiceNames.add(element.getSimpleName().toString());
             }
         }
+        if (generateOrchestrator) {
+            expectedServiceNames.add("OrchestratorService");
+        }
 
         // Locate and load FileDescriptorSet from protobuf compilation
         DescriptorProtos.FileDescriptorSet descriptorSet = null;
-        DescriptorFileLocator descriptorLocator = new DescriptorFileLocator();
-        try {
-            descriptorSet = descriptorLocator.locateAndLoadDescriptors(
-                processingEnv.getOptions(),
-                expectedServiceNames,
-                processingEnv.getMessager());
-        } catch (IOException e) {
-            processingEnv.getMessager().printMessage(Diagnostic.Kind.WARNING,
-                "Failed to load protobuf FileDescriptorSet: " + e.getMessage() +
-                ". gRPC generation will fail for services that require descriptor-based resolution. " +
-                "Please ensure protobuf compilation happens before annotation processing.");
+        if (transportMode == TransportMode.GRPC && (!pipelineStepElements.isEmpty() || generateOrchestrator)) {
+            DescriptorFileLocator descriptorLocator = new DescriptorFileLocator();
+            try {
+                descriptorSet = descriptorLocator.locateAndLoadDescriptors(
+                    processingEnv.getOptions(),
+                    expectedServiceNames,
+                    processingEnv.getMessager());
+            } catch (IOException e) {
+                processingEnv.getMessager().printMessage(Diagnostic.Kind.WARNING,
+                    "Failed to load protobuf FileDescriptorSet: " + e.getMessage() +
+                    ". gRPC generation will fail for services that require descriptor-based resolution. " +
+                    "Please ensure protobuf compilation happens before annotation processing.");
+            }
         }
 
         java.util.List<PipelineStepModel> models = new java.util.ArrayList<>();
@@ -281,6 +302,10 @@ public class PipelineStepProcessor extends AbstractProcessingTool {
 
             // Generate artifacts based on the resolved bindings
             generateArtifacts(model, grpcBinding, restBinding);
+        }
+
+        if (generateOrchestrator) {
+            generateOrchestratorServer(descriptorSet);
         }
 
         return true;
@@ -520,6 +545,24 @@ public class PipelineStepProcessor extends AbstractProcessingTool {
         }
     }
 
+    private PipelineTemplateConfig loadPipelineTemplateConfig(ProcessingEnvironment processingEnv) {
+        PipelineYamlConfigLocator locator = new PipelineYamlConfigLocator();
+        Path moduleDir = resolveModuleDir();
+        java.util.Optional<Path> configPath = locator.locate(moduleDir);
+        if (configPath.isEmpty()) {
+            return null;
+        }
+
+        PipelineTemplateConfigLoader loader = new PipelineTemplateConfigLoader();
+        try {
+            return loader.load(configPath.get());
+        } catch (Exception e) {
+            processingEnv.getMessager().printMessage(Diagnostic.Kind.WARNING,
+                "Failed to load pipeline template config from " + configPath.get() + ": " + e.getMessage());
+            return null;
+        }
+    }
+
     private TransportMode loadPipelineTransport(ProcessingEnvironment processingEnv) {
         PipelineYamlConfigLocator locator = new PipelineYamlConfigLocator();
         Path moduleDir = resolveModuleDir();
@@ -547,6 +590,93 @@ public class PipelineStepProcessor extends AbstractProcessingTool {
                 "Failed to load pipeline transport from " + configPath.get() + ": " + e.getMessage());
         }
         return TransportMode.GRPC;
+    }
+
+    private boolean shouldGenerateOrchestrator(java.util.Set<? extends Element> orchestratorElements) {
+        if (orchestratorElements != null && !orchestratorElements.isEmpty()) {
+            return true;
+        }
+        String option = processingEnv.getOptions().get("pipeline.orchestrator.generate");
+        if (option == null || option.isBlank()) {
+            return false;
+        }
+        String normalized = option.trim();
+        return "true".equalsIgnoreCase(normalized) || "1".equals(normalized);
+    }
+
+    private void generateOrchestratorServer(DescriptorProtos.FileDescriptorSet descriptorSet) {
+        if (orchestratorGenerated) {
+            return;
+        }
+        orchestratorGenerated = true;
+
+        OrchestratorServerRenderer.OrchestratorServerModel model =
+            buildOrchestratorModel(pipelineTemplateConfig);
+        if (model == null) {
+            processingEnv.getMessager().printMessage(Diagnostic.Kind.WARNING,
+                "Skipping orchestrator generation because pipeline template config is missing or incomplete.");
+            return;
+        }
+
+        try {
+            orchestratorRenderer.render(model, descriptorSet, processingEnv);
+        } catch (IOException e) {
+            processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+                "Failed to generate orchestrator server: " + e.getMessage());
+        }
+    }
+
+    private OrchestratorServerRenderer.OrchestratorServerModel buildOrchestratorModel(PipelineTemplateConfig config) {
+        if (config == null) {
+            return null;
+        }
+        java.util.List<PipelineTemplateStep> steps = config.steps();
+        if (steps == null || steps.isEmpty()) {
+            return null;
+        }
+        String basePackage = config.basePackage();
+        if (basePackage == null || basePackage.isBlank()) {
+            return null;
+        }
+        PipelineTemplateStep first = steps.get(0);
+        PipelineTemplateStep last = steps.get(steps.size() - 1);
+        if (first == null || last == null) {
+            return null;
+        }
+        String inputType = first.inputTypeName();
+        String outputType = last.outputTypeName();
+        if (inputType == null || inputType.isBlank() || outputType == null || outputType.isBlank()) {
+            return null;
+        }
+
+        boolean inputStreaming = isStreamingInputCardinality(first.cardinality());
+        boolean outputStreaming = inputStreaming;
+        for (PipelineTemplateStep step : steps) {
+            outputStreaming = applyCardinalityToStreaming(step.cardinality(), outputStreaming);
+        }
+
+        return new OrchestratorServerRenderer.OrchestratorServerModel(
+            basePackage,
+            config.transport(),
+            inputType,
+            outputType,
+            inputStreaming,
+            outputStreaming
+        );
+    }
+
+    private boolean isStreamingInputCardinality(String cardinality) {
+        return "REDUCTION".equalsIgnoreCase(cardinality) || "MANY_TO_MANY".equalsIgnoreCase(cardinality);
+    }
+
+    private boolean applyCardinalityToStreaming(String cardinality, boolean currentStreaming) {
+        if ("EXPANSION".equalsIgnoreCase(cardinality) || "MANY_TO_MANY".equalsIgnoreCase(cardinality)) {
+            return true;
+        }
+        if ("REDUCTION".equalsIgnoreCase(cardinality)) {
+            return false;
+        }
+        return currentStreaming;
     }
 
     private java.util.List<ResolvedStep> buildPluginHostSteps(
