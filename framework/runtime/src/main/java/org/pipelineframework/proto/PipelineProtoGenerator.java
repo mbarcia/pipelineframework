@@ -40,7 +40,9 @@ public class PipelineProtoGenerator {
     public void generate(Path moduleDir, Path configPath, Path outputDir) {
         Path resolvedModuleDir = moduleDir == null ? Path.of("") : moduleDir;
         Path resolvedConfig = resolveConfigPath(resolvedModuleDir, configPath);
-        Path resolvedOutput = outputDir != null ? outputDir : resolvedModuleDir.resolve("src/main/proto");
+        Path resolvedOutput = outputDir != null
+            ? outputDir
+            : resolvedModuleDir.resolve("target").resolve("generated-sources").resolve("proto");
 
         PipelineTemplateConfigLoader loader = new PipelineTemplateConfigLoader();
         PipelineTemplateConfig config = loader.load(resolvedConfig);
