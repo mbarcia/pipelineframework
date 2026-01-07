@@ -1,6 +1,7 @@
 # Cache Policies
 
 Caching policies control how the orchestrator treats cache hits and writes.
+The cache plugin reports `x-pipeline-cache-status`, and the runner enforces the policy based on that signal.
 
 ## Policies
 
@@ -12,7 +13,7 @@ Set `pipeline.cache.policy`:
 - `require-cache`: return cached value if present, otherwise fail the step
 - `bypass-cache`: ignore cache entirely (no read, no write)
 
-`require-cache` raises `CacheMissException`, which the runner treats as non-retryable.
+`require-cache` fails the step when the runner receives a cache `MISS` status from the cache plugin.
 
 ## Policy matrix
 
@@ -46,15 +47,15 @@ flowchart TD
   F -->|Yes| G[Return cached output]
   F -->|No| C
 
-  B -->|skip-if-present| H{Cache hit?}
+  B -->|skip-if-present| H{Key exists?}
   H -->|Yes| I[Return input unchanged]
-  H -->|No| C
+  H -->|No| J[Return input unchanged]
 
-  B -->|require-cache| J{Cache hit?}
-  J -->|Yes| K[Return cached output]
-  J -->|No| L[Fail step]
+  B -->|require-cache| K{Cache hit?}
+  K -->|Yes| L[Return cached output]
+  K -->|No| M[Fail step]
 
-  B -->|bypass-cache| M[Return input unchanged]
+  B -->|bypass-cache| N[Return input unchanged]
 ```
 
 ## Per-request overrides
