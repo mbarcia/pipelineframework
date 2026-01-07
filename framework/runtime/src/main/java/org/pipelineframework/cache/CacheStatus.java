@@ -17,28 +17,24 @@
 package org.pipelineframework.cache;
 
 /**
- * Cache policy applied by the cache plugin and pipeline cache support.
+ * Cache status values reported by cache plugin steps.
  */
-public enum CachePolicy {
-    CACHE_ONLY,
-    RETURN_CACHED,
-    SKIP_IF_PRESENT,
-    REQUIRE_CACHE,
-    BYPASS_CACHE;
+public enum CacheStatus {
+    HIT,
+    MISS,
+    BYPASS,
+    WRITE;
 
-    public static CachePolicy fromConfig(String value) {
+    public static CacheStatus fromHeader(String value) {
         if (value == null || value.isBlank()) {
-            return RETURN_CACHED;
+            return null;
         }
-        String normalized = value.trim().replace('-', '_').toUpperCase();
-        if ("PREFER_CACHE".equals(normalized)) {
-            return RETURN_CACHED;
-        }
-        for (CachePolicy policy : values()) {
-            if (policy.name().equals(normalized)) {
-                return policy;
+        String normalized = value.trim().toUpperCase();
+        for (CacheStatus status : values()) {
+            if (status.name().equals(normalized)) {
+                return status;
             }
         }
-        return RETURN_CACHED;
+        return null;
     }
 }

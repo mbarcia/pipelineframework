@@ -20,6 +20,8 @@ import jakarta.enterprise.context.ApplicationScoped;
 
 import io.grpc.*;
 import io.quarkus.arc.Unremovable;
+import org.pipelineframework.cache.CacheStatus;
+import org.pipelineframework.context.PipelineCacheStatusHolder;
 import org.pipelineframework.context.PipelineContext;
 import org.pipelineframework.context.PipelineContextHeaders;
 import org.pipelineframework.context.PipelineContextHolder;
@@ -37,6 +39,8 @@ public class PipelineContextGrpcServerInterceptor implements ServerInterceptor {
         Metadata.Key.of(PipelineContextHeaders.REPLAY, Metadata.ASCII_STRING_MARSHALLER);
     private static final Metadata.Key<String> CACHE_POLICY_HEADER =
         Metadata.Key.of(PipelineContextHeaders.CACHE_POLICY, Metadata.ASCII_STRING_MARSHALLER);
+    private static final Metadata.Key<String> CACHE_STATUS_HEADER =
+        Metadata.Key.of(PipelineContextHeaders.CACHE_STATUS, Metadata.ASCII_STRING_MARSHALLER);
 
     @Override
     public <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall(
@@ -50,7 +54,18 @@ public class PipelineContextGrpcServerInterceptor implements ServerInterceptor {
             headers.get(CACHE_POLICY_HEADER));
         PipelineContextHolder.set(context);
 
-        ServerCall.Listener<ReqT> listener = next.startCall(call, headers);
+        ServerCall<ReqT, RespT> wrappedCall = new ForwardingServerCall.SimpleForwardingServerCall<>(call) {
+            @Override
+            public void sendHeaders(Metadata responseHeaders) {
+                CacheStatus status = PipelineCacheStatusHolder.getAndClear();
+                if (status != null) {
+                    responseHeaders.put(CACHE_STATUS_HEADER, status.name());
+                }
+                super.sendHeaders(responseHeaders);
+            }
+        };
+
+        ServerCall.Listener<ReqT> listener = next.startCall(wrappedCall, headers);
         return new ForwardingServerCallListener.SimpleForwardingServerCallListener<>(listener) {
             @Override
             public void onComplete() {

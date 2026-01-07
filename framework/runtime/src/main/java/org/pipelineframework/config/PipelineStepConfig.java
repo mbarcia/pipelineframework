@@ -181,7 +181,7 @@ public interface PipelineStepConfig {
          *
          * @return cache policy
          */
-        @WithDefault("cache-only")
+        @WithDefault("prefer-cache")
         String policy();
 
         /**

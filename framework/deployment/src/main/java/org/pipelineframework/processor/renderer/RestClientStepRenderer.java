@@ -125,16 +125,6 @@ public class RestClientStepRenderer implements PipelineRenderer<RestBinding> {
             .build();
 
         clientStepBuilder.addField(restClientField);
-        boolean useCache = shouldApplyCache(model, ctx);
-        if (useCache) {
-            FieldSpec cacheSupportField = FieldSpec.builder(
-                    ClassName.get("org.pipelineframework.cache", "PipelineCacheSupport"),
-                    "pipelineCache")
-                .addAnnotation(AnnotationSpec.builder(ClassName.get("jakarta.inject", "Inject")).build())
-                .build();
-            clientStepBuilder.addField(cacheSupportField);
-        }
-
         MethodSpec constructor = MethodSpec.constructorBuilder()
             .addModifiers(Modifier.PUBLIC)
             .build();
@@ -152,13 +142,7 @@ public class RestClientStepRenderer implements PipelineRenderer<RestBinding> {
                     .addModifiers(Modifier.PUBLIC)
                     .returns(ParameterizedTypeName.get(ClassName.get(Uni.class), outputDto))
                     .addParameter(inputDto, "input");
-                if (useCache) {
-                    applyOneToOneMethod.addStatement(
-                        "return this.pipelineCache.apply($T.class, new Object[] { input }, () -> this.restClient.process(input))",
-                        resolveCacheKeyGenerator(model, ctx));
-                } else {
-                    applyOneToOneMethod.addStatement("return this.restClient.process(input)");
-                }
+                applyOneToOneMethod.addStatement("return this.restClient.process(input)");
                 clientStepBuilder.addMethod(applyOneToOneMethod.build());
             }
             case UNARY_STREAMING -> {
@@ -321,20 +305,6 @@ public class RestClientStepRenderer implements PipelineRenderer<RestBinding> {
                 "REST client generation for '%s' requires a non-null output domain type and outbound mapper",
                 model.serviceName()));
         }
-    }
-
-    private boolean shouldApplyCache(PipelineStepModel model, GenerationContext ctx) {
-        return false;
-    }
-
-    private TypeName resolveCacheKeyGenerator(PipelineStepModel model, GenerationContext ctx) {
-        if (model.cacheKeyGenerator() != null) {
-            return model.cacheKeyGenerator();
-        }
-        if (ctx.cacheKeyGenerator() != null) {
-            return ctx.cacheKeyGenerator();
-        }
-        return ClassName.get("org.pipelineframework.cache", "PipelineCacheKeyGenerator");
     }
 
     private static String toRestClientName(String serviceName) {

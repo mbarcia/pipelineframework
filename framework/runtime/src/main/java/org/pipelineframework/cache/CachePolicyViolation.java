@@ -14,18 +14,16 @@
  * limitations under the License.
  */
 
-package org.pipelineframework.context;
+package org.pipelineframework.cache;
+
+import org.pipelineframework.step.NonRetryableException;
 
 /**
- * Standard headers used for pipeline context propagation.
+ * Raised when cache policy enforcement fails.
  */
-public final class PipelineContextHeaders {
+public class CachePolicyViolation extends NonRetryableException {
 
-    public static final String VERSION = "x-pipeline-version";
-    public static final String REPLAY = "x-pipeline-replay";
-    public static final String CACHE_POLICY = "x-pipeline-cache-policy";
-    public static final String CACHE_STATUS = "x-pipeline-cache-status";
-
-    private PipelineContextHeaders() {
+    public CachePolicyViolation(String message) {
+        super(message);
     }
 }

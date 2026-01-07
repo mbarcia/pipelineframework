@@ -20,6 +20,8 @@ import jakarta.enterprise.context.ApplicationScoped;
 
 import io.grpc.*;
 import io.quarkus.arc.Unremovable;
+import org.pipelineframework.cache.CacheStatus;
+import org.pipelineframework.context.PipelineCacheStatusHolder;
 import org.pipelineframework.context.PipelineContext;
 import org.pipelineframework.context.PipelineContextHeaders;
 import org.pipelineframework.context.PipelineContextHolder;
@@ -37,6 +39,8 @@ public class PipelineContextGrpcClientInterceptor implements ClientInterceptor {
         Metadata.Key.of(PipelineContextHeaders.REPLAY, Metadata.ASCII_STRING_MARSHALLER);
     private static final Metadata.Key<String> CACHE_POLICY_HEADER =
         Metadata.Key.of(PipelineContextHeaders.CACHE_POLICY, Metadata.ASCII_STRING_MARSHALLER);
+    private static final Metadata.Key<String> CACHE_STATUS_HEADER =
+        Metadata.Key.of(PipelineContextHeaders.CACHE_STATUS, Metadata.ASCII_STRING_MARSHALLER);
 
     @Override
     public <ReqT, RespT> ClientCall<ReqT, RespT> interceptCall(
@@ -48,12 +52,20 @@ public class PipelineContextGrpcClientInterceptor implements ClientInterceptor {
         return new ForwardingClientCall.SimpleForwardingClientCall<>(next.newCall(method, callOptions)) {
             @Override
             public void start(Listener<RespT> responseListener, Metadata headers) {
+                Listener<RespT> wrapped = new ForwardingClientCallListener.SimpleForwardingClientCallListener<>(responseListener) {
+                    @Override
+                    public void onHeaders(Metadata headers) {
+                        CacheStatus status = CacheStatus.fromHeader(headers.get(CACHE_STATUS_HEADER));
+                        PipelineCacheStatusHolder.set(status);
+                        super.onHeaders(headers);
+                    }
+                };
                 if (context != null) {
                     putIfPresent(headers, VERSION_HEADER, context.versionTag());
                     putIfPresent(headers, REPLAY_HEADER, context.replayMode());
                     putIfPresent(headers, CACHE_POLICY_HEADER, context.cachePolicy());
                 }
-                super.start(responseListener, headers);
+                super.start(wrapped, headers);
             }
         };
     }

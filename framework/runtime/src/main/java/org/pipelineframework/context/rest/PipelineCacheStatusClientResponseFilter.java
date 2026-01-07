@@ -18,31 +18,32 @@ package org.pipelineframework.context.rest;
 
 import jakarta.ws.rs.ConstrainedTo;
 import jakarta.ws.rs.RuntimeType;
-import jakarta.ws.rs.container.ContainerRequestContext;
-import jakarta.ws.rs.container.ContainerResponseContext;
-import jakarta.ws.rs.container.ContainerResponseFilter;
+import jakarta.ws.rs.client.ClientRequestContext;
+import jakarta.ws.rs.client.ClientResponseContext;
+import jakarta.ws.rs.client.ClientResponseFilter;
 import jakarta.ws.rs.ext.Provider;
 
 import io.quarkus.arc.Unremovable;
 import org.pipelineframework.cache.CacheStatus;
 import org.pipelineframework.context.PipelineCacheStatusHolder;
 import org.pipelineframework.context.PipelineContextHeaders;
-import org.pipelineframework.context.PipelineContextHolder;
 
 /**
- * Clears pipeline context after REST responses are processed.
+ * Captures cache status headers from REST client responses.
  */
 @Provider
-@ConstrainedTo(RuntimeType.SERVER)
+@ConstrainedTo(RuntimeType.CLIENT)
 @Unremovable
-public class PipelineContextResponseFilter implements ContainerResponseFilter {
+public class PipelineCacheStatusClientResponseFilter implements ClientResponseFilter {
 
     @Override
-    public void filter(ContainerRequestContext requestContext, ContainerResponseContext responseContext) {
-        CacheStatus status = PipelineCacheStatusHolder.getAndClear();
-        if (status != null) {
-            responseContext.getHeaders().putSingle(PipelineContextHeaders.CACHE_STATUS, status.name());
+    public void filter(ClientRequestContext requestContext, ClientResponseContext responseContext) {
+        if (responseContext == null || responseContext.getHeaders() == null) {
+            PipelineCacheStatusHolder.clear();
+            return;
         }
-        PipelineContextHolder.clear();
+        String header = responseContext.getHeaderString(PipelineContextHeaders.CACHE_STATUS);
+        CacheStatus status = CacheStatus.fromHeader(header);
+        PipelineCacheStatusHolder.set(status);
     }
 }

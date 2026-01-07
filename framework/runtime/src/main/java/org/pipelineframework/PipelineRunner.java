@@ -25,6 +25,7 @@ import io.quarkus.arc.Unremovable;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import org.jboss.logging.Logger;
+import org.pipelineframework.cache.CachePolicyEnforcer;
 import org.pipelineframework.config.PipelineConfig;
 import org.pipelineframework.config.PipelineStepConfig;
 import org.pipelineframework.step.*;
@@ -208,14 +209,19 @@ public class PipelineRunner implements AutoCloseable {
     @SuppressWarnings({"unchecked"})
     public static <I, O> Object applyOneToOneUnchecked(StepOneToOne<I, O> step, Object current) {
         if (current instanceof Uni<?>) {
-            return step.apply((Uni<I>) current);
+            return step.apply((Uni<I>) current)
+                .onItem().transformToUni(CachePolicyEnforcer::enforce);
         } else if (current instanceof Multi<?>) {
             if (step.parallel()) {
                 logger.debugf("Applying step %s (flatMap)", step.getClass());
-                return ((Multi<I>) current).flatMap(item -> step.apply(Uni.createFrom().item(item)).toMulti());
+                return ((Multi<I>) current).flatMap(item -> step.apply(Uni.createFrom().item(item))
+                    .onItem().transformToUni(CachePolicyEnforcer::enforce)
+                    .toMulti());
             } else {
                 logger.debugf("Applying step %s (concatMap)", step.getClass());
-                return ((Multi<I>) current).concatMap(item -> step.apply(Uni.createFrom().item(item)).toMulti());
+                return ((Multi<I>) current).concatMap(item -> step.apply(Uni.createFrom().item(item))
+                    .onItem().transformToUni(CachePolicyEnforcer::enforce)
+                    .toMulti());
             }
         } else {
             throw new IllegalArgumentException(MessageFormat.format("Unsupported current type for StepOneToOne: {0}", current));

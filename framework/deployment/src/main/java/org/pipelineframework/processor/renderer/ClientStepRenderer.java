@@ -26,7 +26,9 @@ import io.quarkus.grpc.GrpcClient;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import org.pipelineframework.processor.PipelineStepProcessor;
-import org.pipelineframework.processor.ir.*;
+import org.pipelineframework.processor.ir.GenerationTarget;
+import org.pipelineframework.processor.ir.GrpcBinding;
+import org.pipelineframework.processor.ir.PipelineStepModel;
 import org.pipelineframework.processor.util.GrpcJavaTypeResolver;
 import org.pipelineframework.step.StepManyToOne;
 import org.pipelineframework.step.StepOneToOne;
@@ -76,7 +78,6 @@ public record ClientStepRenderer(GenerationTarget target) implements PipelineRen
         org.pipelineframework.processor.ir.DeploymentRole role = ctx.role();
         PipelineStepModel model = binding.model();
         String clientStepClassName = getClientStepClassName(model);
-        boolean useCache = shouldApplyCache(model, ctx);
 
         // Use the gRPC types resolved via GrpcJavaTypeResolver
         GrpcJavaTypeResolver grpcTypeResolver = new GrpcJavaTypeResolver();
@@ -112,15 +113,6 @@ public record ClientStepRenderer(GenerationTarget target) implements PipelineRen
 
             clientStepBuilder.addField(grpcClientField);
         }
-        if (useCache) {
-            FieldSpec cacheSupportField = FieldSpec.builder(
-                    ClassName.get("org.pipelineframework.cache", "PipelineCacheSupport"),
-                    "pipelineCache")
-                .addAnnotation(AnnotationSpec.builder(ClassName.get("jakarta.inject", "Inject")).build())
-                .build();
-            clientStepBuilder.addField(cacheSupportField);
-        }
-
         // Add default constructor
         MethodSpec constructor = MethodSpec.constructorBuilder()
                 .addModifiers(Modifier.PUBLIC)
@@ -210,13 +202,7 @@ public record ClientStepRenderer(GenerationTarget target) implements PipelineRen
                             .returns(ParameterizedTypeName.get(ClassName.get(Uni.class),
                                     outputGrpcType))
                             .addParameter(inputGrpcType, "input");
-                    if (useCache) {
-                        applyOneToOneMethod.addStatement(
-                            "return this.pipelineCache.apply($T.class, new Object[] { input }, () -> this.grpcClient.remoteProcess(input))",
-                            resolveCacheKeyGenerator(model, ctx));
-                    } else {
-                        applyOneToOneMethod.addStatement("return this.grpcClient.remoteProcess(input)");
-                    }
+                    applyOneToOneMethod.addStatement("return this.grpcClient.remoteProcess(input)");
                     clientStepBuilder.addMethod(applyOneToOneMethod.build());
                     break;
             }
@@ -271,26 +257,6 @@ public record ClientStepRenderer(GenerationTarget target) implements PipelineRen
                 .replaceAll("([A-Z]+)([A-Z][a-z])", "$1-$2")
                 .replaceAll("([a-z0-9])([A-Z])", "$1-$2");
         return withBoundaryHyphens.toLowerCase();
-    }
-
-    private boolean shouldApplyCache(PipelineStepModel model, GenerationContext ctx) {
-        if (!ctx.enabledAspects().contains("cache")) {
-            return false;
-        }
-        if (ctx.role() != DeploymentRole.ORCHESTRATOR_CLIENT) {
-            return false;
-        }
-        return !(model.sideEffect() || model.streamingShape() != StreamingShape.UNARY_UNARY);
-    }
-
-    private TypeName resolveCacheKeyGenerator(PipelineStepModel model, GenerationContext ctx) {
-        if (model.cacheKeyGenerator() != null) {
-            return model.cacheKeyGenerator();
-        }
-        if (ctx.cacheKeyGenerator() != null) {
-            return ctx.cacheKeyGenerator();
-        }
-        return ClassName.get("org.pipelineframework.cache", "PipelineCacheKeyGenerator");
     }
 
 }
