@@ -17,6 +17,31 @@ This eliminates the need for manual configuration and ensures consistency across
 
 ## Annotation Processing Workflow
 
+### 0. Proto Generation (Pre-Processing)
+Before annotation processing, pipeline protobuf descriptors are generated from the pipeline template. The authoritative source is:
+
+- `framework/runtime/src/main/java/org/pipelineframework/proto/PipelineProtoGenerator.java`
+
+This replaces hand-authored `.proto` files in the `common` module (those will be removed).
+
+### Build Timeline (gRPC)
+
+```
+Pipeline template
+      |
+      v
+PipelineProtoGenerator
+      |
+      v
+protoc -> descriptor set (.desc)
+      |
+      v
+Annotation processor -> adapters/clients/resources/CLI
+      |
+      v
+CDI registration
+```
+
 ### 1. Build-Time Discovery
 During the Maven build process, the annotation processor scans for `@PipelineStep` annotations:
 
@@ -37,6 +62,14 @@ public class ProcessPaymentService implements ReactiveService<PaymentRecord, Pay
     }
 }
 ```
+
+### 1.1 Orchestrator and Plugin Annotations
+The processor also reacts to:
+
+- `@PipelineOrchestrator` on a marker class to enable orchestrator endpoints and (optionally) CLI generation.
+- `@PipelinePlugin` on plugin services to enable plugin-server generation and plugin-aspect expansion.
+
+These annotations do not define pipeline steps themselves, but they control which orchestrator and plugin artifacts are generated.
 
 ### 2. Compile-time Code Generation
 The Pipeline Framework extension processor generates several classes:
@@ -147,6 +180,28 @@ public class OrchestratorApplication implements QuarkusApplication, Callable<Int
 ```
 
 The actual pipeline execution is handled by the PipelineExecutionService which discovers all available step implementations through the StepsRegistry.
+
+## Module Ownership and Dependencies
+
+This build is organized into three groups plus shared scaffolding:
+
+- `common` (scaffolded): DTOs and mappers used by services and orchestrator
+- `services`: step implementations + server adapters (gRPC or REST)
+- `orchestrator`: orchestrator endpoints + orchestrator CLI + client steps
+
+Client steps are *only* used by the orchestrator (there is no direct step-to-step communication).
+
+### Ownership Matrix (Generated Artifacts)
+
+| Artifact | Owner Module | Consumers |
+| --- | --- | --- |
+| DTOs + mappers | `common` | `services`, `orchestrator` |
+| gRPC server adapters | `services` | runtime/CDI |
+| REST resources | `services` | runtime/CDI |
+| gRPC client steps | `orchestrator` | orchestrator runtime |
+| REST client steps | `orchestrator` | orchestrator runtime |
+| Orchestrator endpoints | `orchestrator` | runtime/CDI |
+| Orchestrator CLI | `orchestrator` | user |
 
 ## Build Process Integration
 
