@@ -780,6 +780,7 @@ public class PipelineStepProcessor extends AbstractProcessingTool {
         }
 
         java.util.List<PipelineStepModel> clientModels = buildClientModelsFromTemplate(steps, basePackage);
+        java.util.List<ResolvedStep> resolvedSteps = new java.util.ArrayList<>();
         for (PipelineStepModel model : clientModels) {
             GrpcBinding grpcBinding = null;
             RestBinding restBinding = null;
