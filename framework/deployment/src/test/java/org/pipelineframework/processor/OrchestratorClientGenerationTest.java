@@ -16,8 +16,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.pipelineframework.config.template.PipelineTemplateConfig;
 import org.pipelineframework.config.template.PipelineTemplateStep;
-import org.pipelineframework.processor.ir.GrpcBinding;
-import org.pipelineframework.processor.ir.RestBinding;
+import org.pipelineframework.processor.ir.*;
 import org.pipelineframework.processor.renderer.ClientStepRenderer;
 import org.pipelineframework.processor.renderer.RestClientStepRenderer;
 import org.pipelineframework.processor.util.GrpcBindingResolver;
@@ -85,6 +84,38 @@ class OrchestratorClientGenerationTest {
 
         verify(restClientRenderer, times(2)).render(any(), any());
         verifyNoInteractions(clientRenderer);
+    }
+
+    @Test
+    void generatesAspectClientsFromTemplate() throws Exception {
+        PipelineStepProcessor processor = new PipelineStepProcessor();
+        ProcessingEnvironment processingEnv = mockProcessingEnv();
+        processor.init(processingEnv);
+
+        setField(processor, "generatedSourcesRoot", tempDir);
+        setField(processor, "pipelineTemplateConfig", sampleConfig("REST"));
+        setField(processor, "transportMode", enumValue(processor, "TransportMode", "REST"));
+
+        PipelineAspectModel aspect = new PipelineAspectModel(
+            "persistence",
+            AspectScope.GLOBAL,
+            AspectPosition.AFTER_STEP,
+            Map.of("pluginImplementationClass", "org.pipelineframework.plugin.persistence.PersistenceService"));
+        setField(processor, "pipelineAspects", List.of(aspect));
+
+        RestBindingResolver restBindingResolver = mock(RestBindingResolver.class);
+        when(restBindingResolver.resolve(any(), any())).thenReturn(mock(RestBinding.class));
+        setField(processor, "restBindingResolver", restBindingResolver);
+
+        RestClientStepRenderer restClientRenderer = mock(RestClientStepRenderer.class);
+        setField(processor, "restClientRenderer", restClientRenderer);
+        setField(processor, "clientRenderer", mock(ClientStepRenderer.class));
+        setField(processor, "grpcRenderer", mock(org.pipelineframework.processor.renderer.GrpcServiceAdapterRenderer.class));
+        setField(processor, "restRenderer", mock(org.pipelineframework.processor.renderer.RestResourceRenderer.class));
+
+        invokeGenerateClients(processor, DescriptorProtos.FileDescriptorSet.getDefaultInstance());
+
+        verify(restClientRenderer, times(4)).render(any(), any());
     }
 
     private ProcessingEnvironment mockProcessingEnv() throws Exception {

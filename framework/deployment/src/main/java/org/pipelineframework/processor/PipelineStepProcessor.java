@@ -791,6 +791,33 @@ public class PipelineStepProcessor extends AbstractProcessingTool {
                 || model.enabledTargets().contains(GenerationTarget.REST_CLIENT_STEP)) {
                 restBinding = restBindingResolver.resolve(model, processingEnv);
             }
+            resolvedSteps.add(new ResolvedStep(model, grpcBinding, restBinding));
+        }
+
+        java.util.List<PipelineAspectModel> aspectsForExpansion = pipelineAspects.stream()
+            .filter(aspect -> !isCacheAspect(aspect))
+            .toList();
+
+        java.util.List<ResolvedStep> generationOrder = resolvedSteps;
+        if (!aspectsForExpansion.isEmpty()) {
+            AspectExpansionProcessor expansionProcessor = new AspectExpansionProcessor();
+            generationOrder = expansionProcessor.expandAspects(resolvedSteps, aspectsForExpansion);
+        }
+
+        for (ResolvedStep resolvedStep : generationOrder) {
+            PipelineStepModel model = resolvedStep.model();
+            GrpcBinding grpcBinding = rebuildGrpcBinding(resolvedStep.grpcBinding(), model);
+            RestBinding restBinding = rebuildRestBinding(resolvedStep.restBinding(), model);
+            if (grpcBinding == null
+                && (model.enabledTargets().contains(GenerationTarget.GRPC_SERVICE)
+                    || model.enabledTargets().contains(GenerationTarget.CLIENT_STEP))) {
+                grpcBinding = bindingResolver.resolve(model, descriptorSet);
+            }
+            if (restBinding == null
+                && (model.enabledTargets().contains(GenerationTarget.REST_RESOURCE)
+                    || model.enabledTargets().contains(GenerationTarget.REST_CLIENT_STEP))) {
+                restBinding = restBindingResolver.resolve(model, processingEnv);
+            }
             try {
                 generateArtifacts(model, grpcBinding, restBinding, descriptorSet);
             } catch (Exception e) {
