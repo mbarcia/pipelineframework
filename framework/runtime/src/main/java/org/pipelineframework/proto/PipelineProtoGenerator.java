@@ -562,10 +562,16 @@ public class PipelineProtoGenerator {
             if (args != null) {
                 for (int i = 0; i < args.length; i++) {
                     String arg = args[i];
-                    if ("--module-dir".equals(arg) && i + 1 < args.length) {
+                    if (arg.startsWith("--module-dir=")) {
+                        moduleDir = Path.of(arg.substring("--module-dir=".length()));
+                    } else if ("--module-dir".equals(arg) && i + 1 < args.length) {
                         moduleDir = Path.of(args[++i]);
+                    } else if (arg.startsWith("--config=")) {
+                        configPath = Path.of(arg.substring("--config=".length()));
                     } else if ("--config".equals(arg) && i + 1 < args.length) {
                         configPath = Path.of(args[++i]);
+                    } else if (arg.startsWith("--output-dir=")) {
+                        outputDir = Path.of(arg.substring("--output-dir=".length()));
                     } else if ("--output-dir".equals(arg) && i + 1 < args.length) {
                         outputDir = Path.of(args[++i]);
                     } else if ("--help".equals(arg) || "-h".equals(arg)) {
