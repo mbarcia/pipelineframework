@@ -42,6 +42,10 @@ public class PipelineReadinessCheck implements HealthCheck {
     boolean ready = state == PipelineExecutionService.StartupHealthState.HEALTHY;
     HealthCheckResponseBuilder builder = HealthCheckResponse.named("pipeline-dependencies");
     builder.withData("state", state.name());
+    String error = pipelineExecutionService.getStartupHealthError();
+    if (error != null && !error.isBlank()) {
+      builder.withData("error", error);
+    }
     return ready ? builder.up().build() : builder.down().build();
   }
 }

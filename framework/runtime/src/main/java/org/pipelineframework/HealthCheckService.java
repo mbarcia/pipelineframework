@@ -256,6 +256,11 @@ public void checkServerTrusted(java.security.cert.X509Certificate[] certs, Strin
                 restClients.addAll(extractRestClientInfos(step));
             }
         }
+        if (LOG.isInfoEnabled()) {
+            LOG.infof("Detected gRPC clients: %s", grpcClientNames);
+            LOG.infof("Detected REST clients: %s",
+                restClients.stream().map(RestClientInfo::configKey).toList());
+        }
 
         if (grpcClientNames.isEmpty() && restClients.isEmpty()) {
             LOG.info("No gRPC or REST client dependencies found. Proceeding with pipeline execution.");

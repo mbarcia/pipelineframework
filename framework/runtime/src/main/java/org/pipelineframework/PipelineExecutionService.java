@@ -32,6 +32,7 @@ import jakarta.inject.Inject;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import io.smallrye.mutiny.infrastructure.Infrastructure;
+import lombok.Getter;
 import org.apache.commons.lang3.time.StopWatch;
 import org.jboss.logging.Logger;
 import org.pipelineframework.config.PipelineConfig;
@@ -66,6 +67,8 @@ public class PipelineExecutionService {
   private final AtomicReference<StartupHealthState> startupHealthState =
       new AtomicReference<>(StartupHealthState.PENDING);
   private volatile CompletableFuture<Boolean> startupHealthFuture = new CompletableFuture<>();
+  @Getter
+  private volatile String startupHealthError;
 
   public enum StartupHealthState {
     PENDING,
@@ -87,11 +90,13 @@ public class PipelineExecutionService {
       steps = loadPipelineSteps();
     } catch (PipelineConfigurationException e) {
       LOG.errorf(e, "Pipeline configuration invalid during startup health check: %s", e.getMessage());
+      startupHealthError = e.getMessage();
       startupHealthState.set(StartupHealthState.ERROR);
       startupHealthFuture.completeExceptionally(e);
       return;
     } catch (Exception e) {
       LOG.errorf(e, "Unexpected error while loading pipeline steps for health check: %s", e.getMessage());
+      startupHealthError = e.getMessage();
       startupHealthState.set(StartupHealthState.ERROR);
       startupHealthFuture.completeExceptionally(e);
       return;
@@ -248,7 +253,7 @@ public class PipelineExecutionService {
       return switch (result) {
         case null -> Uni.createFrom().failure(new IllegalStateException("PipelineRunner returned null"));
         case Uni<?> uni -> attachUniHooks(uni, watch);
-        case Multi<?> multi -> Uni.createFrom().failure(new IllegalStateException(
+        case Multi<?> ignored -> Uni.createFrom().failure(new IllegalStateException(
             "PipelineRunner returned stream output where unary output was expected"));
         default -> Uni.createFrom().failure(new IllegalStateException(
             MessageFormat.format("PipelineRunner returned unexpected type: {0}", result.getClass().getName())));
@@ -469,7 +474,15 @@ public class PipelineExecutionService {
       if (stepClass == null) {
         throw new ClassNotFoundException(stepClassName);
       }
-      return io.quarkus.arc.Arc.container().instance(stepClass).get();
+      io.quarkus.arc.InstanceHandle<?> handle = io.quarkus.arc.Arc.container().instance(stepClass);
+      if (!handle.isAvailable()) {
+        int beanCount = io.quarkus.arc.Arc.container().beanManager().getBeans(stepClass).size();
+        ClassLoader loader = stepClass.getClassLoader();
+        LOG.errorf("No CDI bean available for pipeline step %s (beans=%d, loader=%s)",
+            stepClassName, beanCount, loader);
+        return null;
+      }
+      return handle.get();
     } catch (Exception e) {
       LOG.errorf(e, "Failed to instantiate pipeline step: %s, error: %s", stepClassName, e.getMessage());
       return null;

@@ -107,6 +107,18 @@ public final class PipelineOrderExpander {
             }
         }
 
+        if (classLoader != null && LOG.isDebugEnabled()) {
+            for (String stepClassName : expanded) {
+                if (stepClassName == null || stepClassName.isBlank()) {
+                    continue;
+                }
+                try {
+                    Class.forName(stepClassName, false, classLoader);
+                } catch (ClassNotFoundException missing) {
+                    LOG.warnf("Expanded pipeline order includes missing class %s", stepClassName);
+                }
+            }
+        }
         return expanded;
     }
 
@@ -286,7 +298,12 @@ public final class PipelineOrderExpander {
         String outputType,
         String clientSuffix
     ) {
-        String className = toPascalCase(aspectName) + outputType + "SideEffect" + clientSuffix;
+        String normalizedType = stripDtoSuffix(outputType);
+        String className = toPascalCase(aspectName) + normalizedType + "SideEffect" + clientSuffix;
+        if (LOG.isDebugEnabled()) {
+            LOG.debugf("Resolved side-effect client step: aspect=%s type=%s normalized=%s class=%s",
+                aspectName, outputType, normalizedType, className);
+        }
         String packageName = null;
         if (stepClassName != null) {
             int lastDot = stepClassName.lastIndexOf('.');
@@ -301,6 +318,13 @@ public final class PipelineOrderExpander {
             packageName = basePackage + ".service.pipeline";
         }
         return packageName + "." + className;
+    }
+
+    private static String stripDtoSuffix(String typeName) {
+        if (typeName == null || typeName.isBlank()) {
+            return "";
+        }
+        return typeName.endsWith("Dto") ? typeName.substring(0, typeName.length() - 3) : typeName;
     }
 
     private static String resolveClientStepSuffix(PipelineYamlConfig config) {
