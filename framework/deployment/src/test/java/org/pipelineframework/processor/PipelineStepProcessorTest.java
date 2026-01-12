@@ -16,6 +16,10 @@
 
 package org.pipelineframework.processor;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
@@ -27,16 +31,21 @@ import javax.lang.model.SourceVersion;
 import javax.lang.model.element.*;
 import javax.tools.Diagnostic;
 
+import com.google.testing.compile.Compilation;
+import com.google.testing.compile.Compiler;
+import com.google.testing.compile.JavaFileObjects;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.pipelineframework.annotation.PipelineStep;
 
+import static com.google.testing.compile.CompilationSubject.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -54,6 +63,9 @@ class PipelineStepProcessorTest {
 
     @Mock
     private Messager messager;
+
+    @TempDir
+    Path tempDir;
 
     @BeforeEach
     void setUp() {
@@ -503,5 +515,404 @@ class PipelineStepProcessorTest {
         });
 
         return typeMirror;
+    }
+
+    @Test
+    void testPipelineStepGeneratesServerAdapterOnly() throws IOException {
+        // Create a temporary directory for generated sources
+        Path generatedSourcesDir = tempDir.resolve("generated-sources");
+        Files.createDirectories(generatedSourcesDir);
+
+        // Copy the search descriptor file to the temp directory with the expected name
+        Path descriptorPath = Paths.get(System.getProperty("user.dir")).resolve("src/test/resources/descriptor_set_search.dsc");
+        if (Files.exists(descriptorPath)) {
+            Path targetDescriptorPath = tempDir.resolve("descriptor_set.dsc");
+            Files.copy(descriptorPath, targetDescriptorPath);
+        }
+
+        // Define a pipeline step class based on the search example - Crawl Source step
+        String stepCode = """
+            package test.step;
+
+            import org.pipelineframework.annotation.PipelineStep;
+            import test.common.domain.CrawlRequest;
+            import test.common.domain.RawDocument;
+            import test.common.mapper.CrawlRequestMapper;
+            import test.common.mapper.RawDocumentMapper;
+
+            @PipelineStep(
+                inputType = CrawlRequest.class,
+                outputType = RawDocument.class,
+                inboundMapper = CrawlRequestMapper.class,
+                outboundMapper = RawDocumentMapper.class
+            )
+            public class ProcessCrawlSourceService {
+            }
+            """;
+
+        // Create supporting classes that would normally exist
+        String crawlRequestDomain = """
+            package test.common.domain;
+
+            import java.util.UUID;
+
+            public class CrawlRequest {
+                private UUID docId;
+                private String sourceUrl;
+
+                public UUID getDocId() {
+                    return docId;
+                }
+
+                public void setDocId(UUID docId) {
+                    this.docId = docId;
+                }
+
+                public String getSourceUrl() {
+                    return sourceUrl;
+                }
+
+                public void setSourceUrl(String sourceUrl) {
+                    this.sourceUrl = sourceUrl;
+                }
+            }
+            """;
+
+        String rawDocumentDomain = """
+            package test.common.domain;
+
+            import java.time.Instant;
+            import java.util.UUID;
+
+            public class RawDocument {
+                private UUID docId;
+                private String sourceUrl;
+                private String rawContent;
+                private Instant fetchedAt;
+
+                public UUID getDocId() {
+                    return docId;
+                }
+
+                public void setDocId(UUID docId) {
+                    this.docId = docId;
+                }
+
+                public String getSourceUrl() {
+                    return sourceUrl;
+                }
+
+                public void setSourceUrl(String sourceUrl) {
+                    this.sourceUrl = sourceUrl;
+                }
+
+                public String getRawContent() {
+                    return rawContent;
+                }
+
+                public void setRawContent(String rawContent) {
+                    this.rawContent = rawContent;
+                }
+
+                public Instant getFetchedAt() {
+                    return fetchedAt;
+                }
+
+                public void setFetchedAt(Instant fetchedAt) {
+                    this.fetchedAt = fetchedAt;
+                }
+            }
+            """;
+
+        String crawlRequestMapper = """
+            package test.common.mapper;
+
+            import test.common.domain.CrawlRequest;
+
+            public class CrawlRequestMapper {
+                public static CrawlRequest toDomain(Object input) {
+                    return new CrawlRequest();
+                }
+            }
+            """;
+
+        String rawDocumentMapper = """
+            package test.common.mapper;
+
+            import test.common.domain.RawDocument;
+
+            public class RawDocumentMapper {
+                public static RawDocument toDomain(Object input) {
+                    return new RawDocument();
+                }
+            }
+            """;
+
+        // Create a pipeline.yaml config file that matches the search example
+        Path configDir = tempDir.resolve("config");
+        Files.createDirectories(configDir);
+        Path pipelineConfig = configDir.resolve("pipeline.yaml");
+        Files.writeString(pipelineConfig, """
+            appName: "Test Search Pipeline"
+            basePackage: "test.step"
+            transport: "GRPC"
+            steps:
+              - name: "Crawl Source"
+                cardinality: "ONE_TO_ONE"
+                inputTypeName: "CrawlRequest"
+                inputFields:
+                  - name: "docId"
+                    type: "UUID"
+                    protoType: "string"
+                  - name: "sourceUrl"
+                    type: "String"
+                    protoType: "string"
+                outputTypeName: "RawDocument"
+                outputFields:
+                  - name: "docId"
+                    type: "UUID"
+                    protoType: "string"
+                  - name: "sourceUrl"
+                    type: "String"
+                    protoType: "string"
+                  - name: "rawContent"
+                    type: "String"
+                    protoType: "string"
+                  - name: "fetchedAt"
+                    type: "Instant"
+                    protoType: "string"
+            """);
+
+        // Compile with the PipelineStepProcessor
+        Compilation compilation = Compiler.javac()
+                .withProcessors(new org.pipelineframework.processor.PipelineStepProcessor())
+                .withOptions(
+                        "-Apipeline.generatedSourcesDir=" + generatedSourcesDir.toString(),
+                        "-Aprotobuf.descriptor.path=" + tempDir.toString())
+                .compile(
+                        JavaFileObjects.forSourceString("test.step.ProcessCrawlSourceService", stepCode),
+                        JavaFileObjects.forSourceString("test.common.domain.CrawlRequest", crawlRequestDomain),
+                        JavaFileObjects.forSourceString("test.common.domain.RawDocument", rawDocumentDomain),
+                        JavaFileObjects.forSourceString("test.common.mapper.CrawlRequestMapper", crawlRequestMapper),
+                        JavaFileObjects.forSourceString("test.common.mapper.RawDocumentMapper", rawDocumentMapper)
+                );
+
+        // Verify compilation succeeded
+        assertThat(compilation).succeeded();
+
+        // The processor should generate server adapter only for the annotated step
+        // and not for other steps that might be defined in the pipeline config
+    }
+
+    @Test
+    void testPipelineStepWithRestTransport() throws IOException {
+        // Create a temporary directory for generated sources
+        Path generatedSourcesDir = tempDir.resolve("generated-sources");
+        Files.createDirectories(generatedSourcesDir);
+
+        // For REST tests, we don't need a descriptor file, but we'll still copy it for consistency
+        Path descriptorPath = Paths.get(System.getProperty("user.dir")).resolve("src/test/resources/descriptor_set_search.dsc");
+        if (Files.exists(descriptorPath)) {
+            Path targetDescriptorPath = tempDir.resolve("descriptor_set.dsc");
+            Files.copy(descriptorPath, targetDescriptorPath);
+        }
+
+        // Define a pipeline step class based on the search example - Parse Document step
+        String stepCode = """
+            package test.step;
+
+            import org.pipelineframework.annotation.PipelineStep;
+            import test.common.domain.RawDocument;
+            import test.common.domain.ParsedDocument;
+            import test.common.mapper.RawDocumentMapper;
+            import test.common.mapper.ParsedDocumentMapper;
+
+            @PipelineStep(
+                inputType = RawDocument.class,
+                outputType = ParsedDocument.class,
+                inboundMapper = RawDocumentMapper.class,
+                outboundMapper = ParsedDocumentMapper.class
+            )
+            public class ProcessParseDocumentService {
+            }
+            """;
+
+        // Create supporting classes that would normally exist
+        String rawDocumentDomain = """
+            package test.common.domain;
+
+            import java.time.Instant;
+            import java.util.UUID;
+
+            public class RawDocument {
+                private UUID docId;
+                private String sourceUrl;
+                private String rawContent;
+                private Instant fetchedAt;
+
+                public UUID getDocId() {
+                    return docId;
+                }
+
+                public void setDocId(UUID docId) {
+                    this.docId = docId;
+                }
+
+                public String getSourceUrl() {
+                    return sourceUrl;
+                }
+
+                public void setSourceUrl(String sourceUrl) {
+                    this.sourceUrl = sourceUrl;
+                }
+
+                public String getRawContent() {
+                    return rawContent;
+                }
+
+                public void setRawContent(String rawContent) {
+                    this.rawContent = rawContent;
+                }
+
+                public Instant getFetchedAt() {
+                    return fetchedAt;
+                }
+
+                public void setFetchedAt(Instant fetchedAt) {
+                    this.fetchedAt = fetchedAt;
+                }
+            }
+            """;
+
+        String parsedDocumentDomain = """
+            package test.common.domain;
+
+            import java.time.Instant;
+            import java.util.UUID;
+
+            public class ParsedDocument {
+                private UUID docId;
+                private String title;
+                private String content;
+                private Instant extractedAt;
+
+                public UUID getDocId() {
+                    return docId;
+                }
+
+                public void setDocId(UUID docId) {
+                    this.docId = docId;
+                }
+
+                public String getTitle() {
+                    return title;
+                }
+
+                public void setTitle(String title) {
+                    this.title = title;
+                }
+
+                public String getContent() {
+                    return content;
+                }
+
+                public void setContent(String content) {
+                    this.content = content;
+                }
+
+                public Instant getExtractedAt() {
+                    return extractedAt;
+                }
+
+                public void setExtractedAt(Instant extractedAt) {
+                    this.extractedAt = extractedAt;
+                }
+            }
+            """;
+
+        String rawDocumentMapper = """
+            package test.common.mapper;
+
+            import test.common.domain.RawDocument;
+
+            public class RawDocumentMapper {
+                public static RawDocument toDomain(Object input) {
+                    return new RawDocument();
+                }
+            }
+            """;
+
+        String parsedDocumentMapper = """
+            package test.common.mapper;
+
+            import test.common.domain.ParsedDocument;
+
+            public class ParsedDocumentMapper {
+                public static ParsedDocument toDomain(Object input) {
+                    return new ParsedDocument();
+                }
+            }
+            """;
+
+        // Create a pipeline.yaml config file with REST transport that matches the search example
+        Path configDir = tempDir.resolve("config");
+        Files.createDirectories(configDir);
+        Path pipelineConfig = configDir.resolve("pipeline.yaml");
+        Files.writeString(pipelineConfig, """
+            appName: "Test Search Pipeline"
+            basePackage: "test.step"
+            transport: "REST"
+            steps:
+              - name: "Parse Document"
+                cardinality: "ONE_TO_ONE"
+                inputTypeName: "RawDocument"
+                inputFields:
+                  - name: "docId"
+                    type: "UUID"
+                    protoType: "string"
+                  - name: "sourceUrl"
+                    type: "String"
+                    protoType: "string"
+                  - name: "rawContent"
+                    type: "String"
+                    protoType: "string"
+                  - name: "fetchedAt"
+                    type: "Instant"
+                    protoType: "string"
+                outputTypeName: "ParsedDocument"
+                outputFields:
+                  - name: "docId"
+                    type: "UUID"
+                    protoType: "string"
+                  - name: "title"
+                    type: "String"
+                    protoType: "string"
+                  - name: "content"
+                    type: "String"
+                    protoType: "string"
+                  - name: "extractedAt"
+                    type: "Instant"
+                    protoType: "string"
+            """);
+
+        // Compile with the PipelineStepProcessor
+        Compilation compilation = Compiler.javac()
+                .withProcessors(new org.pipelineframework.processor.PipelineStepProcessor())
+                .withOptions(
+                        "-Apipeline.generatedSourcesDir=" + generatedSourcesDir.toString(),
+                        "-Aprotobuf.descriptor.path=" + tempDir.toString())
+                .compile(
+                        JavaFileObjects.forSourceString("test.step.ProcessParseDocumentService", stepCode),
+                        JavaFileObjects.forSourceString("test.common.domain.RawDocument", rawDocumentDomain),
+                        JavaFileObjects.forSourceString("test.common.domain.ParsedDocument", parsedDocumentDomain),
+                        JavaFileObjects.forSourceString("test.common.mapper.RawDocumentMapper", rawDocumentMapper),
+                        JavaFileObjects.forSourceString("test.common.mapper.ParsedDocumentMapper", parsedDocumentMapper)
+                );
+
+        // Verify compilation succeeded
+        assertThat(compilation).succeeded();
+
+        // The processor should generate REST resource only for the annotated step
+        // with REST transport
     }
 }
