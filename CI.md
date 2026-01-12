@@ -65,15 +65,15 @@ flowchart TD
 
 ## 🧩 CLI Flags — TL;DR
 
-| Flag | Meaning | When to Use |
-|------|---------|--------------|
-| `-DskipITs` | Skips `*IT.java` | PRs, fast builds |
-| `-DskipNative=true` | Skips native images | Everything except main |
-| `-Dquarkus.container-image.build=true` | Build Jib images | Full tests on main |
-| `-Pcoverage` | Run coverage on unit tests | PRs, quality gates |
-| `-Pcentral-publishing` | Release signing + GPG + deploy | Only on tags |
-| `-DskipTests` | Skips **all** tests | ⚠️ Avoid — rarely correct |
-| `-Dquarkus.native.enabled=true` | Enables native build | Native matrix stage |
+| Flag                                   | Meaning                        | When to Use               |
+|----------------------------------------|--------------------------------|---------------------------|
+| `-DskipITs`                            | Skips `*IT.java`               | PRs, fast builds          |
+| `-DskipNative=true`                    | Skips native images            | Everything except main    |
+| `-Dquarkus.container-image.build=true` | Build Jib images               | Full tests on main        |
+| `-Pcoverage`                           | Run coverage on unit tests     | PRs, quality gates        |
+| `-Pcentral-publishing`                 | Release signing + GPG + deploy | Only on tags              |
+| `-DskipTests`                          | Skips **all** tests            | ⚠️ Avoid — rarely correct |
+| `-Dquarkus.native.enabled=true`        | Enables native build           | Native matrix stage       |
 
 ### Golden Rules
 - ❌ **Never** mix `skipTests` + `skipITs`.
