@@ -24,6 +24,7 @@ import java.util.concurrent.ConcurrentMap;
 import jakarta.enterprise.context.ApplicationScoped;
 
 import io.quarkus.arc.Unremovable;
+import io.quarkus.arc.properties.IfBuildProperty;
 import io.smallrye.mutiny.Uni;
 import org.jboss.logging.Logger;
 import org.pipelineframework.cache.CacheKey;
@@ -34,6 +35,7 @@ import org.pipelineframework.cache.CacheProvider;
  */
 @ApplicationScoped
 @Unremovable
+@IfBuildProperty(name = "pipeline.cache.provider", stringValue = "memory")
 public class InMemoryCacheProvider implements CacheProvider<CacheKey> {
 
     private static final Logger LOG = Logger.getLogger(InMemoryCacheProvider.class);

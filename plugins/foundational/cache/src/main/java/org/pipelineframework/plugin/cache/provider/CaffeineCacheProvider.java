@@ -24,6 +24,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
 import io.quarkus.arc.Unremovable;
+import io.quarkus.arc.properties.IfBuildProperty;
 import io.quarkus.cache.Cache;
 import io.quarkus.cache.CacheManager;
 import io.quarkus.cache.CaffeineCache;
@@ -38,6 +39,7 @@ import org.pipelineframework.cache.CacheProvider;
  */
 @ApplicationScoped
 @Unremovable
+@IfBuildProperty(name = "pipeline.cache.provider", stringValue = "caffeine")
 public class CaffeineCacheProvider implements CacheProvider<CacheKey> {
 
     private static final Logger LOG = Logger.getLogger(CaffeineCacheProvider.class);

@@ -16,8 +16,11 @@
 
 package org.pipelineframework.search.cache;
 
+import jakarta.enterprise.context.ApplicationScoped;
+
 import org.pipelineframework.annotation.PipelinePlugin;
 
+@ApplicationScoped
 @PipelinePlugin("cache-invalidate-all")
 public final class CacheInvalidationAllPluginHost {
     private CacheInvalidationAllPluginHost() {

@@ -157,6 +157,8 @@ aspects:
     scope: "GLOBAL"
     position: "AFTER_STEP"
     order: 5
+    config:
+      pluginImplementationClass: "org.pipelineframework.plugin.cache.CacheService"
   cache-invalidate:
     enabled: true
     scope: "STEPS"

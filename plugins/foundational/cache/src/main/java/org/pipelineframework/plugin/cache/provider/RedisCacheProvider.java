@@ -158,6 +158,6 @@ public class RedisCacheProvider implements CacheProvider<Object> {
         }
     }
 
-    private record CacheEnvelope(String type, String payload) {
+    public static record CacheEnvelope(String type, String payload) {
     }
 }

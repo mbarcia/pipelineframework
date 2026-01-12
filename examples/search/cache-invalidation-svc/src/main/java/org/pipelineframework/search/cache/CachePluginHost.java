@@ -14,15 +14,15 @@
  * limitations under the License.
  */
 
-package org.pipelineframework.search.persistence;
+package org.pipelineframework.search.cache;
 
 import jakarta.enterprise.context.ApplicationScoped;
 
 import org.pipelineframework.annotation.PipelinePlugin;
 
 @ApplicationScoped
-@PipelinePlugin("persistence")
-public final class PersistencePluginHost {
-    private PersistencePluginHost() {
+@PipelinePlugin("cache")
+public final class CachePluginHost {
+    private CachePluginHost() {
     }
 }
