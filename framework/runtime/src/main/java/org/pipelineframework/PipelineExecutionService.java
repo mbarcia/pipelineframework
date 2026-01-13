@@ -19,6 +19,7 @@ package org.pipelineframework;
 import java.text.MessageFormat;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -333,8 +334,11 @@ public class PipelineExecutionService {
       // Use the structured configuration mapping to get all pipeline steps
       java.util.Optional<List<String>> resourceOrder = PipelineOrderResourceLoader.loadOrder();
       if (resourceOrder.isEmpty()) {
-        throw new PipelineConfigurationException(
-            "Pipeline order metadata not found. Ensure META-INF/pipeline/order.json is generated at build time.");
+        if (PipelineOrderResourceLoader.requiresOrder()) {
+          throw new PipelineConfigurationException(
+              "Pipeline order metadata not found. Ensure META-INF/pipeline/order.json is generated at build time.");
+        }
+        return Collections.emptyList();
       }
       List<String> orderedStepNames = resourceOrder.get();
       if (orderedStepNames.isEmpty()) {

@@ -35,6 +35,10 @@ public class PipelineOrderMetadataGenerator {
      * @throws IOException if writing the resource fails
      */
     public void writeOrderMetadata(PipelineCompilationContext ctx) throws IOException {
+        if (!ctx.isOrchestratorGenerated()) {
+            return;
+        }
+
         PipelineYamlConfig config = loadPipelineConfig(ctx);
         if (config == null || config.steps() == null || config.steps().isEmpty()) {
             return;
@@ -92,7 +96,7 @@ public class PipelineOrderMetadataGenerator {
         String suffix = ctx.isTransportModeGrpc() ? "GrpcClientStep" : "RestClientStep";
         Set<String> ordered = new LinkedHashSet<>();
         for (PipelineStepModel model : models) {
-            if (model.deploymentRole() != DeploymentRole.PIPELINE_SERVER || model.sideEffect()) {
+            if (model.deploymentRole() != DeploymentRole.ORCHESTRATOR_CLIENT || model.sideEffect()) {
                 continue;
             }
             String className = model.servicePackage() + ".pipeline." +

@@ -22,6 +22,8 @@ import jakarta.ws.rs.core.Response;
 import org.jboss.logging.Logger;
 import org.jboss.resteasy.reactive.RestResponse;
 import org.jboss.resteasy.reactive.server.ServerExceptionMapper;
+import org.pipelineframework.cache.CacheMissException;
+import org.pipelineframework.cache.CachePolicyViolation;
 
 /**
  * Default REST exception mapper used by generated resources.
@@ -33,6 +35,14 @@ public class RestExceptionMapper {
 
     @ServerExceptionMapper
     public RestResponse<String> handleException(Exception ex) {
+        if (ex instanceof CacheMissException) {
+            LOG.warn("Required cache entry missing", ex);
+            return RestResponse.status(Response.Status.PRECONDITION_FAILED, ex.getMessage());
+        }
+        if (ex instanceof CachePolicyViolation) {
+            LOG.warn("Cache policy violation", ex);
+            return RestResponse.status(Response.Status.PRECONDITION_FAILED, ex.getMessage());
+        }
         if (ex instanceof IllegalArgumentException) {
             LOG.warn("Invalid request", ex);
             return RestResponse.status(Response.Status.BAD_REQUEST, "Invalid request");

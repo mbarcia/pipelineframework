@@ -90,29 +90,71 @@ default boolean parallel() { return effectiveConfig().parallel(); }
         if (failure == null) {
             return false;
         }
-        Throwable current = failure;
-        while (current != null) {
-            if (current instanceof NullPointerException) {
-                return false;
-            }
-            if (current instanceof NonRetryableException) {
-                return false;
-            }
-            Throwable next = current.getCause();
-            if (next == current) {
-                break;
-            }
-            current = next;
+        if (containsNonRetryable(failure)) {
+            return false;
         }
-        return true;
+        if (containsClientError(failure)) {
+            return false;
+        }
+        return !containsNullPointer(failure);
+    }
+
+    private boolean containsNonRetryable(Throwable failure) {
+        return containsThrowable(failure, NonRetryableException.class);
+    }
+
+    private boolean containsNullPointer(Throwable failure) {
+        return containsThrowable(failure, NullPointerException.class);
+    }
+
+    private boolean containsClientError(Throwable failure) {
+        return containsThrowableWithPredicate(
+            failure,
+            t -> t instanceof jakarta.ws.rs.WebApplicationException ex
+                && ex.getResponse() != null
+                && ex.getResponse().getStatus() >= 400
+                && ex.getResponse().getStatus() < 500
+        );
+    }
+
+    private boolean containsThrowable(Throwable failure, Class<? extends Throwable> target) {
+        return containsThrowableWithPredicate(failure, target::isInstance);
+    }
+
+    private boolean containsThrowableWithPredicate(
+        Throwable failure,
+        java.util.function.Predicate<Throwable> predicate
+    ) {
+        java.util.ArrayDeque<Throwable> queue = new java.util.ArrayDeque<>();
+        java.util.Set<Throwable> seen = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+        queue.add(failure);
+        while (!queue.isEmpty()) {
+            Throwable current = queue.removeFirst();
+            if (!seen.add(current)) {
+                continue;
+            }
+            if (predicate.test(current)) {
+                return true;
+            }
+            Throwable cause = current.getCause();
+            if (cause != null && cause != current) {
+                queue.add(cause);
+            }
+            for (Throwable suppressed : current.getSuppressed()) {
+                if (suppressed != null) {
+                    queue.add(suppressed);
+                }
+            }
+        }
+        return false;
     }
 
     /**
- * Initialises the implementing object using the provided step configuration.
- *
- * Implementations must apply values from the given {@code StepConfig} to configure the step before use.
- *
- * @param config the configuration to apply; serves as the effective configuration for this step
- */
-void initialiseWithConfig(StepConfig config);
+     * Initialises the implementing object using the provided step configuration.
+     * <p>
+     * Implementations must apply values from the given {@code StepConfig} to configure the step before use.
+     *
+     * @param config the configuration to apply; serves as the effective configuration for this step
+     */
+    void initialiseWithConfig(StepConfig config);
 }
