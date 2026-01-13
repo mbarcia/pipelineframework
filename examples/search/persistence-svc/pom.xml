@@ -31,7 +31,6 @@
 
     <properties>
         <pipeline.generatedSourcesArg>-Apipeline.generatedSourcesDir=${project.build.directory}/generated-sources/pipeline</pipeline.generatedSourcesArg>
-        <protobuf.descriptor.fileArg>-Aprotobuf.descriptor.file=${project.parent.basedir}/common/target/generated-sources/grpc/descriptor_set.dsc</protobuf.descriptor.fileArg>
     </properties>
 
     <dependencies>
@@ -72,11 +71,6 @@
 
         <dependency>
             <groupId>io.quarkus</groupId>
-            <artifactId>quarkus-jdbc-postgresql</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>io.quarkus</groupId>
             <artifactId>quarkus-hibernate-reactive</artifactId>
         </dependency>
 
@@ -89,6 +83,10 @@
         <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-smallrye-health</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-container-image-jib</artifactId>
         </dependency>
 
         <!-- Test dependencies -->
@@ -110,22 +108,10 @@
             <plugin>
                 <groupId>io.quarkus</groupId>
                 <artifactId>quarkus-maven-plugin</artifactId>
-                <extensions>true</extensions>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>build</goal>
-                        </goals>
-                    </execution>
-                </executions>
             </plugin>
             <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <configuration>
-                    <compilerArgs>
-                        <compilerArg>-parameters</compilerArg>
-                    </compilerArgs>
-                </configuration>
             </plugin>
         </plugins>
     </build>
