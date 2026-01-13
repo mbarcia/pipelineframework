@@ -40,6 +40,9 @@ public class CacheInvalidationAllService<T> implements ReactiveSideEffectService
             return Uni.createFrom().nullItem();
         }
         PipelineContext context = PipelineContextHolder.get();
+        if (!shouldInvalidate(context)) {
+            return Uni.createFrom().item(item);
+        }
         String versionTag = context != null ? context.versionTag() : null;
         String prefix = PipelineCacheKeyFormat.typePrefix(item.getClass(), versionTag);
 
@@ -47,5 +50,13 @@ public class CacheInvalidationAllService<T> implements ReactiveSideEffectService
             .onItem().invoke(result -> LOG.debugf("Invalidated cache entries prefix=%s result=%s", prefix, result))
             .onFailure().invoke(failure -> LOG.error("Failed to invalidate cache prefix " + prefix, failure))
             .replaceWith(item);
+    }
+
+    private boolean shouldInvalidate(PipelineContext context) {
+        if (context == null || context.replayMode() == null) {
+            return false;
+        }
+        String value = context.replayMode().trim().toLowerCase();
+        return value.equals("true") || value.equals("1") || value.equals("yes") || value.equals("replay");
     }
 }

@@ -35,6 +35,12 @@ aspects:
 
 This uses the configured cache key strategies to invalidate a single entry.
 
+Invalidation runs only when replay is explicitly requested:
+
+```
+x-pipeline-replay: true
+```
+
 ## Bulk invalidation (by input type)
 
 Use the bulk invalidation service to clear all entries for a step input type:
@@ -53,6 +59,8 @@ aspects:
 ```
 
 Bulk invalidation requires a backend that can enumerate keys (Redis or in-memory). Caffeine does not support prefix invalidation.
+
+Bulk invalidation also requires `x-pipeline-replay: true`.
 
 ## Search example snippets
 

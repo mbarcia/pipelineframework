@@ -42,6 +42,9 @@ public class CacheInvalidationService<T> implements ReactiveSideEffectService<T>
             return Uni.createFrom().nullItem();
         }
         PipelineContext context = PipelineContextHolder.get();
+        if (!shouldInvalidate(context)) {
+            return Uni.createFrom().item(item);
+        }
         String baseKey = cacheKeyResolver.resolveKey(item, context).orElse(null);
         if (baseKey == null || baseKey.isBlank()) {
             LOG.warnf("No cache key strategy matched for item type %s, skipping invalidation",
@@ -57,5 +60,13 @@ public class CacheInvalidationService<T> implements ReactiveSideEffectService<T>
             .onItem().invoke(result -> LOG.debugf("Invalidated cache entry=%s result=%s", key1, result))
             .onFailure().invoke(failure -> LOG.error("Failed to invalidate cache entry " + key2, failure))
             .replaceWith(item);
+    }
+
+    private boolean shouldInvalidate(PipelineContext context) {
+        if (context == null || context.replayMode() == null) {
+            return false;
+        }
+        String value = context.replayMode().trim().toLowerCase();
+        return value.equals("true") || value.equals("1") || value.equals("yes") || value.equals("replay");
     }
 }
