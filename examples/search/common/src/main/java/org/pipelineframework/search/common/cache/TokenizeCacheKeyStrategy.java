@@ -7,6 +7,7 @@ import io.quarkus.arc.Unremovable;
 import org.pipelineframework.cache.CacheKeyStrategy;
 import org.pipelineframework.context.PipelineContext;
 import org.pipelineframework.search.common.domain.TokenBatch;
+import org.pipelineframework.search.common.dto.TokenBatchDto;
 
 @ApplicationScoped
 @Unremovable
@@ -14,14 +15,19 @@ public class TokenizeCacheKeyStrategy implements CacheKeyStrategy {
 
   @Override
   public Optional<String> resolveKey(Object item, PipelineContext context) {
-    if (!(item instanceof TokenBatch batch)) {
+    String contentHash;
+    if (item instanceof TokenBatch batch) {
+      contentHash = batch.contentHash;
+    } else if (item instanceof TokenBatchDto dto) {
+      contentHash = dto.getContentHash();
+    } else {
       return Optional.empty();
     }
-    if (batch.contentHash == null || batch.contentHash.isBlank()) {
+    if (contentHash == null || contentHash.isBlank()) {
       return Optional.empty();
     }
     String modelVersion = resolveModelVersion();
-    return Optional.of(batch.getClass().getName() + ":" + batch.contentHash.trim() + ":model=" + modelVersion);
+    return Optional.of(TokenBatch.class.getName() + ":" + contentHash.trim() + ":model=" + modelVersion);
   }
 
   @Override

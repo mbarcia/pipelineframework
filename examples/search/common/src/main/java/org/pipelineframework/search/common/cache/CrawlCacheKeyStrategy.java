@@ -7,6 +7,7 @@ import io.quarkus.arc.Unremovable;
 import org.pipelineframework.cache.CacheKeyStrategy;
 import org.pipelineframework.context.PipelineContext;
 import org.pipelineframework.search.common.domain.RawDocument;
+import org.pipelineframework.search.common.dto.RawDocumentDto;
 
 @ApplicationScoped
 @Unremovable
@@ -14,16 +15,24 @@ public class CrawlCacheKeyStrategy implements CacheKeyStrategy {
 
   @Override
   public Optional<String> resolveKey(Object item, PipelineContext context) {
-    if (!(item instanceof RawDocument document)) {
+    String sourceUrl;
+    String fetchOptions;
+    if (item instanceof RawDocument document) {
+      sourceUrl = document.sourceUrl;
+      fetchOptions = document.fetchOptions;
+    } else if (item instanceof RawDocumentDto dto) {
+      sourceUrl = dto.getSourceUrl();
+      fetchOptions = dto.getFetchOptions();
+    } else {
       return Optional.empty();
     }
-    if (document.sourceUrl == null || document.sourceUrl.isBlank()) {
+    if (sourceUrl == null || sourceUrl.isBlank()) {
       return Optional.empty();
     }
     StringBuilder key = new StringBuilder();
-    key.append(document.getClass().getName()).append(":").append(document.sourceUrl.trim());
-    if (document.fetchOptions != null && !document.fetchOptions.isBlank()) {
-      key.append("|").append(document.fetchOptions.trim());
+    key.append(RawDocument.class.getName()).append(":").append(sourceUrl.trim());
+    if (fetchOptions != null && !fetchOptions.isBlank()) {
+      key.append("|").append(fetchOptions.trim());
     }
     return Optional.of(key.toString());
   }

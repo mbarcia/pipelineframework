@@ -7,6 +7,7 @@ import io.quarkus.arc.Unremovable;
 import org.pipelineframework.cache.CacheKeyStrategy;
 import org.pipelineframework.context.PipelineContext;
 import org.pipelineframework.search.common.domain.IndexAck;
+import org.pipelineframework.search.common.dto.IndexAckDto;
 
 @ApplicationScoped
 @Unremovable
@@ -14,17 +15,25 @@ public class IndexCacheKeyStrategy implements CacheKeyStrategy {
 
   @Override
   public Optional<String> resolveKey(Object item, PipelineContext context) {
-    if (!(item instanceof IndexAck ack)) {
+    String tokensHash;
+    String indexVersion;
+    if (item instanceof IndexAck ack) {
+      tokensHash = ack.tokensHash;
+      indexVersion = ack.indexVersion;
+    } else if (item instanceof IndexAckDto dto) {
+      tokensHash = dto.getTokensHash();
+      indexVersion = dto.getIndexVersion();
+    } else {
       return Optional.empty();
     }
-    if (ack.tokensHash == null || ack.tokensHash.isBlank()) {
+    if (tokensHash == null || tokensHash.isBlank()) {
       return Optional.empty();
     }
-    String indexVersion = normalize(ack.indexVersion);
+    indexVersion = normalize(indexVersion);
     if (indexVersion == null) {
       indexVersion = resolveIndexVersion();
     }
-    return Optional.of(ack.getClass().getName() + ":" + ack.tokensHash.trim() + ":schema=" + indexVersion);
+    return Optional.of(IndexAck.class.getName() + ":" + tokensHash.trim() + ":schema=" + indexVersion);
   }
 
   @Override
