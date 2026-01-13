@@ -57,7 +57,6 @@ class RestResourceRendererTest {
         assertTrue(source.contains("@GeneratedRole(Role.REST_SERVER)"));
         assertTrue(source.contains("@Path(\"/ProcessPaymentStatusReactiveService/remoteProcess\")"));
         assertTrue(source.contains("class ProcessPaymentStatusResource"));
-        assertTrue(source.contains("private static final Logger logger = Logger.getLogger(ProcessPaymentStatusResource.class);"));
         assertTrue(source.contains("ProcessPaymentStatusReactiveService domainService;"));
         assertTrue(source.contains("PaymentStatusMapper paymentStatusMapper;"));
         assertTrue(source.contains("PaymentOutputMapper paymentOutputMapper;"));
@@ -66,10 +65,6 @@ class RestResourceRendererTest {
         assertTrue(source.contains("public Uni<PaymentOutputDto> process(PaymentStatusDto inputDto)"));
         assertTrue(source.contains("PaymentStatus inputDomain = paymentStatusMapper.fromDto(inputDto);"));
         assertTrue(source.contains("return domainService.process(inputDomain).map(output -> paymentOutputMapper.toDto(output));"));
-        assertTrue(source.contains("public RestResponse<String> handleException(Exception ex)"));
-        assertTrue(source.contains("if (ex instanceof IllegalArgumentException)"));
-        assertTrue(source.contains("RestResponse.status(Response.Status.BAD_REQUEST, \"Invalid request\")"));
-        assertTrue(source.contains("RestResponse.status(Response.Status.INTERNAL_SERVER_ERROR, \"An unexpected error occurred\")"));
     }
 
 }

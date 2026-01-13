@@ -111,8 +111,8 @@ class GrpcServiceAdapterRendererTest {
 
         Path generated = tempDir.resolve("com/example/pipeline/PersistenceOutputTypeSideEffectGrpcService.java");
         String source = Files.readString(generated);
-        assertTrue(source.contains("PersistenceService<OutputType> service"));
-        assertTrue(source.contains("protected PersistenceService<OutputType> getService()"));
+        assertTrue(source.contains("ObserveOutputTypeSideEffectService service"));
+        assertTrue(source.contains("protected ObserveOutputTypeSideEffectService getService()"));
         assertTrue(source.contains("return service"));
     }
 
