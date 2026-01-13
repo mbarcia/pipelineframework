@@ -20,6 +20,7 @@ import java.util.function.UnaryOperator;
 
 import io.smallrye.mutiny.Uni;
 import org.jboss.logging.Logger;
+import org.pipelineframework.cache.CacheMissException;
 import org.pipelineframework.cache.CacheStatus;
 import org.pipelineframework.context.PipelineCacheStatusHolder;
 
@@ -40,7 +41,8 @@ final class RequireCachePolicy implements CachePolicy {
                 .map(value -> withStatus(CacheStatus.HIT, Uni.createFrom().item((T) value)))
                 .orElseGet(() -> {
                     PipelineCacheStatusHolder.set(CacheStatus.MISS);
-                    return Uni.createFrom().item(item);
+                    return Uni.createFrom().failure(
+                        new CacheMissException("Required cache entry missing for key: " + key));
                 }))
             .onFailure().invoke(failure -> logger.error("Failed to read from cache", failure));
     }
