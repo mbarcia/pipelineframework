@@ -326,6 +326,28 @@
                                 <goal>jandex</goal>
                             </goals>
                         </execution>
+                        <execution>
+                            <id>make-index-orchestrator-client</id>
+                            <goals>
+                                <goal>jandex</goal>
+                            </goals>
+                            <configuration>
+                                <classesDir>${project.build.directory}/classes-pipeline/orchestrator-client</classesDir>
+                                <indexDir>${project.build.directory}/classes-pipeline/orchestrator-client/META-INF</indexDir>
+                                <processDefaultFileSet>true</processDefaultFileSet>
+                            </configuration>
+                        </execution>
+                        <execution>
+                            <id>make-index-plugin-client</id>
+                            <goals>
+                                <goal>jandex</goal>
+                            </goals>
+                            <configuration>
+                                <classesDir>${project.build.directory}/classes-pipeline/plugin-client</classesDir>
+                                <indexDir>${project.build.directory}/classes-pipeline/plugin-client/META-INF</indexDir>
+                                <processDefaultFileSet>true</processDefaultFileSet>
+                            </configuration>
+                        </execution>
                     </executions>
                 </plugin>
                 <plugin>
