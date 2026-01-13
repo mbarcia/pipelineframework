@@ -51,9 +51,11 @@ class PipelineOrderExpanderTest {
             List.of(
                 "StepA",
                 "org.example.service.pipeline.PersistenceFooSideEffectGrpcClientStep",
+                "org.example.service.pipeline.CacheFooSideEffectGrpcClientStep",
                 "org.example.service.pipeline.CacheInvalidateAllInBarSideEffectGrpcClientStep",
                 "StepB",
                 "org.example.service.pipeline.PersistenceBarSideEffectGrpcClientStep",
+                "org.example.service.pipeline.CacheBarSideEffectGrpcClientStep",
                 "StepC"
             ),
             expanded
