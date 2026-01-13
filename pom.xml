@@ -73,7 +73,8 @@
         <!-- Framework modules -->
         <module>framework</module>
         <!-- Example projects -->
-        <module>examples/csv-payments</module>
+        <!-- TODO -->
+<!--        <module>examples/csv-payments</module>-->
         <module>examples/search</module>
         <!-- Plugins -->
         <module>plugins/foundational/persistence</module>
