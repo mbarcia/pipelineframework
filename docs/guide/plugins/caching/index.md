@@ -2,6 +2,8 @@
 
 Caching in TPF is provided by cache plugins that run as side-effect steps. Enable the cache aspect to store step outputs and use invalidation aspects to control replay.
 
+Invalidation steps only run when `x-pipeline-replay: true` is present, so normal production runs are unaffected.
+
 ## Where to go next
 
 - [Configuration](/guide/plugins/caching/configuration)
