@@ -19,12 +19,7 @@ pipeline-cli.cli-version=0.9.2
 pipeline-cli.cli-description="{{appName}} CLI"
 pipeline-cli.cli-name="{{appName}} Processing System"
 
-# Pipeline step execution order - defines the sequence of processing steps
-# Each step is listed in the order it should execute in the pipeline
-pipeline.order={{#each steps}}{{#if @first}}{{../basePackage}}.{{serviceNameForPackage}}.service.pipeline.Process{{serviceNameCamel}}{{../clientStepSuffix}}{{else}},\
-              {{../basePackage}}.{{serviceNameForPackage}}.service.pipeline.Process{{serviceNameCamel}}{{../clientStepSuffix}}{{/if}}{{/each}}
-
-# Pipeline step configurations - configure specific step properties (without order)
+# Pipeline step configurations - configure specific step properties
 {{#each steps}}
 {{#if this.parallel}}
 pipeline.step."{{../basePackage}}.{{serviceNameForPackage}}.service.pipeline.Process{{serviceNameCamel}}{{../clientStepSuffix}}".parallel=true

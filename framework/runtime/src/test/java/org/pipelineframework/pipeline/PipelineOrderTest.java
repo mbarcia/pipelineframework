@@ -18,12 +18,9 @@ package org.pipelineframework.pipeline;
 
 import java.lang.reflect.Method;
 import java.util.List;
-import java.util.Map;
 import jakarta.inject.Inject;
 
 import io.quarkus.test.junit.QuarkusTest;
-import io.quarkus.test.junit.QuarkusTestProfile;
-import io.quarkus.test.junit.TestProfile;
 import org.junit.jupiter.api.Test;
 import org.pipelineframework.PipelineExecutionService;
 import org.pipelineframework.pipeline.order.OrderedStepA;
@@ -32,7 +29,6 @@ import org.pipelineframework.pipeline.order.OrderedStepB;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @QuarkusTest
-@TestProfile(PipelineOrderTest.Profile.class)
 class PipelineOrderTest {
 
     @Inject
@@ -58,14 +54,4 @@ class PipelineOrderTest {
             stepTypes);
     }
 
-    public static class Profile implements QuarkusTestProfile {
-        @Override
-        public Map<String, String> getConfigOverrides() {
-            return Map.of(
-                "pipeline.order",
-                "org.pipelineframework.pipeline.order.OrderedStepA," +
-                    "org.pipelineframework.pipeline.order.OrderedStepB," +
-                    "org.pipelineframework.pipeline.order.OrderedStepA");
-        }
-    }
 }

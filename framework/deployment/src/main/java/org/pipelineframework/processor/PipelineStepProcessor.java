@@ -4,12 +4,7 @@ import java.util.List;
 import java.util.Set;
 import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
-import javax.lang.model.element.Element;
-import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.TypeElement;
-import javax.tools.Diagnostic;
-
-import org.pipelineframework.annotation.PipelineStep;
 
 /**
  * Java annotation processor that generates both gRPC client and server step implementations
@@ -101,18 +96,7 @@ public class PipelineStepProcessor extends AbstractProcessingTool {
      */
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
-        // Perform initial validation like the original processor
-        java.util.Set<? extends Element> pipelineStepElements = roundEnv.getElementsAnnotatedWith(PipelineStep.class);
-
-        for (Element annotatedElement : pipelineStepElements) {
-            if (annotatedElement.getKind() != ElementKind.CLASS) {
-                processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
-                    "@PipelineStep can only be applied to classes", annotatedElement);
-            }
-        }
-
-        // If there are invalid annotations, we still proceed with the compiler
-        // to maintain the same behavior as the original processor
+        // Delegate validation and generation to the phased compiler.
         return compiler.process(annotations, roundEnv);
     }
 }

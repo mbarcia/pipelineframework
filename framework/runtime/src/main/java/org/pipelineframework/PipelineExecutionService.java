@@ -16,17 +16,17 @@
 
 package org.pipelineframework;
 
-import java.nio.file.Path;
 import java.text.MessageFormat;
 import java.time.Duration;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.enterprise.inject.spi.CDI;
 import jakarta.inject.Inject;
 
 import io.smallrye.mutiny.Multi;
@@ -36,11 +36,7 @@ import lombok.Getter;
 import org.apache.commons.lang3.time.StopWatch;
 import org.jboss.logging.Logger;
 import org.pipelineframework.config.PipelineConfig;
-import org.pipelineframework.config.PipelineStepConfig;
-import org.pipelineframework.config.pipeline.PipelineOrderExpander;
-import org.pipelineframework.config.pipeline.PipelineYamlConfig;
-import org.pipelineframework.config.pipeline.PipelineYamlConfigLoader;
-import org.pipelineframework.config.pipeline.PipelineYamlConfigLocator;
+import org.pipelineframework.config.pipeline.PipelineOrderResourceLoader;
 
 /**
  * Service responsible for executing pipeline logic.
@@ -335,31 +331,17 @@ public class PipelineExecutionService {
   private List<Object> loadPipelineSteps() {
     try {
       // Use the structured configuration mapping to get all pipeline steps
-      PipelineStepConfig pipelineStepConfig = CDI.current()
-        .select(PipelineStepConfig.class).get();
-
-      List<String> configuredOrder = pipelineStepConfig.order();
-      List<String> orderedStepNames = configuredOrder == null
-        ? List.of()
-        : configuredOrder.stream()
-          .filter(name -> name != null && !name.trim().isEmpty())
-          .toList();
-
-      if (!orderedStepNames.isEmpty()) {
-        List<String> expanded = expandPipelineOrderIfConfigured(orderedStepNames);
-        return instantiateStepsInOrder(expanded);
+      java.util.Optional<List<String>> resourceOrder = PipelineOrderResourceLoader.loadOrder();
+      if (resourceOrder.isEmpty()) {
+        throw new PipelineConfigurationException(
+            "Pipeline order metadata not found. Ensure META-INF/pipeline/order.json is generated at build time.");
       }
-
-      Map<String, org.pipelineframework.config.PipelineStepConfig.StepConfig> stepConfigs =
-        pipelineStepConfig.step();
-
-      // Check if no steps are configured - this is a valid state that returns an empty list
-      if (stepConfigs == null || stepConfigs.isEmpty()) {
-        LOG.info("No pipeline steps configured, returning empty list");
-        return Collections.emptyList();
+      List<String> orderedStepNames = resourceOrder.get();
+      if (orderedStepNames.isEmpty()) {
+        throw new PipelineConfigurationException(
+            "Pipeline order metadata is empty. Ensure pipeline.yaml defines steps for order generation.");
       }
-
-      return instantiateStepsFromConfig(stepConfigs);
+      return instantiateStepsInOrder(orderedStepNames);
     } catch (Exception e) {
       LOG.errorf(e, "Failed to load configuration: %s", e.getMessage());
       throw new PipelineConfigurationException("Failed to load pipeline configuration: " + e.getMessage(), e);
@@ -386,33 +368,11 @@ public class PipelineExecutionService {
     }
 
     if (LOG.isDebugEnabled()) {
-      LOG.debugf("Loaded %d pipeline steps from pipeline.order", steps.size());
+      LOG.debugf("Loaded %d pipeline steps from generated order metadata", steps.size());
     }
     return steps;
   }
 
-  private List<String> expandPipelineOrderIfConfigured(List<String> orderedStepNames) {
-    PipelineYamlConfigLocator locator = new PipelineYamlConfigLocator();
-    Path moduleDir = Path.of(System.getProperty("user.dir"));
-    try {
-      Optional<Path> configPath = locator.locate(moduleDir);
-      if (configPath.isEmpty()) {
-        return orderedStepNames;
-      }
-
-      PipelineYamlConfigLoader loader = new PipelineYamlConfigLoader();
-      PipelineYamlConfig config = loader.load(configPath.get());
-      ClassLoader classLoader = PipelineExecutionService.class.getClassLoader();
-      List<String> expanded = PipelineOrderExpander.expand(orderedStepNames, config, classLoader);
-      if (LOG.isDebugEnabled() && !expanded.equals(orderedStepNames)) {
-        LOG.debugf("Expanded pipeline order from %s to %s", orderedStepNames, expanded);
-      }
-      return expanded;
-    } catch (Exception e) {
-      LOG.warnf(e, "Failed to expand pipeline order from pipeline config, using configured order only.");
-      return orderedStepNames;
-    }
-  }
 
   private List<Object> instantiateStepsFromConfig(
     Map<String, org.pipelineframework.config.PipelineStepConfig.StepConfig> stepConfigs) {

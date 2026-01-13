@@ -10,6 +10,7 @@ import org.pipelineframework.processor.PipelineCompilationContext;
 import org.pipelineframework.processor.PipelineCompilationPhase;
 import org.pipelineframework.processor.ir.*;
 import org.pipelineframework.processor.renderer.*;
+import org.pipelineframework.processor.util.PipelineOrderMetadataGenerator;
 import org.pipelineframework.processor.util.RoleMetadataGenerator;
 
 /**
@@ -34,6 +35,9 @@ public class PipelineGenerationPhase implements PipelineCompilationPhase {
             RoleMetadataGenerator roleMetadataGenerator = new RoleMetadataGenerator(ctx.getProcessingEnv());
             try {
                 roleMetadataGenerator.writeRoleMetadata();
+                PipelineOrderMetadataGenerator orderMetadataGenerator =
+                    new PipelineOrderMetadataGenerator(ctx.getProcessingEnv());
+                orderMetadataGenerator.writeOrderMetadata(ctx);
             } catch (Exception e) {
                 // Log the error but don't fail the entire compilation
                 // This can happen in test environments where the Filer doesn't properly create files
@@ -109,6 +113,9 @@ public class PipelineGenerationPhase implements PipelineCompilationPhase {
         // Write role metadata
         try {
             roleMetadataGenerator.writeRoleMetadata();
+            PipelineOrderMetadataGenerator orderMetadataGenerator =
+                new PipelineOrderMetadataGenerator(ctx.getProcessingEnv());
+            orderMetadataGenerator.writeOrderMetadata(ctx);
         } catch (Exception e) {
             // Log the error but don't fail the entire compilation
             // This can happen in test environments where the Filer doesn't properly create files

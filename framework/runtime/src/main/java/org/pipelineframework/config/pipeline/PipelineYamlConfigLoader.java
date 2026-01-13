@@ -17,6 +17,8 @@
 package org.pipelineframework.config.pipeline;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -30,16 +32,17 @@ public class PipelineYamlConfigLoader {
 
     public PipelineYamlConfig load(Path configPath) {
         Object root = loadYaml(configPath);
-        if (!(root instanceof Map<?, ?> rootMap)) {
-            throw new IllegalStateException("Pipeline config root is not a map");
-        }
+        return parseRoot(root, "pipeline config: " + configPath);
+    }
 
-        String basePackage = readString(rootMap, "basePackage");
-        String transport = readString(rootMap, "transport");
-        List<PipelineYamlStep> steps = readSteps(rootMap);
-        List<PipelineYamlAspect> aspects = readAspects(rootMap);
+    public PipelineYamlConfig load(InputStream inputStream) {
+        Object root = loadYaml(inputStream);
+        return parseRoot(root, "pipeline config resource");
+    }
 
-        return new PipelineYamlConfig(basePackage, transport, steps, aspects);
+    public PipelineYamlConfig load(Reader reader) {
+        Object root = loadYaml(reader);
+        return parseRoot(root, "pipeline config reader");
     }
 
     private Object loadYaml(Path configPath) {
@@ -49,6 +52,33 @@ public class PipelineYamlConfigLoader {
         } catch (IOException e) {
             throw new IllegalStateException("Failed to read pipeline config: " + configPath, e);
         }
+    }
+
+    private Object loadYaml(InputStream inputStream) {
+        Yaml yaml = new Yaml();
+        try (Reader reader = new InputStreamReader(inputStream)) {
+            return yaml.load(reader);
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to read pipeline config from input stream", e);
+        }
+    }
+
+    private Object loadYaml(Reader reader) {
+        Yaml yaml = new Yaml();
+        return yaml.load(reader);
+    }
+
+    private PipelineYamlConfig parseRoot(Object root, String source) {
+        if (!(root instanceof Map<?, ?> rootMap)) {
+            throw new IllegalStateException("Pipeline config root is not a map for " + source);
+        }
+
+        String basePackage = readString(rootMap, "basePackage");
+        String transport = readString(rootMap, "transport");
+        List<PipelineYamlStep> steps = readSteps(rootMap);
+        List<PipelineYamlAspect> aspects = readAspects(rootMap);
+
+        return new PipelineYamlConfig(basePackage, transport, steps, aspects);
     }
 
     private List<PipelineYamlStep> readSteps(Map<?, ?> rootMap) {

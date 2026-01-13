@@ -119,7 +119,6 @@ Prefix: `pipeline.persistence`
 
 | Property | Type | Default | Description |
 | --- | --- | --- | --- |
-| `pipeline.order` | list | empty | Comma-separated list of fully-qualified step class names. |
 
 ### Global Defaults
 

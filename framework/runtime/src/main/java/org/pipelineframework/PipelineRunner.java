@@ -27,7 +27,6 @@ import io.smallrye.mutiny.Uni;
 import org.jboss.logging.Logger;
 import org.pipelineframework.cache.CachePolicyEnforcer;
 import org.pipelineframework.config.PipelineConfig;
-import org.pipelineframework.config.PipelineStepConfig;
 import org.pipelineframework.step.*;
 import org.pipelineframework.step.blocking.StepOneToManyBlocking;
 import org.pipelineframework.step.functional.ManyToOne;
@@ -50,9 +49,6 @@ public class PipelineRunner implements AutoCloseable {
 
     @Inject
     PipelineConfig pipelineConfig;
-
-    @Inject
-    PipelineStepConfig pipelineStepConfig;
 
     /**
      * Default constructor for PipelineRunner.
@@ -138,25 +134,26 @@ public class PipelineRunner implements AutoCloseable {
      * @return an ordered list of step instances according to the pipeline configuration
      */
     List<Object> orderSteps(List<Object> steps) {
-        // Check if there's a global pipeline order configured
-        List<String> pipelineOrder = pipelineStepConfig.order();
-
-        if (pipelineOrder == null || pipelineOrder.isEmpty()) {
-            // Use the existing order if no global order is configured
-            return steps;
+        java.util.Optional<List<String>> resourceOrder =
+            org.pipelineframework.config.pipeline.PipelineOrderResourceLoader.loadOrder();
+        if (resourceOrder.isEmpty()) {
+            throw new IllegalStateException(
+                "Pipeline order metadata not found. Ensure META-INF/pipeline/order.json is generated at build time.");
         }
-
-        // Filter out any empty strings from the pipeline order
-        List<String> filteredPipelineOrder = pipelineOrder.stream()
-            .filter(s -> s != null && !s.trim().isEmpty())
-            .toList();
-
+        List<String> filteredPipelineOrder = resourceOrder.get();
         if (filteredPipelineOrder.isEmpty()) {
-            // If after filtering there are no steps, use the existing order
+            throw new IllegalStateException(
+                "Pipeline order metadata is empty. Ensure pipeline.yaml defines steps for order generation.");
+        }
+        return applyConfiguredOrder(steps, filteredPipelineOrder);
+    }
+
+    private List<Object> applyConfiguredOrder(List<Object> steps, List<String> filteredPipelineOrder) {
+        if (filteredPipelineOrder == null || filteredPipelineOrder.isEmpty()) {
             return steps;
         }
 
-        // If the steps list contains entries not listed in pipeline.order, preserve the existing order.
+        // If the steps list contains entries not listed in the generated order, preserve the existing order.
         java.util.Set<String> configuredNames = new java.util.HashSet<>(filteredPipelineOrder);
         boolean hasUnconfiguredSteps = steps.stream()
             .map(step -> step != null ? step.getClass().getName() : null)
