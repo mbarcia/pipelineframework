@@ -34,6 +34,9 @@ public class CacheInvalidationAllService<T> implements ReactiveSideEffectService
     @Inject
     CacheManager cacheManager;
 
+    @Inject
+    CacheKeyResolver cacheKeyResolver;
+
     @Override
     public Uni<T> process(T item) {
         if (item == null) {
@@ -44,7 +47,7 @@ public class CacheInvalidationAllService<T> implements ReactiveSideEffectService
             return Uni.createFrom().item(item);
         }
         String versionTag = context != null ? context.versionTag() : null;
-        String prefix = PipelineCacheKeyFormat.typePrefix(item.getClass(), versionTag);
+        String prefix = resolvePrefix(item, versionTag, context);
 
         return cacheManager.invalidateByPrefix(prefix)
             .onItem().invoke(result -> LOG.debugf("Invalidated cache entries prefix=%s result=%s", prefix, result))
@@ -58,5 +61,20 @@ public class CacheInvalidationAllService<T> implements ReactiveSideEffectService
         }
         String value = context.replayMode().trim().toLowerCase();
         return value.equals("true") || value.equals("1") || value.equals("yes") || value.equals("replay");
+    }
+
+    private String resolvePrefix(T item, String versionTag, PipelineContext context) {
+        if (cacheKeyResolver != null) {
+            String resolvedKey = cacheKeyResolver.resolveKey(item, context).orElse(null);
+            if (resolvedKey != null && !resolvedKey.isBlank()) {
+                String className = resolvedKey;
+                int separator = resolvedKey.indexOf(':');
+                if (separator > 0) {
+                    className = resolvedKey.substring(0, separator);
+                }
+                return PipelineCacheKeyFormat.applyVersionTag(className + ":", versionTag);
+            }
+        }
+        return PipelineCacheKeyFormat.typePrefix(item.getClass(), versionTag);
     }
 }
