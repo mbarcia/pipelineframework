@@ -28,66 +28,11 @@
     <artifactId>orchestrator-svc</artifactId>
 
     <dependencies>
-        <!-- Backend service dependencies for pipeline processing -->
+        <!-- Common module -->
         <dependency>
             <groupId>org.pipelineframework.csv</groupId>
-            <artifactId>input-csv-file-processing-svc</artifactId>
+            <artifactId>common</artifactId>
             <version>${version.pipeline}</version>
-            <classifier>orchestrator-client</classifier>
-            <exclusions>
-                <exclusion>
-                    <groupId>io.quarkus</groupId>
-                    <artifactId>quarkus-grpc-protoc-plugin</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>org.pipelineframework.csv</groupId>
-            <artifactId>payments-processing-svc</artifactId>
-            <version>${version.pipeline}</version>
-            <classifier>orchestrator-client</classifier>
-            <exclusions>
-                <exclusion>
-                    <groupId>io.quarkus</groupId>
-                    <artifactId>quarkus-grpc-protoc-plugin</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>org.pipelineframework.csv</groupId>
-            <artifactId>payment-status-svc</artifactId>
-            <version>${version.pipeline}</version>
-            <classifier>orchestrator-client</classifier>
-            <exclusions>
-                <exclusion>
-                    <groupId>io.quarkus</groupId>
-                    <artifactId>quarkus-grpc-protoc-plugin</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>org.pipelineframework.csv</groupId>
-            <artifactId>output-csv-file-processing-svc</artifactId>
-            <version>${version.pipeline}</version>
-            <classifier>orchestrator-client</classifier>
-            <exclusions>
-                <exclusion>
-                    <groupId>io.quarkus</groupId>
-                    <artifactId>quarkus-grpc-protoc-plugin</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>org.pipelineframework.csv</groupId>
-            <artifactId>persistence-svc</artifactId>
-            <version>${version.pipeline}</version>
-            <classifier>plugin-client</classifier>
-            <exclusions>
-                <exclusion>
-                    <groupId>io.quarkus</groupId>
-                    <artifactId>quarkus-grpc-protoc-plugin</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>

@@ -19,6 +19,7 @@
     </properties>
 
     <dependencies>
+        <!-- Pipeline Framework Runtime Module -->
         <dependency>
             <groupId>org.pipelineframework</groupId>
             <artifactId>pipelineframework</artifactId>
@@ -191,6 +192,7 @@
                     <properties>
                         <!-- Configure the quarkus-grpc extension via the plugin -->
                         <quarkus.grpc.codegen.proto-directory>${generated.proto.dir}</quarkus.grpc.codegen.proto-directory>
+                        <quarkus.generate-code.grpc.descriptor-set.generate>true</quarkus.generate-code.grpc.descriptor-set.generate>
                     </properties>
                 </configuration>
             </plugin>

@@ -21,6 +21,7 @@
     </properties>
 
     <dependencies>
+        <!-- Common module -->
         <dependency>
             <groupId>org.pipelineframework.search</groupId>
             <artifactId>common</artifactId>

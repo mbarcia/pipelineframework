@@ -16,10 +16,6 @@
 
 package org.pipelineframework.csv.service;
 
-import static org.junit.jupiter.api.Assertions.*;
-
-import io.smallrye.mutiny.Multi;
-import io.smallrye.mutiny.helpers.test.AssertSubscriber;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.file.Files;
@@ -27,6 +23,9 @@ import java.nio.file.Path;
 import java.util.Currency;
 import java.util.List;
 import java.util.UUID;
+
+import io.smallrye.mutiny.Multi;
+import io.smallrye.mutiny.helpers.test.AssertSubscriber;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -37,13 +36,16 @@ import org.pipelineframework.csv.common.domain.CsvPaymentsInputFile;
 import org.pipelineframework.csv.common.domain.PaymentRecord;
 import org.pipelineframework.csv.util.DemandPacerConfig;
 
-class ProcessCsvPaymentsInputReactiveServiceTest {
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+
+class ProcessCsvPaymentsInputServiceTest {
 
     @TempDir Path tempDir;
 
     private Path tempCsvFile;
 
-    private ProcessCsvPaymentsInputReactiveService service;
+    private ProcessCsvPaymentsInputService service;
 
     @BeforeEach
     void setUp() throws IOException {
@@ -57,7 +59,7 @@ class ProcessCsvPaymentsInputReactiveServiceTest {
         Files.writeString(tempCsvFile, csvContent);
         MockitoAnnotations.openMocks(this);
         service =
-                new ProcessCsvPaymentsInputReactiveService(
+                new ProcessCsvPaymentsInputService(
                         new DemandPacerConfig() {
                             @Override
                             public long rowsPerPeriod() {

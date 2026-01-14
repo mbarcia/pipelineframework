@@ -28,6 +28,7 @@ import org.pipelineframework.csv.common.mapper.PaymentStatusMapper;
 import org.pipelineframework.csv.common.mapper.SendPaymentRequestMapper;
 import org.pipelineframework.csv.grpc.MutinyPaymentProviderServiceGrpc;
 import org.pipelineframework.csv.grpc.PaymentsProcessingSvc;
+import org.pipelineframework.csv.grpc.ProcessSendPaymentRecordSvc;
 
 @GrpcService
 public class PaymentProviderGrpcService
@@ -48,7 +49,7 @@ public class PaymentProviderGrpcService
    *         and include metadata describing the error
    */
   @Override
-  public Uni<PaymentsProcessingSvc.AckPaymentSent> sendPayment(
+  public Uni<ProcessSendPaymentRecordSvc.AckPaymentSent> sendPayment(
       PaymentsProcessingSvc.SendPaymentRequest grpcRequest) {
     return Uni.createFrom()
         .item(
@@ -71,8 +72,8 @@ public class PaymentProviderGrpcService
   }
 
   @Override
-  public Uni<PaymentsProcessingSvc.PaymentStatus> getPaymentStatus(
-      PaymentsProcessingSvc.AckPaymentSent grpcRequest) {
+  public Uni<ProcessAckPaymentSentSvc.PaymentStatus> getPaymentStatus(
+      ProcessSendPaymentRecordSvc.AckPaymentSent grpcRequest) {
     return Uni.createFrom()
         .emitter(
             emitter -> {

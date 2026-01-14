@@ -34,18 +34,15 @@
     </properties>
 
     <dependencies>
+
+        <!-- Common module -->
         <dependency>
             <groupId>org.pipelineframework.search</groupId>
             <artifactId>common</artifactId>
             <version>${version.pipeline}</version>
         </dependency>
 
-        <dependency>
-            <groupId>org.pipelineframework</groupId>
-            <artifactId>pipelineframework</artifactId>
-            <version>${version.pipeline}</version>
-        </dependency>
-
+        <!-- Plugin module -->
         <dependency>
             <groupId>org.pipelineframework</groupId>
             <artifactId>cache-plugin</artifactId>

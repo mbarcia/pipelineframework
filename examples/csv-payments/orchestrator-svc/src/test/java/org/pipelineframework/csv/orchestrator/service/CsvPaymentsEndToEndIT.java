@@ -50,7 +50,7 @@ class CsvPaymentsEndToEndIT {
 
     // Define containers for each service
     static PostgreSQLContainer<?> postgresContainer =
-            new PostgreSQLContainer<>("postgres:18")
+            new PostgreSQLContainer<>("postgres:17")
                     .withDatabaseName("quarkus")
                     .withUsername("quarkus")
                     .withPassword("quarkus")

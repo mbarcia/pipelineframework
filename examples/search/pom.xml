@@ -71,12 +71,7 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
-            <!-- Pipeline Framework Runtime Module -->
-            <dependency>
-                <groupId>org.pipelineframework</groupId>
-                <artifactId>pipelineframework</artifactId>
-                <version>${version.pipeline}</version>
-            </dependency>
+
         </dependencies>
     </dependencyManagement>
 

@@ -34,22 +34,22 @@
     </properties>
 
     <dependencies>
+        <!-- Common module -->
         <dependency>
             <groupId>org.pipelineframework.search</groupId>
             <artifactId>common</artifactId>
             <version>${version.pipeline}</version>
         </dependency>
-
-        <dependency>
-            <groupId>org.pipelineframework</groupId>
-            <artifactId>pipelineframework</artifactId>
-            <version>${version.pipeline}</version>
-        </dependency>
-
         <dependency>
             <groupId>org.pipelineframework</groupId>
             <artifactId>persistence-plugin</artifactId>
             <version>${version.pipeline}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>io.quarkus</groupId>
+                    <artifactId>quarkus-agroal</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <!-- Quarkus dependencies -->

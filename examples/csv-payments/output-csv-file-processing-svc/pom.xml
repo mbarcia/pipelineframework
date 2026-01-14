@@ -33,6 +33,7 @@
     </properties>
 
     <dependencies>
+        <!-- Common module -->
         <dependency>
             <groupId>org.pipelineframework.csv</groupId>
             <artifactId>common</artifactId>

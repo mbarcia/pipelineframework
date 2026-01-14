@@ -48,10 +48,10 @@ import org.pipelineframework.service.ReactiveStreamingService;
 )
 @ApplicationScoped
 @Getter
-public class ProcessCsvPaymentsInputReactiveService
+public class ProcessCsvPaymentsInputService
     implements ReactiveStreamingService<CsvPaymentsInputFile, PaymentRecord> {
 
-  private static final Logger LOG = Logger.getLogger(ProcessCsvPaymentsInputReactiveService.class);
+  private static final Logger LOG = Logger.getLogger(ProcessCsvPaymentsInputService.class);
   private final long rowsPerPeriod;
   private final long millisPeriod;
 
@@ -63,12 +63,12 @@ public class ProcessCsvPaymentsInputReactiveService
      * @param config configuration supplying the number of rows per pacing period and the period duration in milliseconds
      */
     @Inject
-    public ProcessCsvPaymentsInputReactiveService(DemandPacerConfig config) {
+    public ProcessCsvPaymentsInputService(DemandPacerConfig config) {
         rowsPerPeriod = config.rowsPerPeriod();
         millisPeriod = config.millisPeriod();
 
         LOG.infof(
-                "ProcessCsvPaymentsInputReactiveService initialized: rowsPerPeriod=%d, periodMillis=%d",
+                "ProcessCsvPaymentsInputService initialized: rowsPerPeriod=%d, periodMillis=%d",
                 config.rowsPerPeriod(),
                 config.millisPeriod());
     }

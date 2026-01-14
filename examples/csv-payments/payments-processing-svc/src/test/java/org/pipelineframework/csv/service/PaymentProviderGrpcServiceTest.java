@@ -38,7 +38,6 @@ import org.pipelineframework.csv.common.mapper.AckPaymentSentMapper;
 import org.pipelineframework.csv.common.mapper.PaymentRecordMapper;
 import org.pipelineframework.csv.common.mapper.PaymentStatusMapper;
 import org.pipelineframework.csv.common.mapper.SendPaymentRequestMapper;
-import org.pipelineframework.csv.grpc.PaymentsProcessingSvc;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -98,8 +97,8 @@ class PaymentProviderGrpcServiceTest {
         domainOut.setStatus(1000L);
         domainOut.setMessage("OK");
 
-        PaymentsProcessingSvc.AckPaymentSent grpcResponse =
-                PaymentsProcessingSvc.AckPaymentSent.newBuilder()
+        ProcessSendPaymentRecordSvc.AckPaymentSent grpcResponse =
+                ProcessSendPaymentRecordSvc.AckPaymentSent.newBuilder()
                         .setConversationId("convId")
                         .setPaymentRecordId(paymentRecord.getId().toString())
                         .setStatus(1000L)
@@ -115,11 +114,11 @@ class PaymentProviderGrpcServiceTest {
         when(ackPaymentSentMapper.toDtoToGrpc(domainOut)).thenReturn(grpcResponse);
 
         // When
-        Uni<PaymentsProcessingSvc.AckPaymentSent> resultUni =
+        Uni<ProcessSendPaymentRecordSvc.AckPaymentSent> resultUni =
                 paymentProviderGrpcService.sendPayment(grpcRequest);
 
         // Then
-        PaymentsProcessingSvc.AckPaymentSent actualResponse = resultUni.await().indefinitely();
+        ProcessSendPaymentRecordSvc.AckPaymentSent actualResponse = resultUni.await().indefinitely();
         assertThat(actualResponse).isEqualTo(grpcResponse);
     }
 
@@ -182,8 +181,8 @@ class PaymentProviderGrpcServiceTest {
     @SneakyThrows
     void getPaymentStatus_happyPath() {
         // Given
-        PaymentsProcessingSvc.AckPaymentSent grpcRequest =
-                PaymentsProcessingSvc.AckPaymentSent.newBuilder()
+        ProcessSendPaymentRecordSvc.AckPaymentSent grpcRequest =
+                ProcessSendPaymentRecordSvc.AckPaymentSent.newBuilder()
                         .setConversationId("convId")
                         .setPaymentRecordId(UUID.randomUUID().toString())
                         .build();
@@ -194,19 +193,19 @@ class PaymentProviderGrpcServiceTest {
         PaymentStatus domainOut = new PaymentStatus();
         domainOut.setAckPaymentSentId(ackPaymentSent.getId());
 
-        PaymentsProcessingSvc.PaymentStatus grpcResponse =
-                PaymentsProcessingSvc.PaymentStatus.newBuilder().setReference("ref").build();
+        ProcessAckPaymentSentSvc.PaymentStatus grpcResponse =
+                ProcessAckPaymentSentSvc.PaymentStatus.newBuilder().setReference("ref").build();
 
         when(ackPaymentSentMapper.fromGrpcFromDto(grpcRequest)).thenReturn(ackPaymentSent);
         when(domainService.getPaymentStatus(ackPaymentSent)).thenReturn(domainOut);
         when(paymentStatusMapper.toDtoToGrpc(domainOut)).thenReturn(grpcResponse);
 
         // When
-        Uni<PaymentsProcessingSvc.PaymentStatus> resultUni =
+        Uni<ProcessAckPaymentSentSvc.PaymentStatus> resultUni =
                 paymentProviderGrpcService.getPaymentStatus(grpcRequest);
 
         // Then
-        PaymentsProcessingSvc.PaymentStatus actualResponse = resultUni.await().indefinitely();
+        ProcessAckPaymentSentSvc.PaymentStatus actualResponse = resultUni.await().indefinitely();
         assertThat(actualResponse).isEqualTo(grpcResponse);
     }
 
@@ -215,8 +214,8 @@ class PaymentProviderGrpcServiceTest {
     @SneakyThrows
     void getPaymentStatus_domainServiceError_shouldThrowStatusRuntimeException() {
         // Given
-        PaymentsProcessingSvc.AckPaymentSent grpcRequest =
-                PaymentsProcessingSvc.AckPaymentSent.newBuilder()
+        ProcessSendPaymentRecordSvc.AckPaymentSent grpcRequest =
+                ProcessSendPaymentRecordSvc.AckPaymentSent.newBuilder()
                         .setConversationId("convId")
                         .setPaymentRecordId(UUID.randomUUID().toString())
                         .build();
