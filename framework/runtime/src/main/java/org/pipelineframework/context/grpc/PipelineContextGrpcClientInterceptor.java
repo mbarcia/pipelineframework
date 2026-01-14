@@ -20,6 +20,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 
 import io.grpc.*;
 import io.quarkus.arc.Unremovable;
+import io.quarkus.grpc.GlobalInterceptor;
 import org.pipelineframework.cache.CacheStatus;
 import org.pipelineframework.context.PipelineCacheStatusHolder;
 import org.pipelineframework.context.PipelineContext;
@@ -31,6 +32,7 @@ import org.pipelineframework.context.PipelineContextHolder;
  */
 @ApplicationScoped
 @Unremovable
+@GlobalInterceptor
 public class PipelineContextGrpcClientInterceptor implements ClientInterceptor {
 
     private static final Metadata.Key<String> VERSION_HEADER =
