@@ -23,6 +23,11 @@ import org.pipelineframework.step.NonRetryableException;
  */
 public class CacheMissException extends NonRetryableException {
 
+    /**
+     * Creates a new CacheMissException with the given message.
+     *
+     * @param message the error message
+     */
     public CacheMissException(String message) {
         super(message);
     }

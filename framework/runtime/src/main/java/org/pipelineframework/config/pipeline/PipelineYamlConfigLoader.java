@@ -28,18 +28,45 @@ import java.util.Map;
 
 import org.yaml.snakeyaml.Yaml;
 
+/**
+ * Loads pipeline.yaml configuration for runtime usage.
+ */
 public class PipelineYamlConfigLoader {
 
+    /**
+     * Creates a new PipelineYamlConfigLoader.
+     */
+    public PipelineYamlConfigLoader() {
+    }
+
+    /**
+     * Load pipeline configuration from a file path.
+     *
+     * @param configPath the pipeline config path
+     * @return the parsed pipeline configuration
+     */
     public PipelineYamlConfig load(Path configPath) {
         Object root = loadYaml(configPath);
         return parseRoot(root, "pipeline config: " + configPath);
     }
 
+    /**
+     * Load pipeline configuration from an input stream.
+     *
+     * @param inputStream the input stream containing YAML
+     * @return the parsed pipeline configuration
+     */
     public PipelineYamlConfig load(InputStream inputStream) {
         Object root = loadYaml(inputStream);
         return parseRoot(root, "pipeline config resource");
     }
 
+    /**
+     * Load pipeline configuration from a reader.
+     *
+     * @param reader the reader providing YAML content
+     * @return the parsed pipeline configuration
+     */
     public PipelineYamlConfig load(Reader reader) {
         Object root = loadYaml(reader);
         return parseRoot(root, "pipeline config reader");

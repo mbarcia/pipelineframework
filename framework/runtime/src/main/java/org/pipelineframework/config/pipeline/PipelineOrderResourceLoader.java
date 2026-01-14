@@ -38,6 +38,11 @@ public final class PipelineOrderResourceLoader {
     private PipelineOrderResourceLoader() {
     }
 
+    /**
+     * Loads the pipeline execution order from the generated order resource.
+     *
+     * @return the ordered list of step class names, if available
+     */
     public static Optional<List<String>> loadOrder() {
         ClassLoader classLoader = resolveClassLoader();
         InputStream stream = openResource(classLoader, RESOURCE);
@@ -61,6 +66,11 @@ public final class PipelineOrderResourceLoader {
         }
     }
 
+    /**
+     * Returns whether an orchestrator is present and therefore order metadata is required.
+     *
+     * @return true if order metadata is required, false otherwise
+     */
     public static boolean requiresOrder() {
         ClassLoader classLoader = resolveClassLoader();
         InputStream stream = openResource(classLoader, ROLES_RESOURCE);

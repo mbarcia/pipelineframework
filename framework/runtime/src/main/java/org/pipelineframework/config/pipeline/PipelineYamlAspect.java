@@ -18,6 +18,15 @@ package org.pipelineframework.config.pipeline;
 
 import java.util.List;
 
+/**
+ * Aspect configuration entry from the pipeline YAML file.
+ *
+ * @param name the aspect name
+ * @param enabled whether the aspect is enabled
+ * @param scope the aspect scope (GLOBAL or STEPS)
+ * @param position the aspect position (BEFORE_STEP or AFTER_STEP)
+ * @param targetSteps the list of target step names when scope is STEPS
+ */
 public record PipelineYamlAspect(
     String name,
     boolean enabled,

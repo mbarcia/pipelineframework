@@ -31,6 +31,11 @@ public final class PipelineContextHolder {
     private PipelineContextHolder() {
     }
 
+    /**
+     * Returns the current pipeline context.
+     *
+     * @return the pipeline context, or null if none is set
+     */
     public static PipelineContext get() {
         Context context = Vertx.currentContext();
         if (context != null) {
@@ -46,6 +51,11 @@ public final class PipelineContextHolder {
         return THREAD_LOCAL.get();
     }
 
+    /**
+     * Sets the current pipeline context.
+     *
+     * @param pipelineContext the context to store
+     */
     public static void set(PipelineContext pipelineContext) {
         Context context = Vertx.currentContext();
         if (context != null) {
@@ -59,6 +69,9 @@ public final class PipelineContextHolder {
         THREAD_LOCAL.set(pipelineContext);
     }
 
+    /**
+     * Clears the current pipeline context.
+     */
     public static void clear() {
         Context context = Vertx.currentContext();
         if (context != null) {

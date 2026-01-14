@@ -32,6 +32,12 @@ import io.quarkus.grpc.runtime.config.GrpcServerConfiguration;
 @SuppressWarnings("rawtypes")
 public class PipelineContextGrpcServerCustomizer implements ServerBuilderCustomizer {
 
+    /**
+     * Creates a new PipelineContextGrpcServerCustomizer.
+     */
+    public PipelineContextGrpcServerCustomizer() {
+    }
+
     @Inject
     PipelineContextGrpcServerInterceptor interceptor;
 

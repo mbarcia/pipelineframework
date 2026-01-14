@@ -14,6 +14,8 @@ import java.lang.annotation.Target;
 public @interface GeneratedRole {
     /**
      * The role of the generated class in the pipeline framework.
+     *
+     * @return the generated role
      */
     Role value();
 

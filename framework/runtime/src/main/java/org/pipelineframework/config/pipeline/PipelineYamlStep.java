@@ -16,6 +16,13 @@
 
 package org.pipelineframework.config.pipeline;
 
+/**
+ * Pipeline step entry parsed from pipeline.yaml.
+ *
+ * @param name the step name
+ * @param inputType the input type name
+ * @param outputType the output type name
+ */
 public record PipelineYamlStep(
     String name,
     String inputType,

@@ -35,6 +35,12 @@ import org.pipelineframework.context.PipelineContextHolder;
 @GlobalInterceptor
 public class PipelineContextGrpcClientInterceptor implements ClientInterceptor {
 
+    /**
+     * Creates a new PipelineContextGrpcClientInterceptor.
+     */
+    public PipelineContextGrpcClientInterceptor() {
+    }
+
     private static final Metadata.Key<String> VERSION_HEADER =
         Metadata.Key.of(PipelineContextHeaders.VERSION, Metadata.ASCII_STRING_MARSHALLER);
     private static final Metadata.Key<String> REPLAY_HEADER =

@@ -25,6 +25,14 @@ package org.pipelineframework.context;
  */
 public record PipelineContext(String versionTag, String replayMode, String cachePolicy) {
 
+    /**
+     * Builds a PipelineContext from header values, trimming blanks to null.
+     *
+     * @param versionTag version identifier used for replay or cache versioning
+     * @param replayMode replay mode indicator
+     * @param cachePolicy cache policy override
+     * @return a normalized PipelineContext instance
+     */
     public static PipelineContext fromHeaders(String versionTag, String replayMode, String cachePolicy) {
         return new PipelineContext(normalize(versionTag), normalize(replayMode), normalize(cachePolicy));
     }

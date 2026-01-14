@@ -67,10 +67,17 @@ public class PipelineExecutionService {
   @Getter
   private volatile String startupHealthError;
 
+  /**
+   * Startup health check state for dependent services.
+   */
   public enum StartupHealthState {
+    /** Health checks are running. */
     PENDING,
+    /** All dependent services reported healthy. */
     HEALTHY,
+    /** One or more services reported unhealthy. */
     UNHEALTHY,
+    /** Health checks failed due to an error. */
     ERROR
   }
 
@@ -174,6 +181,11 @@ public class PipelineExecutionService {
     return (Uni<T>) executePipelineUnaryInternal(input);
   }
 
+  /**
+   * Returns the current startup health state.
+   *
+   * @return the current startup health state
+   */
   public StartupHealthState getStartupHealthState() {
     return startupHealthState.get();
   }

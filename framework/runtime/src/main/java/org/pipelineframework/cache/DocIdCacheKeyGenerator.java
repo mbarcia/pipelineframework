@@ -27,6 +27,12 @@ import io.quarkus.arc.Unremovable;
 @Unremovable
 public class DocIdCacheKeyGenerator extends PropertyCacheKeyGenerator {
 
+    /**
+     * Creates a new DocIdCacheKeyGenerator.
+     */
+    public DocIdCacheKeyGenerator() {
+    }
+
     @Override
     protected String propertyName() {
         return "docId";

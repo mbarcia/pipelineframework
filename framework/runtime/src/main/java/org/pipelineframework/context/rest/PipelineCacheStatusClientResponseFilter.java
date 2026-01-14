@@ -36,6 +36,12 @@ import org.pipelineframework.context.PipelineContextHeaders;
 @Unremovable
 public class PipelineCacheStatusClientResponseFilter implements ClientResponseFilter {
 
+    /**
+     * Creates a new PipelineCacheStatusClientResponseFilter.
+     */
+    public PipelineCacheStatusClientResponseFilter() {
+    }
+
     @Override
     public void filter(ClientRequestContext requestContext, ClientResponseContext responseContext) {
         if (responseContext == null || responseContext.getHeaders() == null) {

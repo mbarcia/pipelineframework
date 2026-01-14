@@ -37,6 +37,12 @@ import org.pipelineframework.context.PipelineContextHolder;
 @Unremovable
 public class PipelineContextResponseFilter implements ContainerResponseFilter {
 
+    /**
+     * Creates a new PipelineContextResponseFilter.
+     */
+    public PipelineContextResponseFilter() {
+    }
+
     @Override
     public void filter(ContainerRequestContext requestContext, ContainerResponseContext responseContext) {
         CacheStatus status = PipelineCacheStatusHolder.getAndClear();

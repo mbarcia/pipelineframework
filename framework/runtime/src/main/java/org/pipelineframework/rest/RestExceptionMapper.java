@@ -33,6 +33,18 @@ public class RestExceptionMapper {
 
     private static final Logger LOG = Logger.getLogger(RestExceptionMapper.class);
 
+    /**
+     * Creates a new RestExceptionMapper.
+     */
+    public RestExceptionMapper() {
+    }
+
+    /**
+     * Maps pipeline exceptions to REST responses.
+     *
+     * @param ex the exception thrown by the resource
+     * @return a RestResponse representing the error
+     */
     @ServerExceptionMapper
     public RestResponse<String> handleException(Exception ex) {
         if (ex instanceof CacheMissException) {

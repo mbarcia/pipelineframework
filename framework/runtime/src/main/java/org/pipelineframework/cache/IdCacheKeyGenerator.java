@@ -27,6 +27,12 @@ import io.quarkus.arc.Unremovable;
 @Unremovable
 public class IdCacheKeyGenerator extends PropertyCacheKeyGenerator {
 
+    /**
+     * Creates a new IdCacheKeyGenerator.
+     */
+    public IdCacheKeyGenerator() {
+    }
+
     @Override
     protected String propertyName() {
         return "id";

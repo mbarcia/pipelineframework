@@ -25,6 +25,11 @@ import org.pipelineframework.context.PipelineContextHolder;
 
 abstract class PropertyCacheKeyGenerator implements CacheKeyGenerator {
 
+    /**
+     * Returns the property name used to build the cache key.
+     *
+     * @return the property name to read from the first method argument
+     */
     protected abstract String propertyName();
 
     @Override

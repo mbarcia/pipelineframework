@@ -33,6 +33,12 @@ import org.yaml.snakeyaml.Yaml;
 public class PipelineTemplateConfigLoader {
 
     /**
+     * Creates a new PipelineTemplateConfigLoader.
+     */
+    public PipelineTemplateConfigLoader() {
+    }
+
+    /**
      * Load the pipeline template configuration from the given file path.
      *
      * @param configPath the pipeline template config path

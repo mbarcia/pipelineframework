@@ -31,6 +31,11 @@ public final class PipelineCacheStatusHolder {
     private PipelineCacheStatusHolder() {
     }
 
+    /**
+     * Returns the cache status for the current request context.
+     *
+     * @return the cache status, or null if none is set
+     */
     public static CacheStatus get() {
         Context context = Vertx.currentContext();
         if (context != null) {
@@ -46,12 +51,22 @@ public final class PipelineCacheStatusHolder {
         return THREAD_LOCAL.get();
     }
 
+    /**
+     * Returns the cache status and clears it from the current context.
+     *
+     * @return the cache status, or null if none is set
+     */
     public static CacheStatus getAndClear() {
         CacheStatus status = get();
         clear();
         return status;
     }
 
+    /**
+     * Sets the cache status for the current request context.
+     *
+     * @param status the cache status to store
+     */
     public static void set(CacheStatus status) {
         Context context = Vertx.currentContext();
         if (context != null) {
@@ -73,6 +88,9 @@ public final class PipelineCacheStatusHolder {
         }
     }
 
+    /**
+     * Clears the cache status from the current request context.
+     */
     public static void clear() {
         Context context = Vertx.currentContext();
         if (context != null) {

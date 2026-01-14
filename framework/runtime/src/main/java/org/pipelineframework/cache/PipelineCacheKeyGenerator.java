@@ -31,6 +31,12 @@ import org.pipelineframework.context.PipelineContextHolder;
 @Unremovable
 public class PipelineCacheKeyGenerator implements CacheKeyGenerator {
 
+    /**
+     * Creates a new PipelineCacheKeyGenerator.
+     */
+    public PipelineCacheKeyGenerator() {
+    }
+
     @Override
     public Object generate(Method method, Object... methodParams) {
         String baseKey = PipelineCacheKeyFormat.baseKeyForParams(methodParams);

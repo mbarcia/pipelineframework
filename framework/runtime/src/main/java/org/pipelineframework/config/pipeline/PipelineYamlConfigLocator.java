@@ -23,7 +23,16 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Locates pipeline.yaml configuration files starting from a module directory.
+ */
 public class PipelineYamlConfigLocator {
+
+    /**
+     * Creates a new PipelineYamlConfigLocator.
+     */
+    public PipelineYamlConfigLocator() {
+    }
 
     private static final List<String> EXACT_FILENAMES = List.of(
         "pipeline.yaml",
@@ -31,6 +40,12 @@ public class PipelineYamlConfigLocator {
         "pipeline-config.yaml"
     );
 
+    /**
+     * Locate the pipeline configuration file for the given module.
+     *
+     * @param moduleDir the module directory to search from
+     * @return the resolved config path if found
+     */
     public Optional<Path> locate(Path moduleDir) {
         Path projectRoot = findNearestParentPom(moduleDir);
         if (projectRoot == null) {

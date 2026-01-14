@@ -31,12 +31,30 @@ public class PipelineProtoGenerator {
 
     private static final String ORCHESTRATOR_PROTO = "orchestrator.proto";
 
+    /**
+     * Creates a new PipelineProtoGenerator.
+     */
+    public PipelineProtoGenerator() {
+    }
+
+    /**
+     * Command-line entry point for the generator.
+     *
+     * @param args command-line arguments
+     */
     public static void main(String[] args) {
         Arguments arguments = Arguments.parse(args);
         PipelineProtoGenerator generator = new PipelineProtoGenerator();
         generator.generate(arguments.moduleDir(), arguments.configPath(), arguments.outputDir());
     }
 
+    /**
+     * Generate proto definitions from the pipeline template configuration.
+     *
+     * @param moduleDir the module directory
+     * @param configPath the pipeline template config path, or null to locate automatically
+     * @param outputDir the output directory, or null to use the default
+     */
     public void generate(Path moduleDir, Path configPath, Path outputDir) {
         Path resolvedModuleDir = moduleDir == null ? Path.of("") : moduleDir;
         Path resolvedConfig = resolveConfigPath(resolvedModuleDir, configPath);

@@ -29,6 +29,12 @@ import org.pipelineframework.context.PipelineContext;
 @Unremovable
 public class BaseKeyCacheKeyStrategy implements CacheKeyStrategy {
 
+    /**
+     * Creates a new BaseKeyCacheKeyStrategy.
+     */
+    public BaseKeyCacheKeyStrategy() {
+    }
+
     @Override
     public Optional<String> resolveKey(Object item, PipelineContext context) {
         if (item == null) {

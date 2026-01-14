@@ -21,9 +21,13 @@ package org.pipelineframework.context;
  */
 public final class PipelineContextHeaders {
 
+    /** Header name for pipeline version tags. */
     public static final String VERSION = "x-pipeline-version";
+    /** Header name for pipeline replay mode. */
     public static final String REPLAY = "x-pipeline-replay";
+    /** Header name for cache policy overrides. */
     public static final String CACHE_POLICY = "x-pipeline-cache-policy";
+    /** Header name for cache status propagation. */
     public static final String CACHE_STATUS = "x-pipeline-cache-status";
 
     private PipelineContextHeaders() {

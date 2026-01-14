@@ -20,11 +20,21 @@ package org.pipelineframework.cache;
  * Cache status values reported by cache plugin steps.
  */
 public enum CacheStatus {
+    /** Cache hit returned a stored value. */
     HIT,
+    /** Cache miss returned no stored value. */
     MISS,
+    /** Cache was bypassed for this request. */
     BYPASS,
+    /** Cache write occurred for this request. */
     WRITE;
 
+    /**
+     * Parse a cache status from a header value.
+     *
+     * @param value the header value
+     * @return the resolved cache status, or null when unset or invalid
+     */
     public static CacheStatus fromHeader(String value) {
         if (value == null || value.isBlank()) {
             return null;

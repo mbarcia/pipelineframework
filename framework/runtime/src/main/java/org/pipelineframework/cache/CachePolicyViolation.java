@@ -23,6 +23,11 @@ import org.pipelineframework.step.NonRetryableException;
  */
 public class CachePolicyViolation extends NonRetryableException {
 
+    /**
+     * Creates a new CachePolicyViolation with the given message.
+     *
+     * @param message the error message
+     */
     public CachePolicyViolation(String message) {
         super(message);
     }

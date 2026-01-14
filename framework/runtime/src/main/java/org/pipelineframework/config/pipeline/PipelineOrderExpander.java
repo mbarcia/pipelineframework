@@ -18,6 +18,9 @@ package org.pipelineframework.config.pipeline;
 
 import java.util.*;
 
+/**
+ * Expands a pipeline order by inserting aspect-driven side-effect client steps.
+ */
 public final class PipelineOrderExpander {
 
     private static final org.jboss.logging.Logger LOG = org.jboss.logging.Logger.getLogger(PipelineOrderExpander.class);
@@ -25,6 +28,14 @@ public final class PipelineOrderExpander {
     private PipelineOrderExpander() {
     }
 
+    /**
+     * Expand a base pipeline order by inserting side-effect client steps from configured aspects.
+     *
+     * @param baseOrder the configured base order of step class names
+     * @param config the pipeline YAML configuration
+     * @param classLoader class loader used for optional type resolution
+     * @return the expanded pipeline order
+     */
     public static List<String> expand(List<String> baseOrder, PipelineYamlConfig config, ClassLoader classLoader) {
         if (baseOrder == null || baseOrder.isEmpty() || config == null) {
             return baseOrder;

@@ -32,6 +32,12 @@ import org.pipelineframework.PipelineExecutionService;
 @ApplicationScoped
 public class PipelineReadinessCheck implements HealthCheck {
 
+  /**
+   * Creates a new PipelineReadinessCheck.
+   */
+  public PipelineReadinessCheck() {
+  }
+
   @Inject
   PipelineExecutionService pipelineExecutionService;
 

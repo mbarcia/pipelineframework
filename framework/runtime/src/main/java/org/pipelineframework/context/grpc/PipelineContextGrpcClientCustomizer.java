@@ -33,6 +33,12 @@ import io.quarkus.grpc.runtime.config.GrpcClientConfiguration;
 @SuppressWarnings("rawtypes")
 public class PipelineContextGrpcClientCustomizer implements ChannelBuilderCustomizer {
 
+    /**
+     * Creates a new PipelineContextGrpcClientCustomizer.
+     */
+    public PipelineContextGrpcClientCustomizer() {
+    }
+
     @Inject
     PipelineContextGrpcClientInterceptor interceptor;
 

@@ -35,6 +35,13 @@ public final class CachePolicyEnforcer {
     private CachePolicyEnforcer() {
     }
 
+    /**
+     * Apply the configured cache policy to the current cache status.
+     *
+     * @param item the pipeline item to return if policy allows
+     * @param <T> the item type
+     * @return a Uni yielding the item or failing based on policy enforcement
+     */
     public static <T> Uni<T> enforce(T item) {
         CacheStatus status = PipelineCacheStatusHolder.getAndClear();
         if (status == null) {
@@ -59,14 +66,34 @@ public final class CachePolicyEnforcer {
         return handlers;
     }
 
+    /**
+     * Functional interface for applying cache policy decisions.
+     */
     @FunctionalInterface
     public interface CachePolicyHandler {
+        /**
+         * Apply a cache policy decision based on the cache status.
+         *
+         * @param item the pipeline item under evaluation
+         * @param status the cache status from the cache plugin
+         * @return a Uni that yields the item or fails
+         */
         Uni<Object> apply(Object item, CacheStatus status);
 
+        /**
+         * No-op handler that always returns the item.
+         *
+         * @return a handler that returns the item unchanged
+         */
         static CachePolicyHandler noop() {
             return (item, status) -> Uni.createFrom().item(item);
         }
 
+        /**
+         * Handler that enforces a cache hit, failing otherwise.
+         *
+         * @return a handler that fails on cache miss or bypass
+         */
         static CachePolicyHandler requireHit() {
             return (item, status) -> {
                 if (status != CacheStatus.HIT) {

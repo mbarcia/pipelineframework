@@ -35,6 +35,12 @@ import org.pipelineframework.context.PipelineContextHolder;
 @Unremovable
 public class PipelineContextClientRequestFilter implements ClientRequestFilter {
 
+    /**
+     * Creates a new PipelineContextClientRequestFilter.
+     */
+    public PipelineContextClientRequestFilter() {
+    }
+
     @Override
     public void filter(ClientRequestContext requestContext) {
         PipelineContext context = PipelineContextHolder.get();

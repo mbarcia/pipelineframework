@@ -21,10 +21,21 @@ package org.pipelineframework.step;
  */
 public class NonRetryableException extends RuntimeException {
 
+    /**
+     * Creates a new NonRetryableException with the given message.
+     *
+     * @param message the error message
+     */
     public NonRetryableException(String message) {
         super(message);
     }
 
+    /**
+     * Creates a new NonRetryableException with the given message and cause.
+     *
+     * @param message the error message
+     * @param cause the underlying cause
+     */
     public NonRetryableException(String message, Throwable cause) {
         super(message, cause);
     }
