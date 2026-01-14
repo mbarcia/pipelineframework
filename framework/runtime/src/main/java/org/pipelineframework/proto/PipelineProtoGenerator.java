@@ -262,6 +262,12 @@ public class PipelineProtoGenerator {
                 .append(") returns (stream ")
                 .append(outputType)
                 .append(");\n");
+        } else if ("MANY_TO_MANY".equalsIgnoreCase(cardinality)) {
+            builder.append("  rpc remoteProcess(stream ")
+                .append(inputType)
+                .append(") returns (stream ")
+                .append(outputType)
+                .append(");\n");
         } else if ("REDUCTION".equalsIgnoreCase(cardinality)) {
             builder.append("  rpc remoteProcess(stream ")
                 .append(inputType)
