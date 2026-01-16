@@ -19,7 +19,7 @@
 # Script to generate development certificates for quarkus:dev
 
 # Create a temporary directory for certificate generation
-CERT_DIR="/tmp/csv-payments-dev-certs"
+CERT_DIR="/tmp/search-dev-certs"
 rm -rf "${CERT_DIR}"
 mkdir -p "${CERT_DIR}"
 
@@ -60,7 +60,7 @@ openssl pkcs12 -export -in "${CERT_DIR}/quarkus-cert.pem" -inkey "${CERT_DIR}/qu
 keytool -import -file "${CERT_DIR}/quarkus-cert.pem" -keystore "${CERT_DIR}/client-truststore.jks" -storepass secret -noprompt -alias server
 
 # Copy certificates to service directories
-for svc in persistence-csv input-csv-file-processing-svc payments-processing-svc payment-status-svc output-csv-file-processing-svc; do
+for svc in cache-invalidation-svc persistence-csv crawl-source-svc index-documents-svc parse-document-svc tokenize-svc; do
     cp "${CERT_DIR}/server-keystore.p12" "${svc}/src/main/resources/server-keystore.jks"
 done
 
