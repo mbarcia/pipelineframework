@@ -47,6 +47,12 @@ class CsvPaymentsEndToEndIT {
     private static final Network network = Network.newNetwork();
     private static final String TEST_E2E_DIR = System.getProperty("user.dir") + "/target/test-e2e";
     private static final String TEST_E2E_TARGET_DIR = "/app/test-e2e";
+    private static final Path DEV_CERTS_DIR =
+            Paths.get(System.getProperty("user.dir"))
+                    .resolve("../target/dev-certs")
+                    .normalize()
+                    .toAbsolutePath();
+    private static final String CONTAINER_KEYSTORE_PATH = "/deployments/server-keystore.jks";
 
     // Define containers for each service
     static PostgreSQLContainer<?> postgresContainer =
@@ -62,8 +68,16 @@ class CsvPaymentsEndToEndIT {
             new GenericContainer<>("localhost/csv-payments/persistence-svc:latest")
                     .withNetwork(network)
                     .withNetworkAliases("persistence-svc")
+                    .withFileSystemBind(
+                            DEV_CERTS_DIR.resolve("persistence-svc/server-keystore.jks").toString(),
+                            CONTAINER_KEYSTORE_PATH,
+                            BindMode.READ_ONLY)
                     .withExposedPorts(8448)
                     .withEnv("QUARKUS_PROFILE", "test")
+                    .withEnv("SERVER_KEYSTORE_PATH", CONTAINER_KEYSTORE_PATH)
+                    .withEnv(
+                            "QUARKUS_HTTP_SSL_CERTIFICATE_KEY_STORE_FILE",
+                            CONTAINER_KEYSTORE_PATH)
                     .withEnv(
                             "QUARKUS_DATASOURCE_REACTIVE_URL", "postgresql://postgres:5432/quarkus")
                     .withEnv("QUARKUS_DATASOURCE_USERNAME", "quarkus")
@@ -82,8 +96,14 @@ class CsvPaymentsEndToEndIT {
                             Paths.get(TEST_E2E_DIR).toAbsolutePath().toString(),
                             TEST_E2E_TARGET_DIR,
                             BindMode.READ_ONLY)
+                    .withFileSystemBind(
+                            DEV_CERTS_DIR.resolve("input-csv-file-processing-svc/server-keystore.jks")
+                                    .toString(),
+                            CONTAINER_KEYSTORE_PATH,
+                            BindMode.READ_ONLY)
                     .withExposedPorts(8444)
                     .withEnv("QUARKUS_PROFILE", "test")
+                    .withEnv("SERVER_KEYSTORE_PATH", CONTAINER_KEYSTORE_PATH)
                     .waitingFor(
                             Wait.forHttps("/q/health")
                                     .forPort(8444)
@@ -94,8 +114,14 @@ class CsvPaymentsEndToEndIT {
             new GenericContainer<>("localhost/csv-payments/payments-processing-svc:latest")
                     .withNetwork(network)
                     .withNetworkAliases("payments-processing-svc")
+                    .withFileSystemBind(
+                            DEV_CERTS_DIR.resolve("payments-processing-svc/server-keystore.jks")
+                                    .toString(),
+                            CONTAINER_KEYSTORE_PATH,
+                            BindMode.READ_ONLY)
                     .withExposedPorts(8445)
                     .withEnv("QUARKUS_PROFILE", "test")
+                    .withEnv("SERVER_KEYSTORE_PATH", CONTAINER_KEYSTORE_PATH)
                     .waitingFor(
                             Wait.forHttps("/q/health")
                                     .forPort(8445)
@@ -106,8 +132,13 @@ class CsvPaymentsEndToEndIT {
             new GenericContainer<>("localhost/csv-payments/payment-status-svc:latest")
                     .withNetwork(network)
                     .withNetworkAliases("payment-status-svc")
+                    .withFileSystemBind(
+                            DEV_CERTS_DIR.resolve("payment-status-svc/server-keystore.jks").toString(),
+                            CONTAINER_KEYSTORE_PATH,
+                            BindMode.READ_ONLY)
                     .withExposedPorts(8446)
                     .withEnv("QUARKUS_PROFILE", "test")
+                    .withEnv("SERVER_KEYSTORE_PATH", CONTAINER_KEYSTORE_PATH)
                     .waitingFor(
                             Wait.forHttps("/q/health")
                                     .forPort(8446)
@@ -122,8 +153,14 @@ class CsvPaymentsEndToEndIT {
                             Paths.get(TEST_E2E_DIR).toAbsolutePath().toString(),
                             TEST_E2E_TARGET_DIR,
                             BindMode.READ_WRITE)
+                    .withFileSystemBind(
+                            DEV_CERTS_DIR.resolve("output-csv-file-processing-svc/server-keystore.jks")
+                                    .toString(),
+                            CONTAINER_KEYSTORE_PATH,
+                            BindMode.READ_ONLY)
                     .withExposedPorts(8447)
                     .withEnv("QUARKUS_PROFILE", "test")
+                    .withEnv("SERVER_KEYSTORE_PATH", CONTAINER_KEYSTORE_PATH)
                     .waitingFor(
                             Wait.forHttps("/q/health")
                                     .forPort(8447)

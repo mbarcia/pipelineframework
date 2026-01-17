@@ -333,9 +333,9 @@ This script will start all microservices, process a sample CSV file, and verify 
 
 When running the services with HTTPS enabled, self-signed certificates are used for development purposes. To avoid browser security warnings, you need to add these certificates to your system's trusted certificate store.
 
-### Trusting the Existing Certificate
+### Trusting the Development Certificate
 
-The repository already includes a pre-generated certificate (`server-keystore.jks`) that you can trust:
+The build generates a self-signed certificate under `examples/csv-payments/target/dev-certs`. You can trust it by exporting from a running service:
 
 1. **Add the existing certificate to your macOS keychain**:
    ```bash

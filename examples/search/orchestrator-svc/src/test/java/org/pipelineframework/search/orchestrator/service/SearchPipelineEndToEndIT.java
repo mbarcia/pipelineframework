@@ -21,6 +21,8 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.security.SecureRandom;
 import java.sql.SQLException;
 import java.time.Duration;
@@ -36,10 +38,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.pipelineframework.search.common.domain.ParsedDocument;
 import org.pipelineframework.search.common.util.HashingUtils;
-import org.testcontainers.containers.Container;
-import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.Network;
-import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.containers.*;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.lifecycle.Startables;
 
@@ -50,6 +49,13 @@ class SearchPipelineEndToEndIT {
     private static final Logger LOG = Logger.getLogger(SearchPipelineEndToEndIT.class);
     private static final Network NETWORK = Network.newNetwork();
     private static final String CACHE_PREFIX = "pipeline-cache:";
+    private static final Path DEV_CERTS_DIR =
+        Paths.get(System.getProperty("user.dir"))
+            .resolve("../target/dev-certs")
+            .normalize()
+            .toAbsolutePath();
+    private static final String CONTAINER_KEYSTORE_PATH = "/deployments/server-keystore.jks";
+    private static final String CONTAINER_TRUSTSTORE_PATH = "/deployments/client-truststore.jks";
 
     private static final String CRAWL_IMAGE = System.getProperty(
         "search.image.crawl-source", "localhost/search-pipeline/crawl-source-svc:latest");
@@ -86,8 +92,13 @@ class SearchPipelineEndToEndIT {
         new GenericContainer<>(CRAWL_IMAGE)
             .withNetwork(NETWORK)
             .withNetworkAliases("crawl-source-svc")
+            .withFileSystemBind(
+                DEV_CERTS_DIR.resolve("crawl-source-svc/server-keystore.jks").toString(),
+                CONTAINER_KEYSTORE_PATH,
+                BindMode.READ_ONLY)
             .withExposedPorts(8080)
             .withEnv("QUARKUS_PROFILE", "test")
+            .withEnv("SERVER_KEYSTORE_PATH", CONTAINER_KEYSTORE_PATH)
             .withEnv("QUARKUS_HTTP_INSECURE_REQUESTS", "enabled")
             .withEnv("QUARKUS_HTTP_PORT", "8080")
             .waitingFor(
@@ -99,8 +110,13 @@ class SearchPipelineEndToEndIT {
         new GenericContainer<>(PARSE_IMAGE)
             .withNetwork(NETWORK)
             .withNetworkAliases("parse-document-svc")
+            .withFileSystemBind(
+                DEV_CERTS_DIR.resolve("parse-document-svc/server-keystore.jks").toString(),
+                CONTAINER_KEYSTORE_PATH,
+                BindMode.READ_ONLY)
             .withExposedPorts(8080)
             .withEnv("QUARKUS_PROFILE", "test")
+            .withEnv("SERVER_KEYSTORE_PATH", CONTAINER_KEYSTORE_PATH)
             .withEnv("QUARKUS_HTTP_INSECURE_REQUESTS", "enabled")
             .withEnv("QUARKUS_HTTP_PORT", "8080")
             .waitingFor(
@@ -112,8 +128,13 @@ class SearchPipelineEndToEndIT {
         new GenericContainer<>(TOKENIZE_IMAGE)
             .withNetwork(NETWORK)
             .withNetworkAliases("tokenize-content-svc")
+            .withFileSystemBind(
+                DEV_CERTS_DIR.resolve("tokenize-content-svc/server-keystore.jks").toString(),
+                CONTAINER_KEYSTORE_PATH,
+                BindMode.READ_ONLY)
             .withExposedPorts(8080)
             .withEnv("QUARKUS_PROFILE", "test")
+            .withEnv("SERVER_KEYSTORE_PATH", CONTAINER_KEYSTORE_PATH)
             .withEnv("QUARKUS_HTTP_INSECURE_REQUESTS", "enabled")
             .withEnv("QUARKUS_HTTP_PORT", "8080")
             .waitingFor(
@@ -125,8 +146,13 @@ class SearchPipelineEndToEndIT {
         new GenericContainer<>(INDEX_IMAGE)
             .withNetwork(NETWORK)
             .withNetworkAliases("index-document-svc")
+            .withFileSystemBind(
+                DEV_CERTS_DIR.resolve("index-document-svc/server-keystore.jks").toString(),
+                CONTAINER_KEYSTORE_PATH,
+                BindMode.READ_ONLY)
             .withExposedPorts(8080)
             .withEnv("QUARKUS_PROFILE", "test")
+            .withEnv("SERVER_KEYSTORE_PATH", CONTAINER_KEYSTORE_PATH)
             .withEnv("QUARKUS_HTTP_INSECURE_REQUESTS", "enabled")
             .withEnv("QUARKUS_HTTP_PORT", "8080")
             .waitingFor(
@@ -138,8 +164,13 @@ class SearchPipelineEndToEndIT {
         new GenericContainer<>(PERSISTENCE_IMAGE)
             .withNetwork(NETWORK)
             .withNetworkAliases("persistence-svc")
+            .withFileSystemBind(
+                DEV_CERTS_DIR.resolve("persistence-svc/server-keystore.jks").toString(),
+                CONTAINER_KEYSTORE_PATH,
+                BindMode.READ_ONLY)
             .withExposedPorts(8080)
             .withEnv("QUARKUS_PROFILE", "test")
+            .withEnv("SERVER_KEYSTORE_PATH", CONTAINER_KEYSTORE_PATH)
             .withEnv("QUARKUS_HIBERNATE_ORM_SCHEMA_MANAGEMENT_STRATEGY", "drop-and-create")
             .withEnv("QUARKUS_HTTP_INSECURE_REQUESTS", "enabled")
             .withEnv("QUARKUS_HTTP_PORT", "8080")
@@ -155,8 +186,13 @@ class SearchPipelineEndToEndIT {
         new GenericContainer<>(CACHE_INVALIDATION_IMAGE)
             .withNetwork(NETWORK)
             .withNetworkAliases("cache-invalidation-svc")
+            .withFileSystemBind(
+                DEV_CERTS_DIR.resolve("cache-invalidation-svc/server-keystore.jks").toString(),
+                CONTAINER_KEYSTORE_PATH,
+                BindMode.READ_ONLY)
             .withExposedPorts(8080)
             .withEnv("QUARKUS_PROFILE", "test")
+            .withEnv("SERVER_KEYSTORE_PATH", CONTAINER_KEYSTORE_PATH)
             .withEnv("QUARKUS_HTTP_INSECURE_REQUESTS", "enabled")
             .withEnv("QUARKUS_HTTP_PORT", "8080")
             .withEnv("PIPELINE_CACHE_PROVIDER", "redis")
@@ -170,8 +206,18 @@ class SearchPipelineEndToEndIT {
         new GenericContainer<>(ORCHESTRATOR_IMAGE)
             .withNetwork(NETWORK)
             .withNetworkAliases("orchestrator-svc")
+            .withFileSystemBind(
+                DEV_CERTS_DIR.resolve("orchestrator-svc/server-keystore.jks").toString(),
+                CONTAINER_KEYSTORE_PATH,
+                BindMode.READ_ONLY)
+            .withFileSystemBind(
+                DEV_CERTS_DIR.resolve("orchestrator-svc/client-truststore.jks").toString(),
+                CONTAINER_TRUSTSTORE_PATH,
+                BindMode.READ_ONLY)
             .withExposedPorts(8080)
             .withEnv("QUARKUS_PROFILE", "test")
+            .withEnv("SERVER_KEYSTORE_PATH", CONTAINER_KEYSTORE_PATH)
+            .withEnv("CLIENT_TRUSTSTORE_PATH", CONTAINER_TRUSTSTORE_PATH)
             .withEnv("PIPELINE_CACHE_PROVIDER", "redis")
             .withEnv("QUARKUS_REDIS_HOSTS", "redis://redis:6379")
             .withEnv("QUARKUS_HTTP_INSECURE_REQUESTS", "enabled")

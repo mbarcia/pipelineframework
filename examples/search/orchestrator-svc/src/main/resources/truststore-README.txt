@@ -4,7 +4,7 @@
 #
 # Please generate or obtain a truststore file and place it in this location:
 #
-# /Users/mari/IdeaProjects/pipelineframework/examples/search/orchestrator-svc/src/main/resources/client-truststore.jks
+# /Users/mari/IdeaProjects/pipelineframework/examples/search/target/dev-certs/orchestrator-svc/client-truststore.jks
 #
 # For development purposes, you can create a truststore using:
 # keytool -import -alias server -file server-cert.pem -keystore client-truststore.jks
