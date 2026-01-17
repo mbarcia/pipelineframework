@@ -15,6 +15,8 @@ The `@PipelineStep` annotation marks a class as a pipeline step and enables auto
 - `outboundMapper`: The outbound mapper class for this pipeline service/step - handles conversion from domain to gRPC types (using MapStruct-based unified Mapper interface)
 - `runOnVirtualThreads`: Whether to offload server processing to virtual threads, i.e. for I/O-bound operations (defaults to `false`)
 - `sideEffect`: Optional plugin service type used to generate side-effect client/server adapters
+- `ordering`: Ordering requirement for the generated client step
+- `threadSafety`: Thread safety declaration for the generated client step
 
 `backendType` is a legacy annotation field and is ignored by the current processor.
 
@@ -26,7 +28,9 @@ The `@PipelineStep` annotation marks a class as a pipeline step and enables auto
    outputType = PaymentStatus.class,
    stepType = StepOneToOne.class,
    inboundMapper = PaymentRecordMapper.class,
-   outboundMapper = PaymentStatusMapper.class
+   outboundMapper = PaymentStatusMapper.class,
+   ordering = OrderingRequirement.RELAXED,
+   threadSafety = ThreadSafety.SAFE
 )
 @ApplicationScoped
 public class ProcessPaymentService implements ReactiveService<PaymentRecord, PaymentStatus> {
@@ -45,7 +49,9 @@ Developers only need to:
 2. Create MapStruct-based mapper interfaces that extend the `Mapper<Grpc, Dto, Domain>` interface
 3. Implement the service interface (`ReactiveService`, `ReactiveStreamingService`, `ReactiveStreamingClientService`, or `ReactiveBidirectionalStreamingService`)
 
-Parallelism is configured at runtime (StepConfig or `application.properties`), not via `@PipelineStep`.
+Parallelism is configured at the pipeline level (`pipeline.parallelism` and `pipeline.max-concurrency`).
+The `ordering` and `threadSafety` values on `@PipelineStep` are propagated to the generated client step,
+which the runtime uses to decide parallelism under `AUTO`.
 
 Transport selection (gRPC vs REST) is configured globally in `pipeline.yaml`, not on the annotation.
 

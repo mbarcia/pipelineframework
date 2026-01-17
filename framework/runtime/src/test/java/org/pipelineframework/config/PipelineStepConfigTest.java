@@ -53,7 +53,6 @@ class PipelineStepConfigTest {
         // Then - verify all default values from @WithDefault annotations
         assertEquals(3, defaults.retryLimit(), "Default retryLimit should be 3");
         assertEquals(2000L, defaults.retryWaitMs(), "Default retryWaitMs should be 2000");
-        assertFalse(defaults.parallel(), "Default parallel should be false");
         assertFalse(defaults.recoverOnFailure(), "Default recoverOnFailure should be false");
         assertEquals(30000L, defaults.maxBackoff(), "Default maxBackoff should be 30000");
         assertFalse(defaults.jitter(), "Default jitter should be false");
@@ -95,7 +94,6 @@ class PipelineStepConfigTest {
             return Map.of(
                     "pipeline.defaults.retry-limit", "10",
                     "pipeline.defaults.retry-wait-ms", "5000",
-                    "pipeline.defaults.parallel", "true",
                     "pipeline.defaults.recover-on-failure", "true",
                     "pipeline.defaults.max-backoff", "60000",
                     "pipeline.defaults.jitter", "true",
@@ -119,7 +117,6 @@ class PipelineStepConfigTest {
             // Then - verify custom values are loaded
             assertEquals(10, defaults.retryLimit());
             assertEquals(5000L, defaults.retryWaitMs());
-            assertTrue(defaults.parallel());
             assertTrue(defaults.recoverOnFailure());
             assertEquals(60000L, defaults.maxBackoff());
             assertTrue(defaults.jitter());
@@ -134,7 +131,6 @@ class PipelineStepConfigTest {
         public Map<String, String> getConfigOverrides() {
             return Map.of(
                     "pipeline.step.\"com.example.MyStep\".retry-limit", "7",
-                    "pipeline.step.\"com.example.MyStep\".parallel", "true",
                     "pipeline.step.\"com.example.AnotherStep\".retry-limit", "15");
         }
     }
@@ -162,7 +158,6 @@ class PipelineStepConfigTest {
 
             PipelineStepConfig.StepConfig myStepConfig = stepMap.get("com.example.MyStep");
             assertEquals(7, myStepConfig.retryLimit());
-            assertTrue(myStepConfig.parallel());
 
             PipelineStepConfig.StepConfig anotherStepConfig = stepMap.get("com.example.AnotherStep");
             assertEquals(15, anotherStepConfig.retryLimit());

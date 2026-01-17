@@ -11,6 +11,8 @@ import javax.lang.model.type.TypeMirror;
 import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.TypeName;
 import org.pipelineframework.annotation.PipelineStep;
+import org.pipelineframework.parallelism.OrderingRequirement;
+import org.pipelineframework.parallelism.ThreadSafety;
 import org.pipelineframework.processor.ir.*;
 import org.pipelineframework.processor.util.AnnotationProcessingUtils;
 
@@ -64,6 +66,10 @@ public class PipelineStepIRExtractor {
 
         ExecutionMode executionMode = AnnotationProcessingUtils.getAnnotationValueAsBoolean(annotationMirror, "runOnVirtualThreads", false)
             ? ExecutionMode.VIRTUAL_THREADS : ExecutionMode.DEFAULT;
+        OrderingRequirement orderingRequirement = AnnotationProcessingUtils.getAnnotationValueAsEnum(
+            annotationMirror, "ordering", OrderingRequirement.class, OrderingRequirement.RELAXED);
+        ThreadSafety threadSafety = AnnotationProcessingUtils.getAnnotationValueAsEnum(
+            annotationMirror, "threadSafety", ThreadSafety.class, ThreadSafety.SAFE);
 
         // Create directional type mappings
         TypeMapping inputMapping = extractTypeMapping(
@@ -106,6 +112,8 @@ public class PipelineStepIRExtractor {
             .streamingShape(streamingShape)
             .enabledTargets(targets)
             .executionMode(executionMode)
+            .orderingRequirement(orderingRequirement)
+            .threadSafety(threadSafety)
             .deploymentRole(DeploymentRole.PIPELINE_SERVER)
             .cacheKeyGenerator(cacheKeyGenerator)
             .build();

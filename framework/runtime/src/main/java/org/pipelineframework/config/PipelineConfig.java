@@ -110,7 +110,6 @@ public final class PipelineConfig {
                 .retryWait(base.retryWait())
                 .backpressureBufferCapacity(base.backpressureBufferCapacity())
                 .backpressureStrategy(base.backpressureStrategy())
-                .parallel(base.parallel())
                 .recoverOnFailure(base.recoverOnFailure())
                 .maxBackoff(base.maxBackoff())
                 .jitter(base.jitter());

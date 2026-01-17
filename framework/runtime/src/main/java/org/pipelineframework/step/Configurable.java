@@ -74,13 +74,6 @@ default int backpressureBufferCapacity() { return effectiveConfig().backpressure
  */
 default String backpressureStrategy() { return effectiveConfig().backpressureStrategy(); }
     /**
- * Indicates whether the step should run in parallel.
- *
- * @return `true` if the step should run in parallel, `false` otherwise.
- */
-default boolean parallel() { return effectiveConfig().parallel(); }
-
-    /**
  * Determines whether a failure should be retried by this step.
  *
  * @param failure the failure to evaluate

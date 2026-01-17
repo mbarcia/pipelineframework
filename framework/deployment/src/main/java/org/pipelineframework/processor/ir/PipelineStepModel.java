@@ -5,6 +5,8 @@ import java.util.Set;
 
 import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.TypeName;
+import org.pipelineframework.parallelism.OrderingRequirement;
+import org.pipelineframework.parallelism.ThreadSafety;
 
 /**
  * Contains only semantic information derived from @PipelineStep annotations. This class captures all the essential
@@ -22,6 +24,8 @@ import com.squareup.javapoet.TypeName;
  * @param deploymentRole Gets the deployment role for the service implementation.
  * @param sideEffect Gets whether the step is a synthetic side-effect observer.
  * @param cacheKeyGenerator Gets the cache key generator override class for this step, if any.
+ * @param orderingRequirement Gets the ordering requirement for the generated client step.
+ * @param threadSafety Gets the thread safety declaration for the generated client step.
  */
 public record PipelineStepModel(
         String serviceName,
@@ -35,7 +39,9 @@ public record PipelineStepModel(
         ExecutionMode executionMode,
         DeploymentRole deploymentRole,
         boolean sideEffect,
-        ClassName cacheKeyGenerator
+        ClassName cacheKeyGenerator,
+        OrderingRequirement orderingRequirement,
+        ThreadSafety threadSafety
 ) {
     /**
          * Creates a new PipelineStepModel with the supplied service identity, type mappings and generation configuration.
@@ -49,9 +55,11 @@ public record PipelineStepModel(
          * @param enabledTargets   the set of enabled generation targets; must not be null
          * @param executionMode    the execution mode for the service; must not be null
          * @param deploymentRole   the deployment role for the service implementation; must not be null
-         * @param cacheKeyGenerator the cache key generator override for this step; may be null
-         * @throws IllegalArgumentException if any parameter documented as 'must not be null' is null
-         */
+     * @param cacheKeyGenerator the cache key generator override for this step; may be null
+     * @param orderingRequirement the ordering requirement for the generated client step; may be null
+     * @param threadSafety the thread safety declaration for the generated client step; may be null
+     * @throws IllegalArgumentException if any parameter documented as 'must not be null' is null
+     */
     @SuppressWarnings("ConstantValue")
     public PipelineStepModel(String serviceName,
             String generatedName,
@@ -64,7 +72,9 @@ public record PipelineStepModel(
             ExecutionMode executionMode,
             DeploymentRole deploymentRole,
             boolean sideEffect,
-            ClassName cacheKeyGenerator) {
+            ClassName cacheKeyGenerator,
+            OrderingRequirement orderingRequirement,
+            ThreadSafety threadSafety) {
         // Validate non-null invariants
         if (serviceName == null)
             throw new IllegalArgumentException("serviceName cannot be null");
@@ -95,6 +105,36 @@ public record PipelineStepModel(
         this.deploymentRole = deploymentRole;
         this.sideEffect = sideEffect;
         this.cacheKeyGenerator = cacheKeyGenerator;
+        this.orderingRequirement = orderingRequirement != null ? orderingRequirement : OrderingRequirement.RELAXED;
+        this.threadSafety = threadSafety != null ? threadSafety : ThreadSafety.SAFE;
+    }
+
+    public PipelineStepModel(String serviceName,
+            String generatedName,
+            String servicePackage,
+            ClassName serviceClassName,
+            TypeMapping inputMapping,
+            TypeMapping outputMapping,
+            StreamingShape streamingShape,
+            Set<GenerationTarget> enabledTargets,
+            ExecutionMode executionMode,
+            DeploymentRole deploymentRole,
+            boolean sideEffect,
+            ClassName cacheKeyGenerator) {
+        this(serviceName,
+            generatedName,
+            servicePackage,
+            serviceClassName,
+            inputMapping,
+            outputMapping,
+            streamingShape,
+            enabledTargets,
+            executionMode,
+            deploymentRole,
+            sideEffect,
+            cacheKeyGenerator,
+            OrderingRequirement.RELAXED,
+            ThreadSafety.SAFE);
     }
 
     /**
@@ -138,6 +178,8 @@ public record PipelineStepModel(
         private DeploymentRole deploymentRole = DeploymentRole.PIPELINE_SERVER;
         private boolean sideEffect;
         private ClassName cacheKeyGenerator;
+        private OrderingRequirement orderingRequirement = OrderingRequirement.RELAXED;
+        private ThreadSafety threadSafety = ThreadSafety.SAFE;
 
         /**
          * Sets the service name.
@@ -283,6 +325,28 @@ public record PipelineStepModel(
         }
 
         /**
+         * Sets the ordering requirement for the generated client step.
+         *
+         * @param orderingRequirement the ordering requirement to apply
+         * @return this builder instance
+         */
+        public Builder orderingRequirement(OrderingRequirement orderingRequirement) {
+            this.orderingRequirement = orderingRequirement;
+            return this;
+        }
+
+        /**
+         * Sets the thread safety declaration for the generated client step.
+         *
+         * @param threadSafety the thread safety declaration to apply
+         * @return this builder instance
+         */
+        public Builder threadSafety(ThreadSafety threadSafety) {
+            this.threadSafety = threadSafety;
+            return this;
+        }
+
+        /**
          * Create a PipelineStepModel populated from the builder's current state.
          *
          * @return a PipelineStepModel populated with the builder's state
@@ -319,7 +383,9 @@ public record PipelineStepModel(
                     executionMode,
                     deploymentRole,
                     sideEffect,
-                    cacheKeyGenerator);
+                    cacheKeyGenerator,
+                    orderingRequirement,
+                    threadSafety);
         }
     }
 }

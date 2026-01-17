@@ -25,6 +25,8 @@ import io.quarkus.arc.Unremovable;
 import io.quarkus.grpc.GrpcClient;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
+import org.pipelineframework.parallelism.OrderingRequirement;
+import org.pipelineframework.parallelism.ThreadSafety;
 import org.pipelineframework.processor.PipelineStepProcessor;
 import org.pipelineframework.processor.ir.GenerationTarget;
 import org.pipelineframework.processor.ir.GrpcBinding;
@@ -91,6 +93,14 @@ public record ClientStepRenderer(GenerationTarget target) implements PipelineRen
                 .addAnnotation(AnnotationSpec.builder(ClassName.get("jakarta.enterprise.context", "Dependent"))
                         .build())
                 .addAnnotation(AnnotationSpec.builder(ClassName.get(Unremovable.class))
+                        .build())
+                .addAnnotation(AnnotationSpec.builder(ClassName.get("org.pipelineframework.annotation", "ParallelismHint"))
+                        .addMember("ordering", "$T.$L",
+                            ClassName.get(OrderingRequirement.class),
+                            model.orderingRequirement().name())
+                        .addMember("threadSafety", "$T.$L",
+                            ClassName.get(ThreadSafety.class),
+                            model.threadSafety().name())
                         .build())
                 // Add the GeneratedRole annotation to indicate the target role
                 .addAnnotation(AnnotationSpec.builder(ClassName.get("org.pipelineframework.annotation", "GeneratedRole"))

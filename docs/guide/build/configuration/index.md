@@ -132,7 +132,6 @@ Prefix: `pipeline.defaults`
 |--------------------------------------------------|---------|----------|---------------------------------------------|
 | `pipeline.defaults.retry-limit`                  | integer | `3`      | Max retry attempts for steps.               |
 | `pipeline.defaults.retry-wait-ms`                | long    | `2000`   | Base delay between retries (ms).            |
-| `pipeline.defaults.parallel`                     | boolean | `false`  | Enables parallel processing for steps (legacy override). |
 | `pipeline.defaults.recover-on-failure`           | boolean | `false`  | Enables recovery behavior on failure.       |
 | `pipeline.defaults.max-backoff`                  | long    | `30000`  | Maximum backoff delay (ms).                 |
 | `pipeline.defaults.jitter`                       | boolean | `false`  | Adds jitter to retry delays.                |
@@ -147,7 +146,7 @@ All properties listed under `pipeline.defaults.*` can be overridden per step:
 
 ```properties
 pipeline.step."com.example.MyStep".retry-limit=7
-pipeline.step."com.example.MyStep".parallel=true
+pipeline.step."com.example.MyStep".recover-on-failure=true
 ```
 
 ### Startup Health Checks

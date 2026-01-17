@@ -106,14 +106,6 @@ public interface PipelineStepConfig {
         Long retryWaitMs();
 
         /**
-         * Whether the step processes items in parallel.
-         *
-         * @return true if parallel processing is enabled, false otherwise.
-         */
-        @WithDefault("false")
-        Boolean parallel();
-
-        /**
          * Whether the step will attempt recovery after a failure.
          *
          * @return `true` if recovery is enabled, `false` otherwise

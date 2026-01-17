@@ -22,6 +22,8 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 import io.quarkus.cache.CacheKeyGenerator;
+import org.pipelineframework.parallelism.OrderingRequirement;
+import org.pipelineframework.parallelism.ThreadSafety;
 
 /**
  * Annotation to mark a class as a pipeline step (both client and server).
@@ -105,4 +107,18 @@ public @interface PipelineStep {
      * @return the cache key generator class to use, or CacheKeyGenerator.class to use the default
      */
     Class<? extends CacheKeyGenerator> cacheKeyGenerator() default CacheKeyGenerator.class;
+
+    /**
+     * Declares ordering requirements for the generated client step.
+     *
+     * @return ordering requirement for this step
+     */
+    OrderingRequirement ordering() default OrderingRequirement.RELAXED;
+
+    /**
+     * Declares whether the generated client step is safe to invoke concurrently.
+     *
+     * @return thread safety declaration for this step
+     */
+    ThreadSafety threadSafety() default ThreadSafety.SAFE;
 }

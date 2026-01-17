@@ -112,4 +112,41 @@ public final class AnnotationProcessingUtils {
         }
         return defaultValue;
     }
+
+    /**
+     * Obtain an enum member value from an annotation, returning a provided fallback when absent or not resolvable.
+     *
+     * @param annotation   the annotation mirror to read the member from
+     * @param memberName   the simple name of the annotation member to look up
+     * @param enumType     the enum class to resolve values for
+     * @param defaultValue the value to return when absent or not resolvable
+     * @return the enum value, or {@code defaultValue} when absent or unresolvable
+     */
+    public static <T extends Enum<T>> T getAnnotationValueAsEnum(
+        AnnotationMirror annotation, String memberName, Class<T> enumType, T defaultValue) {
+        for (ExecutableElement executableElement : annotation.getElementValues().keySet()) {
+            if (executableElement.getSimpleName().toString().equals(memberName)) {
+                Object value = annotation.getElementValues().get(executableElement).getValue();
+                if (value instanceof javax.lang.model.element.VariableElement variableElement) {
+                    String name = variableElement.getSimpleName().toString();
+                    return Enum.valueOf(enumType, name);
+                }
+                if (value instanceof String stringValue) {
+                    return Enum.valueOf(enumType, stringValue);
+                }
+                if (value instanceof javax.lang.model.element.AnnotationValue annotationValue) {
+                    Object unwrapped = annotationValue.getValue();
+                    if (unwrapped instanceof javax.lang.model.element.VariableElement variableElement) {
+                        String name = variableElement.getSimpleName().toString();
+                        return Enum.valueOf(enumType, name);
+                    }
+                    if (unwrapped instanceof String stringValue) {
+                        return Enum.valueOf(enumType, stringValue);
+                    }
+                }
+                break;
+            }
+        }
+        return defaultValue;
+    }
 }

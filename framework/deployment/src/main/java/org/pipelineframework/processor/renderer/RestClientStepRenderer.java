@@ -7,6 +7,8 @@ import com.squareup.javapoet.*;
 import io.quarkus.arc.Unremovable;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
+import org.pipelineframework.parallelism.OrderingRequirement;
+import org.pipelineframework.parallelism.ThreadSafety;
 import org.pipelineframework.processor.PipelineStepProcessor;
 import org.pipelineframework.processor.ir.DeploymentRole;
 import org.pipelineframework.processor.ir.GenerationTarget;
@@ -113,6 +115,14 @@ public class RestClientStepRenderer implements PipelineRenderer<RestBinding> {
             .addAnnotation(AnnotationSpec.builder(ClassName.get("jakarta.enterprise.context", "Dependent"))
                 .build())
             .addAnnotation(AnnotationSpec.builder(ClassName.get(Unremovable.class))
+                .build())
+            .addAnnotation(AnnotationSpec.builder(ClassName.get("org.pipelineframework.annotation", "ParallelismHint"))
+                .addMember("ordering", "$T.$L",
+                    ClassName.get(OrderingRequirement.class),
+                    model.orderingRequirement().name())
+                .addMember("threadSafety", "$T.$L",
+                    ClassName.get(ThreadSafety.class),
+                    model.threadSafety().name())
                 .build())
             .addAnnotation(AnnotationSpec.builder(ClassName.get("org.pipelineframework.annotation", "GeneratedRole"))
                 .addMember("value", "$T.$L",

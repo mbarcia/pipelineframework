@@ -25,6 +25,7 @@ import io.quarkus.arc.Unremovable;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import org.jboss.logging.Logger;
+import org.pipelineframework.annotation.ParallelismHint;
 import org.pipelineframework.cache.CachePolicyEnforcer;
 import org.pipelineframework.config.ParallelismPolicy;
 import org.pipelineframework.config.PipelineConfig;
@@ -248,9 +249,18 @@ public class PipelineRunner implements AutoCloseable {
     private boolean shouldParallelize(Object step, ParallelismPolicy policy, StepParallelismType stepType) {
         OrderingRequirement orderingRequirement = OrderingRequirement.RELAXED;
         ThreadSafety threadSafety = ThreadSafety.SAFE;
+        boolean hasHints = false;
         if (step instanceof ParallelismHints hints) {
             orderingRequirement = hints.orderingRequirement();
             threadSafety = hints.threadSafety();
+            hasHints = true;
+        } else if (step != null) {
+            ParallelismHint hint = step.getClass().getAnnotation(ParallelismHint.class);
+            if (hint != null) {
+                orderingRequirement = hint.ordering();
+                threadSafety = hint.threadSafety();
+                hasHints = true;
+            }
         }
 
         ParallelismPolicy effectivePolicy = policy == null ? ParallelismPolicy.AUTO : policy;
@@ -285,8 +295,9 @@ public class PipelineRunner implements AutoCloseable {
             return true;
         }
 
-        boolean explicitParallel = step instanceof Configurable configurable && configurable.parallel();
-        if (explicitParallel) {
+        if (effectivePolicy == ParallelismPolicy.AUTO && hasHints
+            && orderingRequirement == OrderingRequirement.RELAXED
+            && threadSafety == ThreadSafety.SAFE) {
             return true;
         }
 
@@ -305,12 +316,11 @@ public class PipelineRunner implements AutoCloseable {
      */
     @SuppressWarnings({"unchecked"})
     public static <I, O> Object applyOneToOneUnchecked(StepOneToOne<I, O> step, Object current) {
-        boolean parallel = step.parallel();
-        return applyOneToOneUnchecked(step, current, parallel, DEFAULT_MAX_CONCURRENCY);
+        return applyOneToOneUnchecked(step, current, false, DEFAULT_MAX_CONCURRENCY);
     }
 
     @SuppressWarnings({"unchecked"})
-    private static <I, O> Object applyOneToOneUnchecked(
+    public static <I, O> Object applyOneToOneUnchecked(
         StepOneToOne<I, O> step, Object current, boolean parallel, int maxConcurrency) {
         if (current instanceof Uni<?>) {
             return step.apply((Uni<I>) current)

@@ -81,8 +81,7 @@ public interface StepManyToOneBlocking<I, O> extends Configurable, ManyToOne<I, 
      *
      * <p>The method applies the configured backpressure strategy ("buffer" or "drop"), groups items
      * into batches by {@link #batchSize()} or {@link #batchTimeout()}, and processes each batch by
-     * calling {@link #applyBatchList(List)}. Batches are handled concurrently when
-     * {@link #effectiveConfig()}.parallel() is true, otherwise they are processed sequentially.
+     * calling {@link #applyBatchList(List)}. Batches are processed sequentially.
      * On failure, if {@link #recoverOnFailure()} is true the batch is delegated to
      * {@link #deadLetterBatchList(List, Throwable)}, otherwise the failure is propagated.
      * Retries are applied for failures except {@link NullPointerException} using the configured
@@ -109,17 +108,9 @@ public interface StepManyToOneBlocking<I, O> extends Configurable, ManyToOne<I, 
         Multi<List<I>> batches = backpressuredInput
             .group().intoLists().of(batchSize, batchTimeout);
 
-        if (effectiveConfig().parallel()) {
-            // Process batches concurrently with per-batch retry logic
-            return batches
-                .onItem().transformToUniAndMerge(list -> processBatch(list, logger))
-                .collect().last();
-        } else {
-            // Process batches sequentially (backward compatibility) with per-batch retry logic
-            return batches
-                .onItem().transformToUniAndConcatenate(list -> processBatch(list, logger))
-                .collect().last();
-        }
+        return batches
+            .onItem().transformToUniAndConcatenate(list -> processBatch(list, logger))
+            .collect().last();
     }
 
     /**

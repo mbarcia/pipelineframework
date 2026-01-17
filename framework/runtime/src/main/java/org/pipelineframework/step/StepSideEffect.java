@@ -30,12 +30,6 @@ package org.pipelineframework.step;
 public interface StepSideEffect<I> extends Configurable, StepOneToOne<I, I>, DeadLetterQueue<I, I> {
 
     /**
-     * Whether to enable parallel processing for this side effect step.
-     * @return true if parallel processing is enabled, false for sequential processing
-     */
-    default boolean parallel() { return effectiveConfig().parallel(); }
-
-    /**
      * Indicates whether this step should run with virtual threads.
      * @return true if virtual threads should be used, false otherwise (defaults to false)
      */

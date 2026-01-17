@@ -27,7 +27,7 @@ import org.jboss.logging.Logger;
 /**
  * Initializes the PipelineConfig with values from the application configuration.
  * This ensures that the global pipeline defaults defined in application.properties
- * (e.g., pipeline.defaults.parallel=false) are properly applied to the PipelineConfig.
+ * are properly applied to the PipelineConfig.
  */
 @ApplicationScoped
 public class PipelineConfigInitializer {
@@ -59,7 +59,6 @@ public class PipelineConfigInitializer {
         logger.info("Initializing pipeline global/default configuration");
         logger.infof("Parallelism policy: %s", stepConfig.parallelism());
         logger.infof("Max concurrency: %s", stepConfig.maxConcurrency());
-        logger.infof("Parallel: %s", config.parallel());
         logger.infof("Retry limit: %s", config.retryLimit());
         logger.infof("Retry wait: %s ms", config.retryWaitMs());
         logger.infof("Backpressure buffer capacity: %s", config.backpressureBufferCapacity());
@@ -72,7 +71,6 @@ public class PipelineConfigInitializer {
         StepConfig defaults = pipelineConfig.defaults()
                 .retryLimit(config.retryLimit())
                 .retryWait(Duration.ofMillis(config.retryWaitMs()))
-                .parallel(config.parallel())
                 .recoverOnFailure(config.recoverOnFailure())
                 .maxBackoff(Duration.ofMillis(config.maxBackoff()))
                 .jitter(config.jitter())
