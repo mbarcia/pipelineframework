@@ -46,6 +46,22 @@ public interface PipelineStepConfig {
     StepConfig defaults();
 
     /**
+     * Pipeline-level parallelism policy for per-item steps.
+     *
+     * @return the parallelism policy
+     */
+    @WithDefault("AUTO")
+    ParallelismPolicy parallelism();
+
+    /**
+     * Maximum number of concurrent in-flight items when parallel execution is enabled.
+     *
+     * @return maximum concurrency
+     */
+    @WithDefault("128")
+    Integer maxConcurrency();
+
+    /**
      * Health check configuration for pipeline startup.
      *
      * @return health check configuration

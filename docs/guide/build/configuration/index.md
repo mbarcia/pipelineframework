@@ -115,6 +115,15 @@ Prefix: `pipeline.persistence`
 |--------------------------------------|--------|---------|--------------------------------------------------------------------|
 | `pipeline.persistence.duplicate-key` | string | `fail`  | Duplicate key policy for persistence (`fail`, `ignore`, `upsert`). |
 
+### Pipeline Execution
+
+Prefix: `pipeline`
+
+| Property                   | Type    | Default | Description                                                                 |
+|----------------------------|---------|---------|-----------------------------------------------------------------------------|
+| `pipeline.parallelism`     | string  | `AUTO`  | Parallelism policy: `SEQUENTIAL`, `AUTO`, or `PARALLEL`.                    |
+| `pipeline.max-concurrency` | integer | `128`   | Maximum in-flight items when parallel execution is enabled.                |
+
 ### Global Defaults
 
 Prefix: `pipeline.defaults`
@@ -123,7 +132,7 @@ Prefix: `pipeline.defaults`
 |--------------------------------------------------|---------|----------|---------------------------------------------|
 | `pipeline.defaults.retry-limit`                  | integer | `3`      | Max retry attempts for steps.               |
 | `pipeline.defaults.retry-wait-ms`                | long    | `2000`   | Base delay between retries (ms).            |
-| `pipeline.defaults.parallel`                     | boolean | `false`  | Enables parallel processing for steps.      |
+| `pipeline.defaults.parallel`                     | boolean | `false`  | Enables parallel processing for steps (legacy override). |
 | `pipeline.defaults.recover-on-failure`           | boolean | `false`  | Enables recovery behavior on failure.       |
 | `pipeline.defaults.max-backoff`                  | long    | `30000`  | Maximum backoff delay (ms).                 |
 | `pipeline.defaults.jitter`                       | boolean | `false`  | Adds jitter to retry delays.                |

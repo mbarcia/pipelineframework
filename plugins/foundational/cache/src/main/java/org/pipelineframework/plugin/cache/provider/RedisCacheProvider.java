@@ -32,6 +32,7 @@ import io.smallrye.mutiny.Uni;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 import org.pipelineframework.cache.CacheProvider;
+import org.pipelineframework.parallelism.ThreadSafety;
 
 /**
  * Redis-based cache provider using the Quarkus Redis client.
@@ -141,6 +142,11 @@ public class RedisCacheProvider implements CacheProvider<Object> {
     @Override
     public boolean supports(Object item) {
         return true;
+    }
+
+    @Override
+    public ThreadSafety threadSafety() {
+        return ThreadSafety.SAFE;
     }
 
     private Optional<Object> deserialize(String serialized, String key) {

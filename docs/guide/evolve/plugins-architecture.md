@@ -46,6 +46,8 @@ adapters for orchestrator and plugin deployments.
 - For gRPC transport, protobuf definitions must include the type-indexed, aspect-qualified
   `Observe<AspectName><T>SideEffectService` services for any observed type, and the descriptor set must include those
   definitions.
+- For build-time parallelism validation, pass `-Apipeline.parallelism=SEQUENTIAL|AUTO|PARALLEL` to the annotation processor.
+  This enables early failures when plugins declare ordering or thread-safety constraints that conflict with the pipeline policy.
 
 ## Compilation flow (plugins)
 
@@ -89,6 +91,7 @@ By applying aspects at compile-time:
 
 - Aspect ordering within the same position and order value is implementation-dependent
 - Complex aspect interactions may be difficult to reason about
+- Build-time validation relies on plugin classes being present on the annotation processor classpath
 
 ## Intentional constraints
 

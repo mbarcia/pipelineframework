@@ -24,6 +24,7 @@ import io.quarkus.arc.Unremovable;
 import io.quarkus.hibernate.reactive.panache.Panache;
 import io.smallrye.mutiny.Uni;
 import org.jboss.logging.Logger;
+import org.pipelineframework.parallelism.ThreadSafety;
 import org.pipelineframework.persistence.PersistenceProvider;
 
 /**
@@ -89,6 +90,11 @@ public class ReactivePanachePersistenceProvider implements PersistenceProvider<O
     @Override
     public boolean supports(Object entity) {
         return entity != null && entity.getClass().isAnnotationPresent(Entity.class);
+    }
+
+    @Override
+    public ThreadSafety threadSafety() {
+        return ThreadSafety.SAFE;
     }
 
     /**

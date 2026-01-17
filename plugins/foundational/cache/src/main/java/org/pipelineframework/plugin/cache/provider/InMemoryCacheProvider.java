@@ -28,6 +28,7 @@ import io.quarkus.arc.properties.IfBuildProperty;
 import io.smallrye.mutiny.Uni;
 import org.jboss.logging.Logger;
 import org.pipelineframework.cache.CacheProvider;
+import org.pipelineframework.parallelism.ThreadSafety;
 
 /**
  * Simple in-memory cache provider for arbitrary items.
@@ -117,6 +118,11 @@ public class InMemoryCacheProvider implements CacheProvider<Object> {
     @Override
     public boolean supports(Object item) {
         return true;
+    }
+
+    @Override
+    public ThreadSafety threadSafety() {
+        return ThreadSafety.SAFE;
     }
 
     private Instant expiresAt(Duration ttl) {

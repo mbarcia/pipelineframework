@@ -25,8 +25,10 @@ import jakarta.inject.Inject;
 import io.quarkus.test.junit.QuarkusTest;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.helpers.test.AssertSubscriber;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.pipelineframework.PipelineRunner;
+import org.pipelineframework.config.ParallelismPolicy;
 import org.pipelineframework.config.PipelineConfig;
 import org.pipelineframework.config.StepConfig;
 
@@ -40,6 +42,11 @@ class PipelineRunnerTest {
 
     @Inject
     PipelineRunner runner;
+
+    @BeforeEach
+    void setSequentialPolicy() {
+        pipelineConfig.parallelism(ParallelismPolicy.SEQUENTIAL);
+    }
 
     @Test
     void testPipelineRunnerCreation() {

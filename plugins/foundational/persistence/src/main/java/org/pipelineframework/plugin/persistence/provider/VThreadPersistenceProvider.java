@@ -24,6 +24,7 @@ import io.quarkus.arc.Arc;
 import io.quarkus.arc.InjectableInstance;
 import io.smallrye.mutiny.Uni;
 import org.jboss.logging.Logger;
+import org.pipelineframework.parallelism.ThreadSafety;
 import org.pipelineframework.persistence.PersistenceProvider;
 
 /**
@@ -127,6 +128,11 @@ public class VThreadPersistenceProvider implements PersistenceProvider<Object> {
   @Override
   public boolean supports(Object entity) {
     return entity != null && entity.getClass().isAnnotationPresent(Entity.class);
+  }
+
+  @Override
+  public ThreadSafety threadSafety() {
+    return ThreadSafety.SAFE;
   }
 
   /**

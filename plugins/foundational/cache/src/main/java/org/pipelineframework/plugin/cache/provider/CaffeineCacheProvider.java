@@ -32,6 +32,7 @@ import io.smallrye.mutiny.Uni;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 import org.pipelineframework.cache.CacheProvider;
+import org.pipelineframework.parallelism.ThreadSafety;
 
 /**
  * Caffeine-based cache provider.
@@ -140,5 +141,10 @@ public class CaffeineCacheProvider implements CacheProvider<Object> {
     @Override
     public boolean supports(Object item) {
         return true;
+    }
+
+    @Override
+    public ThreadSafety threadSafety() {
+        return ThreadSafety.SAFE;
     }
 }

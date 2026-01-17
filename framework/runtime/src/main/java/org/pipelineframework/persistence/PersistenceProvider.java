@@ -17,6 +17,7 @@
 package org.pipelineframework.persistence;
 
 import io.smallrye.mutiny.Uni;
+import org.pipelineframework.parallelism.ThreadSafety;
 
 /**
  * Abstraction for persistence operations that can work with different database technologies.
@@ -70,5 +71,16 @@ public interface PersistenceProvider<T> {
     default boolean supportsThreadContext() {
         // Default implementation returns true to maintain backward compatibility
         return true;
+    }
+
+    /**
+     * Indicates whether this provider is safe to invoke concurrently.
+     *
+     * <p>Default implementation returns {@code SAFE} to preserve backward compatibility.</p>
+     *
+     * @return the thread safety declaration for this provider
+     */
+    default ThreadSafety threadSafety() {
+        return ThreadSafety.SAFE;
     }
 }

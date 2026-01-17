@@ -21,17 +21,22 @@ import jakarta.inject.Inject;
 import io.smallrye.mutiny.Uni;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
+import org.pipelineframework.annotation.ParallelismHint;
 import org.pipelineframework.cache.CacheStatus;
 import org.pipelineframework.context.PipelineCacheStatusHolder;
 import org.pipelineframework.context.PipelineContext;
 import org.pipelineframework.context.PipelineContextHolder;
+import org.pipelineframework.parallelism.OrderingRequirement;
+import org.pipelineframework.parallelism.ParallelismHints;
+import org.pipelineframework.parallelism.ThreadSafety;
 import org.pipelineframework.service.ReactiveSideEffectService;
 
 /**
  * A general-purpose cache plugin that can cache any item that exposes a cache key
  * and has a corresponding CacheProvider configured in the system.
  */
-public class CacheService<T> implements ReactiveSideEffectService<T> {
+@ParallelismHint(ordering = OrderingRequirement.RELAXED, threadSafety = ThreadSafety.SAFE)
+public class CacheService<T> implements ReactiveSideEffectService<T>, ParallelismHints {
     private final Logger logger = Logger.getLogger(CacheService.class);
 
     private final CacheManager cacheManager;
@@ -91,5 +96,18 @@ public class CacheService<T> implements ReactiveSideEffectService<T> {
             return key;
         }
         return versionTag + ":" + key;
+    }
+
+    @Override
+    public OrderingRequirement orderingRequirement() {
+        return OrderingRequirement.RELAXED;
+    }
+
+    @Override
+    public ThreadSafety threadSafety() {
+        if (cacheManager == null) {
+            return ThreadSafety.UNSAFE;
+        }
+        return cacheManager.threadSafety();
     }
 }

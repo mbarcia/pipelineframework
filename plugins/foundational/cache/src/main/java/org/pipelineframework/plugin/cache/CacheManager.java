@@ -29,6 +29,7 @@ import io.smallrye.mutiny.Uni;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 import org.pipelineframework.cache.CacheProvider;
+import org.pipelineframework.parallelism.ThreadSafety;
 
 /**
  * Manager for cache operations that delegates to registered CacheProvider implementations.
@@ -222,6 +223,20 @@ public class CacheManager {
         throw new IllegalStateException(
             "Multiple cache providers found (" + providerBackends() + "). " +
                 "Set pipeline.cache.provider explicitly.");
+    }
+
+    /**
+     * Determine whether configured providers are safe for concurrent access.
+     *
+     * @return {@code SAFE} if all providers declare SAFE, otherwise {@code UNSAFE}
+     */
+    public ThreadSafety threadSafety() {
+        if (providers == null || providers.isEmpty()) {
+            return ThreadSafety.SAFE;
+        }
+        boolean allSafe = providers.stream()
+            .allMatch(provider -> provider.threadSafety() == ThreadSafety.SAFE);
+        return allSafe ? ThreadSafety.SAFE : ThreadSafety.UNSAFE;
     }
 
     private boolean isNonProdProfile() {

@@ -40,7 +40,7 @@ Expanded side-effect steps are **chained**, not fanned out:
 - Each step receives the same element type and returns it unchanged
 - Multiple aspects on the same position execute sequentially according to ordering rules
 
-Per-step parallelism follows the normal step configuration (`parallel`, retries, DLQ). There is no implicit fan-out or parallel execution introduced by aspects.
+Parallelism follows the pipeline-level policy (`pipeline.parallelism`, `pipeline.max-concurrency`). There is no implicit fan-out or parallel execution introduced by aspects.
 
 ## Failure semantics
 

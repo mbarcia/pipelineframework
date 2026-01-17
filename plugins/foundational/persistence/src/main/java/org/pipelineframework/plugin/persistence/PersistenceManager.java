@@ -26,6 +26,7 @@ import io.quarkus.arc.Unremovable;
 import io.quarkus.hibernate.reactive.panache.common.WithTransaction;
 import io.smallrye.mutiny.Uni;
 import org.jboss.logging.Logger;
+import org.pipelineframework.parallelism.ThreadSafety;
 import org.pipelineframework.persistence.PersistenceProvider;
 
 /**
@@ -130,5 +131,19 @@ public class PersistenceManager {
 
         LOG.warnf("No persistence provider found for %s", entity.getClass().getName());
         return Uni.createFrom().item(entity);
+    }
+
+    /**
+     * Determine whether configured providers are safe for concurrent access.
+     *
+     * @return {@code SAFE} if all providers declare SAFE, otherwise {@code UNSAFE}
+     */
+    public ThreadSafety threadSafety() {
+        if (providers == null || providers.isEmpty()) {
+            return ThreadSafety.SAFE;
+        }
+        boolean allSafe = providers.stream()
+            .allMatch(provider -> provider.threadSafety() == ThreadSafety.SAFE);
+        return allSafe ? ThreadSafety.SAFE : ThreadSafety.UNSAFE;
     }
 }

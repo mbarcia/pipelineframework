@@ -3,8 +3,12 @@ package org.pipelineframework.processor.phase;
 import java.util.List;
 import java.util.Set;
 import javax.lang.model.element.Element;
+import javax.tools.Diagnostic;
 
+import org.pipelineframework.annotation.ParallelismHint;
 import org.pipelineframework.annotation.PipelineOrchestrator;
+import org.pipelineframework.parallelism.OrderingRequirement;
+import org.pipelineframework.parallelism.ThreadSafety;
 import org.pipelineframework.processor.PipelineCompilationContext;
 import org.pipelineframework.processor.PipelineCompilationPhase;
 import org.pipelineframework.processor.ir.PipelineAspectModel;
@@ -38,8 +42,109 @@ public class PipelineSemanticAnalysisPhase implements PipelineCompilationPhase {
         boolean shouldGenerateOrchestrator = shouldGenerateOrchestrator(ctx);
         ctx.setOrchestratorGenerated(shouldGenerateOrchestrator);
 
+        validateParallelismHints(ctx);
+
         // Analyze streaming shapes and other semantic properties
         // This phase focuses on semantic analysis without building bindings or calling renderers
+    }
+
+    private void validateParallelismHints(PipelineCompilationContext ctx) {
+        if (ctx == null || ctx.getProcessingEnv() == null) {
+            return;
+        }
+        List<PipelineAspectModel> aspects = ctx.getAspectModels();
+        if (aspects == null || aspects.isEmpty()) {
+            return;
+        }
+
+        String policy = ctx.getProcessingEnv().getOptions().get("pipeline.parallelism");
+        String normalizedPolicy = policy == null ? null : policy.trim().toUpperCase();
+
+        for (PipelineAspectModel aspect : aspects) {
+            if (aspect == null || aspect.config() == null) {
+                continue;
+            }
+            Object implValue = aspect.config().get("pluginImplementationClass");
+            if (implValue == null) {
+                continue;
+            }
+            String implClass = String.valueOf(implValue).trim();
+            if (implClass.isEmpty()) {
+                continue;
+            }
+            var elementUtils = ctx.getProcessingEnv().getElementUtils();
+            var typeElement = elementUtils.getTypeElement(implClass);
+            if (typeElement == null) {
+                ctx.getProcessingEnv().getMessager().printMessage(
+                    Diagnostic.Kind.WARNING,
+                    "Plugin implementation class '" + implClass + "' not found for aspect '" + aspect.name() + "'");
+                continue;
+            }
+
+            ParallelismHint hint = typeElement.getAnnotation(ParallelismHint.class);
+            if (hint == null) {
+                ctx.getProcessingEnv().getMessager().printMessage(
+                    Diagnostic.Kind.WARNING,
+                    "Plugin implementation class '" + implClass + "' does not declare @ParallelismHint; " +
+                        "parallelism ordering/thread-safety cannot be validated at build time.");
+                continue;
+            }
+
+            OrderingRequirement ordering = hint.ordering();
+            ThreadSafety threadSafety = hint.threadSafety();
+
+            boolean policyKnown = normalizedPolicy != null && !normalizedPolicy.isBlank();
+            boolean sequentialPolicy = "SEQUENTIAL".equals(normalizedPolicy);
+            boolean autoPolicy = "AUTO".equals(normalizedPolicy);
+            boolean parallelPolicy = "PARALLEL".equals(normalizedPolicy);
+
+            if (threadSafety == ThreadSafety.UNSAFE) {
+                if (policyKnown && !sequentialPolicy) {
+                    ctx.getProcessingEnv().getMessager().printMessage(
+                        Diagnostic.Kind.ERROR,
+                        "Plugin '" + implClass + "' is not thread-safe. " +
+                            "Set pipeline.parallelism=SEQUENTIAL to use aspect '" + aspect.name() + "'.");
+                } else if (!policyKnown) {
+                    ctx.getProcessingEnv().getMessager().printMessage(
+                        Diagnostic.Kind.WARNING,
+                        "Plugin '" + implClass + "' is not thread-safe. " +
+                            "Set pipeline.parallelism=SEQUENTIAL to use aspect '" + aspect.name() + "'.");
+                }
+            }
+
+            if (ordering == OrderingRequirement.STRICT_REQUIRED) {
+                if (policyKnown && !sequentialPolicy) {
+                    ctx.getProcessingEnv().getMessager().printMessage(
+                        Diagnostic.Kind.ERROR,
+                        "Plugin '" + implClass + "' requires strict ordering. " +
+                            "Set pipeline.parallelism=SEQUENTIAL to use aspect '" + aspect.name() + "'.");
+                } else if (!policyKnown) {
+                    ctx.getProcessingEnv().getMessager().printMessage(
+                        Diagnostic.Kind.WARNING,
+                        "Plugin '" + implClass + "' requires strict ordering. " +
+                            "Set pipeline.parallelism=SEQUENTIAL to use aspect '" + aspect.name() + "'.");
+                }
+            }
+
+            if (ordering == OrderingRequirement.STRICT_ADVISED) {
+                if (!policyKnown) {
+                    ctx.getProcessingEnv().getMessager().printMessage(
+                        Diagnostic.Kind.WARNING,
+                        "Plugin '" + implClass + "' advises strict ordering for aspect '" + aspect.name() + "'. " +
+                            "AUTO will run sequentially; PARALLEL will override the advice.");
+                } else if (autoPolicy) {
+                    ctx.getProcessingEnv().getMessager().printMessage(
+                        Diagnostic.Kind.WARNING,
+                        "Plugin '" + implClass + "' advises strict ordering; AUTO will run sequentially " +
+                            "for aspect '" + aspect.name() + "'.");
+                } else if (parallelPolicy) {
+                    ctx.getProcessingEnv().getMessager().printMessage(
+                        Diagnostic.Kind.WARNING,
+                        "Plugin '" + implClass + "' advises strict ordering; PARALLEL overrides the advice " +
+                            "for aspect '" + aspect.name() + "'.");
+                }
+            }
+        }
     }
 
     /**

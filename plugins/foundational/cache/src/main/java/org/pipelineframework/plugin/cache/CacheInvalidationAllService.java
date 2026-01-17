@@ -20,15 +20,20 @@ import jakarta.inject.Inject;
 
 import io.smallrye.mutiny.Uni;
 import org.jboss.logging.Logger;
+import org.pipelineframework.annotation.ParallelismHint;
 import org.pipelineframework.cache.PipelineCacheKeyFormat;
 import org.pipelineframework.context.PipelineContext;
 import org.pipelineframework.context.PipelineContextHolder;
+import org.pipelineframework.parallelism.OrderingRequirement;
+import org.pipelineframework.parallelism.ParallelismHints;
+import org.pipelineframework.parallelism.ThreadSafety;
 import org.pipelineframework.service.ReactiveSideEffectService;
 
 /**
  * Side-effect plugin that invalidates all cached entries for a given item type.
  */
-public class CacheInvalidationAllService<T> implements ReactiveSideEffectService<T> {
+@ParallelismHint(ordering = OrderingRequirement.RELAXED, threadSafety = ThreadSafety.SAFE)
+public class CacheInvalidationAllService<T> implements ReactiveSideEffectService<T>, ParallelismHints {
     private static final Logger LOG = Logger.getLogger(CacheInvalidationAllService.class);
 
     @Inject
@@ -76,5 +81,18 @@ public class CacheInvalidationAllService<T> implements ReactiveSideEffectService
             }
         }
         return PipelineCacheKeyFormat.typePrefix(item.getClass(), versionTag);
+    }
+
+    @Override
+    public OrderingRequirement orderingRequirement() {
+        return OrderingRequirement.RELAXED;
+    }
+
+    @Override
+    public ThreadSafety threadSafety() {
+        if (cacheManager == null) {
+            return ThreadSafety.UNSAFE;
+        }
+        return cacheManager.threadSafety();
     }
 }

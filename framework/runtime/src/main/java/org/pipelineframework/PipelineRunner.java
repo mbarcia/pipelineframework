@@ -26,7 +26,11 @@ import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import org.jboss.logging.Logger;
 import org.pipelineframework.cache.CachePolicyEnforcer;
+import org.pipelineframework.config.ParallelismPolicy;
 import org.pipelineframework.config.PipelineConfig;
+import org.pipelineframework.parallelism.OrderingRequirement;
+import org.pipelineframework.parallelism.ParallelismHints;
+import org.pipelineframework.parallelism.ThreadSafety;
 import org.pipelineframework.step.*;
 import org.pipelineframework.step.blocking.StepOneToManyBlocking;
 import org.pipelineframework.step.functional.ManyToOne;
@@ -43,6 +47,24 @@ import org.pipelineframework.step.future.StepOneToOneCompletableFuture;
 public class PipelineRunner implements AutoCloseable {
 
     private static final Logger logger = Logger.getLogger(PipelineRunner.class);
+    private static final int DEFAULT_MAX_CONCURRENCY = 128;
+
+    private enum StepParallelismType {
+        ONE_TO_ONE(false),
+        ONE_TO_ONE_FUTURE(false),
+        ONE_TO_MANY(true),
+        ONE_TO_MANY_BLOCKING(true);
+
+        private final boolean autoCandidate;
+
+        StepParallelismType(boolean autoCandidate) {
+            this.autoCandidate = autoCandidate;
+        }
+
+        boolean autoCandidate() {
+            return autoCandidate;
+        }
+    }
 
     @Inject
     ConfigFactory configFactory;
@@ -79,6 +101,8 @@ public class PipelineRunner implements AutoCloseable {
         List<Object> orderedSteps = orderSteps(steps);
 
         Object current = input;
+        ParallelismPolicy parallelismPolicy = resolveParallelismPolicy();
+        int maxConcurrency = resolveMaxConcurrency();
 
         for (Object step : orderedSteps) {
             if (step == null) {
@@ -97,10 +121,22 @@ public class PipelineRunner implements AutoCloseable {
             }
 
             switch (step) {
-                case StepOneToOne stepOneToOne -> current = applyOneToOneUnchecked(stepOneToOne, current);
-                case StepOneToOneCompletableFuture stepFuture -> current = applyOneToOneFutureUnchecked(stepFuture, current);
-                case StepOneToMany stepOneToMany -> current = applyOneToManyUnchecked(stepOneToMany, current);
-                case StepOneToManyBlocking stepOneToManyBlocking -> current = applyOneToManyBlockingUnchecked(stepOneToManyBlocking, current);
+                case StepOneToOne stepOneToOne -> {
+                    boolean parallel = shouldParallelize(stepOneToOne, parallelismPolicy, StepParallelismType.ONE_TO_ONE);
+                    current = applyOneToOneUnchecked(stepOneToOne, current, parallel, maxConcurrency);
+                }
+                case StepOneToOneCompletableFuture stepFuture -> {
+                    boolean parallel = shouldParallelize(stepFuture, parallelismPolicy, StepParallelismType.ONE_TO_ONE_FUTURE);
+                    current = applyOneToOneFutureUnchecked(stepFuture, current, parallel, maxConcurrency);
+                }
+                case StepOneToMany stepOneToMany -> {
+                    boolean parallel = shouldParallelize(stepOneToMany, parallelismPolicy, StepParallelismType.ONE_TO_MANY);
+                    current = applyOneToManyUnchecked(stepOneToMany, current, parallel, maxConcurrency);
+                }
+                case StepOneToManyBlocking stepOneToManyBlocking -> {
+                    boolean parallel = shouldParallelize(stepOneToManyBlocking, parallelismPolicy, StepParallelismType.ONE_TO_MANY_BLOCKING);
+                    current = applyOneToManyBlockingUnchecked(stepOneToManyBlocking, current, parallel, maxConcurrency);
+                }
                 case ManyToOne manyToOne -> current = applyManyToOneUnchecked(manyToOne, current);
                 case StepManyToMany manyToMany -> current = applyManyToManyUnchecked(manyToMany, current);
                 default -> logger.errorf("Step not recognised: %s", step.getClass().getName());
@@ -193,6 +229,70 @@ public class PipelineRunner implements AutoCloseable {
         return orderedSteps;
     }
 
+    private ParallelismPolicy resolveParallelismPolicy() {
+        if (pipelineConfig == null || pipelineConfig.parallelism() == null) {
+            return ParallelismPolicy.AUTO;
+        }
+        return pipelineConfig.parallelism();
+    }
+
+    private int resolveMaxConcurrency() {
+        int configured = pipelineConfig != null ? pipelineConfig.maxConcurrency() : DEFAULT_MAX_CONCURRENCY;
+        if (configured < 1) {
+            logger.warnf("Invalid maxConcurrency=%s; using 1", configured);
+            return 1;
+        }
+        return configured;
+    }
+
+    private boolean shouldParallelize(Object step, ParallelismPolicy policy, StepParallelismType stepType) {
+        OrderingRequirement orderingRequirement = OrderingRequirement.RELAXED;
+        ThreadSafety threadSafety = ThreadSafety.SAFE;
+        if (step instanceof ParallelismHints hints) {
+            orderingRequirement = hints.orderingRequirement();
+            threadSafety = hints.threadSafety();
+        }
+
+        ParallelismPolicy effectivePolicy = policy == null ? ParallelismPolicy.AUTO : policy;
+        String stepName = step != null ? step.getClass().getName() : "unknown";
+
+        if (threadSafety == ThreadSafety.UNSAFE && effectivePolicy != ParallelismPolicy.SEQUENTIAL) {
+            throw new IllegalStateException("Step " + stepName + " is not thread-safe; " +
+                "set pipeline.parallelism=SEQUENTIAL to proceed.");
+        }
+
+        if (orderingRequirement == OrderingRequirement.STRICT_REQUIRED &&
+            effectivePolicy != ParallelismPolicy.SEQUENTIAL) {
+            throw new IllegalStateException("Step " + stepName + " requires strict ordering; " +
+                "set pipeline.parallelism=SEQUENTIAL to proceed.");
+        }
+
+        if (effectivePolicy == ParallelismPolicy.SEQUENTIAL) {
+            return false;
+        }
+
+        if (orderingRequirement == OrderingRequirement.STRICT_ADVISED) {
+            if (effectivePolicy == ParallelismPolicy.AUTO) {
+                logger.warnf("Step %s advises strict ordering; AUTO will run sequentially. " +
+                        "Set pipeline.parallelism=PARALLEL to override.",
+                    stepName);
+                return false;
+            }
+            logger.warnf("Step %s advises strict ordering; PARALLEL overrides the advice.", stepName);
+        }
+
+        if (effectivePolicy == ParallelismPolicy.PARALLEL) {
+            return true;
+        }
+
+        boolean explicitParallel = step instanceof Configurable configurable && configurable.parallel();
+        if (explicitParallel) {
+            return true;
+        }
+
+        return stepType.autoCandidate();
+    }
+
     /**
      * Apply a one-to-one pipeline step to the provided reactive stream and produce the transformed stream.
      *
@@ -205,20 +305,31 @@ public class PipelineRunner implements AutoCloseable {
      */
     @SuppressWarnings({"unchecked"})
     public static <I, O> Object applyOneToOneUnchecked(StepOneToOne<I, O> step, Object current) {
+        boolean parallel = step.parallel();
+        return applyOneToOneUnchecked(step, current, parallel, DEFAULT_MAX_CONCURRENCY);
+    }
+
+    @SuppressWarnings({"unchecked"})
+    private static <I, O> Object applyOneToOneUnchecked(
+        StepOneToOne<I, O> step, Object current, boolean parallel, int maxConcurrency) {
         if (current instanceof Uni<?>) {
             return step.apply((Uni<I>) current)
                 .onItem().transformToUni(CachePolicyEnforcer::enforce);
         } else if (current instanceof Multi<?>) {
-            if (step.parallel()) {
-                logger.debugf("Applying step %s (flatMap)", step.getClass());
-                return ((Multi<I>) current).flatMap(item -> step.apply(Uni.createFrom().item(item))
-                    .onItem().transformToUni(CachePolicyEnforcer::enforce)
-                    .toMulti());
+            if (parallel) {
+                logger.debugf("Applying step %s (merge)", step.getClass());
+                return ((Multi<I>) current)
+                    .onItem()
+                    .transformToUni(item -> step.apply(Uni.createFrom().item(item))
+                        .onItem().transformToUni(CachePolicyEnforcer::enforce))
+                    .merge(maxConcurrency);
             } else {
-                logger.debugf("Applying step %s (concatMap)", step.getClass());
-                return ((Multi<I>) current).concatMap(item -> step.apply(Uni.createFrom().item(item))
-                    .onItem().transformToUni(CachePolicyEnforcer::enforce)
-                    .toMulti());
+                logger.debugf("Applying step %s (concatenate)", step.getClass());
+                return ((Multi<I>) current)
+                    .onItem()
+                    .transformToUni(item -> step.apply(Uni.createFrom().item(item))
+                        .onItem().transformToUni(CachePolicyEnforcer::enforce))
+                    .concatenate();
             }
         } else {
             throw new IllegalArgumentException(MessageFormat.format("Unsupported current type for StepOneToOne: {0}", current));
@@ -226,14 +337,21 @@ public class PipelineRunner implements AutoCloseable {
     }
 
     @SuppressWarnings("unchecked")
-    private static <I, O> Object applyOneToOneFutureUnchecked(StepOneToOneCompletableFuture<I, O> step, Object current) {
+    private static <I, O> Object applyOneToOneFutureUnchecked(
+        StepOneToOneCompletableFuture<I, O> step, Object current, boolean parallel, int maxConcurrency) {
         if (current instanceof Uni<?>) {
             return step.apply((Uni<I>) current);
         } else if (current instanceof Multi<?>) {
-            if (step.parallel()) {
-                return ((Multi<I>) current).flatMap(item -> step.apply(Uni.createFrom().item(item)).toMulti());
+            if (parallel) {
+                return ((Multi<I>) current)
+                    .onItem()
+                    .transformToUni(item -> step.apply(Uni.createFrom().item(item)))
+                    .merge(maxConcurrency);
             } else {
-                return ((Multi<I>) current).concatMap(item -> step.apply(Uni.createFrom().item(item)).toMulti());
+                return ((Multi<I>) current)
+                    .onItem()
+                    .transformToUni(item -> step.apply(Uni.createFrom().item(item)))
+                    .concatenate();
             }
         } else {
             throw new IllegalArgumentException(MessageFormat.format("Unsupported current type for StepOneToOneCompletableFuture: {0}", current));
@@ -241,16 +359,23 @@ public class PipelineRunner implements AutoCloseable {
     }
 
     @SuppressWarnings({"unchecked"})
-    private static <I, O> Object applyOneToManyBlockingUnchecked(StepOneToManyBlocking<I, O> step, Object current) {
+    private static <I, O> Object applyOneToManyBlockingUnchecked(
+        StepOneToManyBlocking<I, O> step, Object current, boolean parallel, int maxConcurrency) {
         if (current instanceof Uni<?>) {
             return step.apply((Uni<I>) current);
         } else if (current instanceof Multi<?>) {
-            if (step.parallel()) {
-                logger.debugf("Applying step %s (flatMap)", step.getClass());
-                return ((Multi<I>) current).flatMap(item -> step.apply(Uni.createFrom().item(item)));
+            if (parallel) {
+                logger.debugf("Applying step %s (merge)", step.getClass());
+                return ((Multi<I>) current)
+                    .onItem()
+                    .transformToMulti(item -> step.apply(Uni.createFrom().item(item)))
+                    .merge(maxConcurrency);
             } else {
-                logger.debugf("Applying step %s (concatMap)", step.getClass());
-                return ((Multi<I>) current).concatMap(item -> step.apply(Uni.createFrom().item(item)));
+                logger.debugf("Applying step %s (concatenate)", step.getClass());
+                return ((Multi<I>) current)
+                    .onItem()
+                    .transformToMulti(item -> step.apply(Uni.createFrom().item(item)))
+                    .concatenate();
             }
         } else {
             throw new IllegalArgumentException(MessageFormat.format("Unsupported current type for StepOneToManyBlocking: {0}", current));
@@ -258,16 +383,23 @@ public class PipelineRunner implements AutoCloseable {
     }
 
     @SuppressWarnings({"unchecked"})
-    private static <I, O> Object applyOneToManyUnchecked(StepOneToMany<I, O> step, Object current) {
+    private static <I, O> Object applyOneToManyUnchecked(
+        StepOneToMany<I, O> step, Object current, boolean parallel, int maxConcurrency) {
         if (current instanceof Uni<?>) {
             return step.apply((Uni<I>) current);
         } else if (current instanceof Multi<?>) {
-            if (step.parallel()) {
-                logger.debugf("Applying step %s (flatMap)", step.getClass());
-                return ((Multi<I>) current).flatMap(item -> step.apply(Uni.createFrom().item(item)));
+            if (parallel) {
+                logger.debugf("Applying step %s (merge)", step.getClass());
+                return ((Multi<I>) current)
+                    .onItem()
+                    .transformToMulti(item -> step.apply(Uni.createFrom().item(item)))
+                    .merge(maxConcurrency);
             } else {
-                logger.debugf("Applying step %s (concatMap)", step.getClass());
-                return ((Multi<I>) current).concatMap(item -> step.apply(Uni.createFrom().item(item)));
+                logger.debugf("Applying step %s (concatenate)", step.getClass());
+                return ((Multi<I>) current)
+                    .onItem()
+                    .transformToMulti(item -> step.apply(Uni.createFrom().item(item)))
+                    .concatenate();
             }
         } else {
             throw new IllegalArgumentException(MessageFormat.format("Unsupported current type for StepOneToMany: {0}", current));

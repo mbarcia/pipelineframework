@@ -44,6 +44,7 @@
         <surefireArgLine />
         <pipeline.generatedSourcesArg />
         <protobuf.descriptor.fileArg />
+        <pipeline.parallelism>PARALLEL</pipeline.parallelism>
         <!-- Default: don't build containers unless specifically enabled -->
         <quarkus.container-image.build>false</quarkus.container-image.build>
         <quarkus.container-image.registry>localhost</quarkus.container-image.registry>

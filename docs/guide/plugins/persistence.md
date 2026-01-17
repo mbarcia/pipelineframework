@@ -35,6 +35,15 @@ Providers implement `PersistenceProvider<T>` and declare whether they support th
 
 This lets you plug in multiple backends without changing the plugin code.
 
+## Parallelism guidance
+
+The persistence plugin declares `STRICT_ADVISED` ordering by default. With `pipeline.parallelism=AUTO`,
+the framework will run it sequentially and warn; with `pipeline.parallelism=PARALLEL` the framework will
+allow parallel execution and warn that ordering advice is overridden.
+
+If your workload depends on ordering (for example, sequence numbers or cross-step dependencies), keep
+the pipeline in `SEQUENTIAL` or `AUTO`.
+
 ## Runtime note
 
 Reactive persistence requires a Mutiny session or transaction. The plugin ensures this by running persistence calls inside a transaction boundary (via the persistence manager). If you add custom persistence providers, keep the reactive session/transaction requirement in mind.

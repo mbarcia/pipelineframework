@@ -20,6 +20,7 @@ import java.time.Duration;
 import java.util.Optional;
 
 import io.smallrye.mutiny.Uni;
+import org.pipelineframework.parallelism.ThreadSafety;
 
 /**
  * Abstraction for cache operations across different cache backends.
@@ -122,5 +123,16 @@ public interface CacheProvider<T> {
      */
     default boolean supportsThreadContext() {
         return true;
+    }
+
+    /**
+     * Indicates whether this provider is safe to invoke concurrently.
+     *
+     * <p>Default implementation returns {@code SAFE} to preserve backward compatibility.</p>
+     *
+     * @return the thread safety declaration for this provider
+     */
+    default ThreadSafety threadSafety() {
+        return ThreadSafety.SAFE;
     }
 }
