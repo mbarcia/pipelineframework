@@ -50,6 +50,42 @@ async function copySources() {
   }
 }
 
+async function applySearchExclusion() {
+  async function walk(dir) {
+    const entries = await fs.readdir(dir, {withFileTypes: true})
+    for (const entry of entries) {
+      const entryPath = path.join(dir, entry.name)
+      if (entry.isDirectory()) {
+        await walk(entryPath)
+      } else if (entry.isFile() && entry.name.endsWith('.md')) {
+        await ensureFrontmatterFlag(entryPath, 'search', 'false')
+      }
+    }
+  }
+  await walk(destRoot)
+}
+
+async function ensureFrontmatterFlag(filePath, key, value) {
+  const content = await fs.readFile(filePath, 'utf8')
+  if (content.startsWith('---\n')) {
+    const endIndex = content.indexOf('\n---', 4)
+    if (endIndex !== -1) {
+      const frontmatter = content.slice(4, endIndex + 1)
+      if (frontmatter.includes(`${key}:`)) {
+        return
+      }
+      const updatedFrontmatter = `${frontmatter}${key}: ${value}\n`
+      const updated =
+        `---\n${updatedFrontmatter}---` +
+        content.slice(endIndex + '\n---'.length)
+      await fs.writeFile(filePath, updated)
+      return
+    }
+  }
+  const updated = `---\n${key}: ${value}\n---\n\n${content}`
+  await fs.writeFile(filePath, updated)
+}
+
 async function updateVersionsPage() {
   const versionsPath = path.join(root, 'versions.md')
   if (!(await exists(versionsPath))) {
@@ -87,6 +123,7 @@ async function updateVersionSelector() {
 async function main() {
   await ensureCleanDestination()
   await copySources()
+  await applySearchExclusion()
   await updateVersionsPage()
   await updateVersionSelector()
   console.log(`Docs snapshot created at docs/versions/${version}`)
