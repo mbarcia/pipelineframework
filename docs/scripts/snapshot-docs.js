@@ -59,10 +59,40 @@ async function applySearchExclusion() {
         await walk(entryPath)
       } else if (entry.isFile() && entry.name.endsWith('.md')) {
         await ensureFrontmatterFlag(entryPath, 'search', 'false')
+        await rewriteInternalLinks(entryPath)
       }
     }
   }
   await walk(destRoot)
+}
+
+async function rewriteInternalLinks(filePath) {
+  const content = await fs.readFile(filePath, 'utf8')
+  const versionPrefix = `/versions/${version}`
+  let updated = content
+
+  const replacements = [
+    {from: '](/)', to: `](${versionPrefix}/)`},
+    {from: '](/index)', to: `](${versionPrefix}/index)`},
+    {from: '](/guide)', to: `](${versionPrefix}/guide)`},
+    {from: '](/guide/', to: `](${versionPrefix}/guide/`},
+    {from: 'href="/"', to: `href="${versionPrefix}/"`},
+    {from: 'href="/index"', to: `href="${versionPrefix}/index"`},
+    {from: 'href="/guide"', to: `href="${versionPrefix}/guide"`},
+    {from: 'href="/guide/', to: `href="${versionPrefix}/guide/`},
+    {from: "href='/'", to: `href='${versionPrefix}/'`},
+    {from: "href='/index'", to: `href='${versionPrefix}/index'`},
+    {from: "href='/guide'", to: `href='${versionPrefix}/guide'`},
+    {from: "href='/guide/", to: `href='${versionPrefix}/guide/`}
+  ]
+
+  for (const {from, to} of replacements) {
+    updated = updated.split(from).join(to)
+  }
+
+  if (updated !== content) {
+    await fs.writeFile(filePath, updated)
+  }
 }
 
 async function ensureFrontmatterFlag(filePath, key, value) {
