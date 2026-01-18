@@ -24,6 +24,8 @@ import io.quarkus.arc.Arc;
 import io.quarkus.arc.InjectableInstance;
 import io.smallrye.mutiny.Uni;
 import org.jboss.logging.Logger;
+import org.pipelineframework.annotation.ParallelismHint;
+import org.pipelineframework.parallelism.OrderingRequirement;
 import org.pipelineframework.parallelism.ThreadSafety;
 import org.pipelineframework.persistence.PersistenceProvider;
 
@@ -32,6 +34,7 @@ import org.pipelineframework.persistence.PersistenceProvider;
  * This provider is designed to handle persistence operations within virtual thread contexts.
  */
 @Dependent
+@ParallelismHint(ordering = OrderingRequirement.STRICT_ADVISED, threadSafety = ThreadSafety.SAFE)
 public class VThreadPersistenceProvider implements PersistenceProvider<Object> {
 
   private final Logger logger = Logger.getLogger(VThreadPersistenceProvider.class);

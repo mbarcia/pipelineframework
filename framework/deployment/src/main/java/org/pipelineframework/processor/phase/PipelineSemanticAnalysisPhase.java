@@ -43,6 +43,7 @@ public class PipelineSemanticAnalysisPhase implements PipelineCompilationPhase {
         ctx.setOrchestratorGenerated(shouldGenerateOrchestrator);
 
         validateParallelismHints(ctx);
+        validateProviderHints(ctx);
 
         // Analyze streaming shapes and other semantic properties
         // This phase focuses on semantic analysis without building bindings or calling renderers
@@ -81,12 +82,19 @@ public class PipelineSemanticAnalysisPhase implements PipelineCompilationPhase {
                 continue;
             }
 
+            Object providerClass = aspect.config().get("providerClass");
+            if (providerClass != null && !String.valueOf(providerClass).isBlank()) {
+                validateProviderHint(ctx, String.valueOf(providerClass).trim(),
+                    "Aspect '" + aspect.name() + "' provider", normalizedPolicy);
+                continue;
+            }
+
             ParallelismHint hint = typeElement.getAnnotation(ParallelismHint.class);
             if (hint == null) {
                 ctx.getProcessingEnv().getMessager().printMessage(
                     Diagnostic.Kind.WARNING,
-                    "Plugin implementation class '" + implClass + "' does not declare @ParallelismHint; " +
-                        "parallelism ordering/thread-safety cannot be validated at build time.");
+                    "Plugin implementation class '" + implClass + "' does not declare @ParallelismHint " +
+                        "and no providerClass is configured for aspect '" + aspect.name() + "'.");
                 continue;
             }
 
@@ -143,6 +151,103 @@ public class PipelineSemanticAnalysisPhase implements PipelineCompilationPhase {
                         "Plugin '" + implClass + "' advises strict ordering; PARALLEL overrides the advice " +
                             "for aspect '" + aspect.name() + "'.");
                 }
+            }
+        }
+    }
+
+    private void validateProviderHints(PipelineCompilationContext ctx) {
+        if (ctx == null || ctx.getProcessingEnv() == null) {
+            return;
+        }
+        String policy = ctx.getProcessingEnv().getOptions().get("pipeline.parallelism");
+        String normalizedPolicy = policy == null ? null : policy.trim().toUpperCase();
+        var options = ctx.getProcessingEnv().getOptions();
+        for (var entry : options.entrySet()) {
+            String key = entry.getKey();
+            if (key == null || !key.startsWith("pipeline.provider.class.")) {
+                continue;
+            }
+            String providerClass = entry.getValue();
+            if (providerClass == null || providerClass.isBlank()) {
+                continue;
+            }
+            String label = "Provider '" + key.substring("pipeline.provider.class.".length()) + "'";
+            validateProviderHint(ctx, providerClass.trim(), label, normalizedPolicy);
+        }
+    }
+
+    private void validateProviderHint(PipelineCompilationContext ctx,
+                                      String trimmedClass,
+                                      String label,
+                                      String normalizedPolicy) {
+        var elementUtils = ctx.getProcessingEnv().getElementUtils();
+        var typeElement = elementUtils.getTypeElement(trimmedClass);
+        if (typeElement == null) {
+            ctx.getProcessingEnv().getMessager().printMessage(
+                Diagnostic.Kind.ERROR,
+                label + " class '" + trimmedClass + "' not found for processing option");
+            return;
+        }
+
+        ParallelismHint hint = typeElement.getAnnotation(ParallelismHint.class);
+        if (hint == null) {
+            ctx.getProcessingEnv().getMessager().printMessage(
+                Diagnostic.Kind.WARNING,
+                label + " class '" + trimmedClass + "' does not declare @ParallelismHint; " +
+                    "parallelism ordering/thread-safety cannot be validated at build time.");
+            return;
+        }
+
+        OrderingRequirement ordering = hint.ordering();
+        ThreadSafety threadSafety = hint.threadSafety();
+
+        boolean policyKnown = normalizedPolicy != null && !normalizedPolicy.isBlank();
+        boolean sequentialPolicy = "SEQUENTIAL".equals(normalizedPolicy);
+        boolean autoPolicy = "AUTO".equals(normalizedPolicy);
+        boolean parallelPolicy = "PARALLEL".equals(normalizedPolicy);
+
+        if (threadSafety == ThreadSafety.UNSAFE) {
+            if (policyKnown && !sequentialPolicy) {
+                ctx.getProcessingEnv().getMessager().printMessage(
+                    Diagnostic.Kind.ERROR,
+                    label + " '" + trimmedClass + "' is not thread-safe. " +
+                        "Set pipeline.parallelism=SEQUENTIAL.");
+            } else if (!policyKnown) {
+                ctx.getProcessingEnv().getMessager().printMessage(
+                    Diagnostic.Kind.WARNING,
+                    label + " '" + trimmedClass + "' is not thread-safe. " +
+                        "Set pipeline.parallelism=SEQUENTIAL.");
+            }
+        }
+
+        if (ordering == OrderingRequirement.STRICT_REQUIRED) {
+            if (policyKnown && !sequentialPolicy) {
+                ctx.getProcessingEnv().getMessager().printMessage(
+                    Diagnostic.Kind.ERROR,
+                    label + " '" + trimmedClass + "' requires strict ordering. " +
+                        "Set pipeline.parallelism=SEQUENTIAL.");
+            } else if (!policyKnown) {
+                ctx.getProcessingEnv().getMessager().printMessage(
+                    Diagnostic.Kind.WARNING,
+                    label + " '" + trimmedClass + "' requires strict ordering. " +
+                        "Set pipeline.parallelism=SEQUENTIAL.");
+            }
+        }
+
+        if (ordering == OrderingRequirement.STRICT_ADVISED) {
+            if (!policyKnown) {
+                ctx.getProcessingEnv().getMessager().printMessage(
+                    Diagnostic.Kind.WARNING,
+                    label + " '" + trimmedClass + "' advises strict ordering. " +
+                        "AUTO will run sequentially; PARALLEL will override the advice.");
+            } else if (autoPolicy) {
+                ctx.getProcessingEnv().getMessager().printMessage(
+                    Diagnostic.Kind.WARNING,
+                    label + " '" + trimmedClass + "' advises strict ordering; AUTO will run sequentially.");
+            } else if (parallelPolicy) {
+                ctx.getProcessingEnv().getMessager().printMessage(
+                    Diagnostic.Kind.WARNING,
+                    label + " '" + trimmedClass + "' advises strict ordering; PARALLEL overrides the advice.");
             }
         }
     }

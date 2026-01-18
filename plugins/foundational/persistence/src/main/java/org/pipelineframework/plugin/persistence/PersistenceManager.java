@@ -17,6 +17,9 @@
 package org.pipelineframework.plugin.persistence;
 
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
@@ -25,7 +28,10 @@ import jakarta.inject.Inject;
 import io.quarkus.arc.Unremovable;
 import io.quarkus.hibernate.reactive.panache.common.WithTransaction;
 import io.smallrye.mutiny.Uni;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
+import org.pipelineframework.annotation.ParallelismHint;
+import org.pipelineframework.parallelism.OrderingRequirement;
 import org.pipelineframework.parallelism.ThreadSafety;
 import org.pipelineframework.persistence.PersistenceProvider;
 
@@ -42,9 +48,14 @@ public class PersistenceManager {
     private static final Logger LOG = Logger.getLogger(PersistenceManager.class);
 
     private List<PersistenceProvider<?>> providers;
+    private final Set<Class<?>> warnedOrderingDefaults = ConcurrentHashMap.newKeySet();
+    private final Set<Class<?>> warnedThreadSafetyDefaults = ConcurrentHashMap.newKeySet();
 
     @Inject
     Instance<PersistenceProvider<?>> providerInstance;
+
+    @ConfigProperty(name = "pipeline.persistence.provider.class")
+    Optional<String> persistenceProviderClass;
 
     /**
      * Default constructor for PersistenceManager.
@@ -84,16 +95,11 @@ public class PersistenceManager {
         }
 
         LOG.debugf("Entity to persist: %s", entity.getClass().getName());
-        for (PersistenceProvider<?> provider : providers) {
-            if (!provider.supports(entity)) continue;
-
-            // Check if the provider supports the current thread context
-            if (!provider.supportsThreadContext()) continue;
-
+        PersistenceProvider<?> provider = resolveProvider(entity);
+        if (provider != null) {
             @SuppressWarnings("unchecked")
             PersistenceProvider<T> p = (PersistenceProvider<T>) provider;
             LOG.debugf("About to persist with provider: %s", provider.getClass().getName());
-
             return p.persist(entity);
         }
 
@@ -116,16 +122,11 @@ public class PersistenceManager {
         }
 
         LOG.debugf("Entity to persist or update: %s", entity.getClass().getName());
-        for (PersistenceProvider<?> provider : providers) {
-            if (!provider.supports(entity)) continue;
-
-            // Check if the provider supports the current thread context
-            if (!provider.supportsThreadContext()) continue;
-
+        PersistenceProvider<?> provider = resolveProvider(entity);
+        if (provider != null) {
             @SuppressWarnings("unchecked")
             PersistenceProvider<T> p = (PersistenceProvider<T>) provider;
             LOG.debugf("About to persist or update with provider: %s", provider.getClass().getName());
-
             return p.persistOrUpdate(entity);
         }
 
@@ -142,8 +143,113 @@ public class PersistenceManager {
         if (providers == null || providers.isEmpty()) {
             return ThreadSafety.SAFE;
         }
+        if (persistenceProviderClass != null && persistenceProviderClass.isPresent() &&
+            !persistenceProviderClass.get().isBlank()) {
+            PersistenceProvider<?> provider = resolveConfiguredProvider(persistenceProviderClass.get().trim());
+            warnIfThreadSafetyDefault(provider);
+            return provider.threadSafety();
+        }
+        providers.forEach(this::warnIfThreadSafetyDefault);
         boolean allSafe = providers.stream()
             .allMatch(provider -> provider.threadSafety() == ThreadSafety.SAFE);
         return allSafe ? ThreadSafety.SAFE : ThreadSafety.UNSAFE;
+    }
+
+    /**
+     * Determine ordering requirements based on configured providers.
+     *
+     * @return the provider ordering requirement, or {@code RELAXED} if no provider hint is available
+     */
+    public OrderingRequirement orderingRequirement() {
+        if (providers == null || providers.isEmpty()) {
+            return OrderingRequirement.RELAXED;
+        }
+        if (persistenceProviderClass != null && persistenceProviderClass.isPresent() &&
+            !persistenceProviderClass.get().isBlank()) {
+            PersistenceProvider<?> provider = resolveConfiguredProvider(persistenceProviderClass.get().trim());
+            return orderingRequirementFor(provider, OrderingRequirement.RELAXED);
+        }
+        if (providers.size() == 1) {
+            return orderingRequirementFor(providers.get(0), OrderingRequirement.RELAXED);
+        }
+        return OrderingRequirement.RELAXED;
+    }
+
+    private PersistenceProvider<?> resolveProvider(Object entity) {
+        if (providers == null || providers.isEmpty()) {
+            LOG.warn("No persistence providers available");
+            return null;
+        }
+        if (persistenceProviderClass != null && persistenceProviderClass.isPresent() &&
+            !persistenceProviderClass.get().isBlank()) {
+            PersistenceProvider<?> provider = resolveConfiguredProvider(persistenceProviderClass.get().trim());
+            if (!provider.supports(entity)) {
+                throw new IllegalStateException(
+                    "Configured persistence provider " + provider.getClass().getName() +
+                        " does not support entity " + entity.getClass().getName());
+            }
+            if (!provider.supportsThreadContext()) {
+                throw new IllegalStateException(
+                    "Configured persistence provider " + provider.getClass().getName() +
+                        " does not support the current thread context");
+            }
+            return provider;
+        }
+        for (PersistenceProvider<?> provider : providers) {
+            if (!provider.supports(entity)) {
+                continue;
+            }
+            if (!provider.supportsThreadContext()) {
+                continue;
+            }
+            return provider;
+        }
+        return null;
+    }
+
+    private PersistenceProvider<?> resolveConfiguredProvider(String configuredClass) {
+        for (PersistenceProvider<?> provider : providers) {
+            Class<?> providerClass = provider.getClass();
+            if (providerClass.getName().equals(configuredClass) ||
+                providerClass.getSimpleName().equals(configuredClass)) {
+                return provider;
+            }
+        }
+        throw new IllegalStateException(
+            "No persistence provider matches pipeline.persistence.provider.class=" + configuredClass);
+    }
+
+    private OrderingRequirement orderingRequirementFor(PersistenceProvider<?> provider,
+                                                       OrderingRequirement fallback) {
+        if (provider == null) {
+            return fallback;
+        }
+        ParallelismHint hint = provider.getClass().getAnnotation(ParallelismHint.class);
+        if (hint == null) {
+            warnIfOrderingDefault(provider);
+            return fallback;
+        }
+        return hint.ordering();
+    }
+
+    private void warnIfOrderingDefault(PersistenceProvider<?> provider) {
+        Class<?> providerClass = provider.getClass();
+        if (warnedOrderingDefaults.add(providerClass)) {
+            LOG.warnf("Persistence provider %s does not declare @ParallelismHint; assuming RELAXED ordering.",
+                providerClass.getName());
+        }
+    }
+
+    private void warnIfThreadSafetyDefault(PersistenceProvider<?> provider) {
+        try {
+            var method = provider.getClass().getMethod("threadSafety");
+            if (method.getDeclaringClass().equals(PersistenceProvider.class)
+                && warnedThreadSafetyDefaults.add(provider.getClass())) {
+                LOG.warnf("Persistence provider %s does not override threadSafety(); assuming SAFE.",
+                    provider.getClass().getName());
+            }
+        } catch (NoSuchMethodException ignored) {
+            // No warning; fallback to provider implementation.
+        }
     }
 }

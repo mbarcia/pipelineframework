@@ -31,7 +31,9 @@ import io.quarkus.redis.datasource.value.ReactiveValueCommands;
 import io.smallrye.mutiny.Uni;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
+import org.pipelineframework.annotation.ParallelismHint;
 import org.pipelineframework.cache.CacheProvider;
+import org.pipelineframework.parallelism.OrderingRequirement;
 import org.pipelineframework.parallelism.ThreadSafety;
 
 /**
@@ -40,6 +42,7 @@ import org.pipelineframework.parallelism.ThreadSafety;
 @ApplicationScoped
 @Unremovable
 @IfBuildProperty(name = "pipeline.cache.provider", stringValue = "redis")
+@ParallelismHint(ordering = OrderingRequirement.RELAXED, threadSafety = ThreadSafety.SAFE)
 public class RedisCacheProvider implements CacheProvider<Object> {
 
     private static final Logger LOG = Logger.getLogger(RedisCacheProvider.class);

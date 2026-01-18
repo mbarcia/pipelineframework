@@ -84,6 +84,26 @@ class CacheManagerTest {
     }
 
     @Test
+    void cache_WithProviderClass_ShouldUseMatchingProvider() throws Exception {
+        TestItem item = new TestItem("id-1a");
+        String key = "key-1a";
+        RecordingProvider providerA = new RecordingProvider("a");
+        RecordingProvider providerB = new RecordingProvider("b");
+
+        setProviders(List.of(providerA, providerB));
+        setConfig("memory", Optional.empty());
+        setProviderClass(providerB.getClass().getName());
+
+        Uni<TestItem> resultUni = cacheManager.cache(key, item);
+        UniAssertSubscriber<TestItem> subscriber = resultUni.subscribe().withSubscriber(UniAssertSubscriber.create());
+        subscriber.awaitItem();
+
+        assertSame(item, subscriber.getItem());
+        assertFalse(providerA.used());
+        assertTrue(providerB.used());
+    }
+
+    @Test
     void cache_WithTtl_ShouldUseTtlCacheMethod() throws Exception {
         TestItem item = new TestItem("id-2");
         String key = "key-2";
@@ -183,6 +203,10 @@ class CacheManagerTest {
         providerField.setAccessible(true);
         providerField.set(cacheManager, Optional.ofNullable(provider));
 
+        Field providerClassField = CacheManager.class.getDeclaredField("cacheProviderClass");
+        providerClassField.setAccessible(true);
+        providerClassField.set(cacheManager, Optional.empty());
+
         Field ttlField = CacheManager.class.getDeclaredField("cacheTtl");
         ttlField.setAccessible(true);
         ttlField.set(cacheManager, ttl);
@@ -192,11 +216,51 @@ class CacheManagerTest {
         profileField.set(cacheManager, "test");
     }
 
+    private void setProviderClass(String providerClass) throws Exception {
+        Field providerClassField = CacheManager.class.getDeclaredField("cacheProviderClass");
+        providerClassField.setAccessible(true);
+        providerClassField.set(cacheManager, Optional.ofNullable(providerClass));
+    }
+
     private static final class TestItem {
         private final String id;
 
         private TestItem(String id) {
             this.id = id;
+        }
+    }
+
+    private static final class RecordingProvider implements CacheProvider<TestItem> {
+        private final String backend;
+        private boolean used;
+
+        private RecordingProvider(String backend) {
+            this.backend = backend;
+        }
+
+        @Override
+        public Class<TestItem> type() {
+            return TestItem.class;
+        }
+
+        @Override
+        public Uni<TestItem> cache(String key, TestItem value) {
+            used = true;
+            return Uni.createFrom().item(value);
+        }
+
+        @Override
+        public String backend() {
+            return backend;
+        }
+
+        @Override
+        public boolean supports(Object item) {
+            return item instanceof TestItem;
+        }
+
+        private boolean used() {
+            return used;
         }
     }
 }

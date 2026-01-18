@@ -31,7 +31,9 @@ import io.quarkus.cache.CaffeineCache;
 import io.smallrye.mutiny.Uni;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
+import org.pipelineframework.annotation.ParallelismHint;
 import org.pipelineframework.cache.CacheProvider;
+import org.pipelineframework.parallelism.OrderingRequirement;
 import org.pipelineframework.parallelism.ThreadSafety;
 
 /**
@@ -40,6 +42,7 @@ import org.pipelineframework.parallelism.ThreadSafety;
 @ApplicationScoped
 @Unremovable
 @IfBuildProperty(name = "pipeline.cache.provider", stringValue = "caffeine")
+@ParallelismHint(ordering = OrderingRequirement.RELAXED, threadSafety = ThreadSafety.SAFE)
 public class CaffeineCacheProvider implements CacheProvider<Object> {
 
     private static final Logger LOG = Logger.getLogger(CaffeineCacheProvider.class);

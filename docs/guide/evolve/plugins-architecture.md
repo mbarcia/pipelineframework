@@ -47,7 +47,7 @@ adapters for orchestrator and plugin deployments.
   `Observe<AspectName><T>SideEffectService` services for any observed type, and the descriptor set must include those
   definitions.
 - For build-time parallelism validation, pass `-Apipeline.parallelism=SEQUENTIAL|AUTO|PARALLEL` to the annotation processor.
-  This enables early failures when plugins declare ordering or thread-safety constraints that conflict with the pipeline policy.
+  You can also pass `-Apipeline.provider.class.<name>=<fqcn>` to validate provider ordering/thread-safety hints.
 
 ## Compilation flow (plugins)
 

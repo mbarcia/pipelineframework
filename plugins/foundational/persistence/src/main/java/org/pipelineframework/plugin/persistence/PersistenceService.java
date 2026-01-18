@@ -20,7 +20,6 @@ import jakarta.inject.Inject;
 
 import io.smallrye.mutiny.Uni;
 import org.jboss.logging.Logger;
-import org.pipelineframework.annotation.ParallelismHint;
 import org.pipelineframework.parallelism.OrderingRequirement;
 import org.pipelineframework.parallelism.ParallelismHints;
 import org.pipelineframework.parallelism.ThreadSafety;
@@ -31,7 +30,6 @@ import org.pipelineframework.step.NonRetryableException;
  * A general-purpose persistence plugin that can persist any entity that has a corresponding
  * PersistenceProvider configured in the system.
  */
-@ParallelismHint(ordering = OrderingRequirement.STRICT_ADVISED, threadSafety = ThreadSafety.SAFE)
 public class PersistenceService<T> implements ReactiveSideEffectService<T>, ParallelismHints {
     private final Logger logger = Logger.getLogger(PersistenceService.class);
 
@@ -268,7 +266,10 @@ public class PersistenceService<T> implements ReactiveSideEffectService<T>, Para
 
     @Override
     public OrderingRequirement orderingRequirement() {
-        return OrderingRequirement.STRICT_ADVISED;
+        if (persistenceManager == null) {
+            return OrderingRequirement.RELAXED;
+        }
+        return persistenceManager.orderingRequirement();
     }
 
     @Override

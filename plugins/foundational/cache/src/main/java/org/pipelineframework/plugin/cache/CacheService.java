@@ -21,7 +21,6 @@ import jakarta.inject.Inject;
 import io.smallrye.mutiny.Uni;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
-import org.pipelineframework.annotation.ParallelismHint;
 import org.pipelineframework.cache.CacheStatus;
 import org.pipelineframework.context.PipelineCacheStatusHolder;
 import org.pipelineframework.context.PipelineContext;
@@ -35,7 +34,6 @@ import org.pipelineframework.service.ReactiveSideEffectService;
  * A general-purpose cache plugin that can cache any item that exposes a cache key
  * and has a corresponding CacheProvider configured in the system.
  */
-@ParallelismHint(ordering = OrderingRequirement.RELAXED, threadSafety = ThreadSafety.SAFE)
 public class CacheService<T> implements ReactiveSideEffectService<T>, ParallelismHints {
     private final Logger logger = Logger.getLogger(CacheService.class);
 
@@ -100,7 +98,10 @@ public class CacheService<T> implements ReactiveSideEffectService<T>, Parallelis
 
     @Override
     public OrderingRequirement orderingRequirement() {
-        return OrderingRequirement.RELAXED;
+        if (cacheManager == null) {
+            return OrderingRequirement.RELAXED;
+        }
+        return cacheManager.orderingRequirement();
     }
 
     @Override

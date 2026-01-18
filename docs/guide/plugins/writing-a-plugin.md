@@ -43,7 +43,6 @@ Here's a simple persistence plugin that stores domain objects:
 
 ```java
 @ApplicationScoped
-@ParallelismHint(ordering = OrderingRequirement.STRICT_ADVISED, threadSafety = ThreadSafety.SAFE)
 public class PersistenceService<T> implements ReactiveSideEffectService<T> {
     private final PersistenceManager persistenceManager;
 
@@ -58,9 +57,6 @@ public class PersistenceService<T> implements ReactiveSideEffectService<T> {
     }
 }
 ```
-
-The `@ParallelismHint` lets the framework enforce ordering and thread-safety at build time
-and at runtime when parallel execution is enabled.
 
 ## Persistence plugin requirements
 
@@ -101,7 +97,7 @@ Plugins must not:
 
 ## Parallelism hints
 
-Plugins should declare ordering and thread-safety requirements so the framework can validate
+Plugins can declare ordering and thread-safety requirements so the framework can validate
 parallel execution decisions:
 
 - `@ParallelismHint(ordering=STRICT_REQUIRED)` forces sequential execution
@@ -109,8 +105,10 @@ parallel execution decisions:
 - `@ParallelismHint(ordering=RELAXED)` allows parallel execution
 
 If your plugin delegates to a provider (for example cache or persistence backends), the provider
-should also declare thread safety via `threadSafety()` on the provider interface. The framework
-uses this to fail early when parallel execution would be unsafe.
+may declare `@ParallelismHint`, and the plugin can delegate hints at runtime based on the selected
+provider. When no provider hints are declared, the framework assumes `RELAXED` ordering and `SAFE`
+thread safety and emits warnings to make the assumption explicit. For build-time validation, pass
+`-Apipeline.provider.class.<name>=<fqcn>` to the annotation processor.
 
 ## What plugin authors never need to care about
 

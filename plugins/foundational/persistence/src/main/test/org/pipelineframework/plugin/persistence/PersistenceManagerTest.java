@@ -18,6 +18,7 @@ package org.pipelineframework.plugin.persistence;
 
 import java.lang.reflect.Field;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Stream;
 import jakarta.enterprise.inject.Instance;
 import jakarta.persistence.Entity;
@@ -148,6 +149,22 @@ class PersistenceManagerTest {
         verify(specificMockProvider, never()).persist(any());
     }
 
+    @Test
+    void persist_WithConfiguredProviderClass_ShouldUseProvider() throws Exception {
+        TestEntity entity = new TestEntity();
+        RecordingProvider provider = new RecordingProvider();
+
+        setProviders(List.of(provider));
+        setProviderClass(provider.getClass().getName());
+
+        Uni<Object> resultUni = persistenceManager.persist(entity);
+        UniAssertSubscriber<Object> subscriber = resultUni.subscribe().withSubscriber(UniAssertSubscriber.create());
+        subscriber.awaitItem();
+
+        assertSame(entity, subscriber.getItem());
+        assertTrue(provider.used());
+    }
+
     /** Helper method to reinitialize the providers list after changing mock configuration */
     private void reinitializeProviders() {
         try {
@@ -160,7 +177,43 @@ class PersistenceManagerTest {
         }
     }
 
+    private void setProviders(List<PersistenceProvider<?>> providers) throws Exception {
+        Field providersField = PersistenceManager.class.getDeclaredField("providers");
+        providersField.setAccessible(true);
+        providersField.set(persistenceManager, providers);
+    }
+
+    private void setProviderClass(String providerClass) throws Exception {
+        Field providerClassField = PersistenceManager.class.getDeclaredField("persistenceProviderClass");
+        providerClassField.setAccessible(true);
+        providerClassField.set(persistenceManager, Optional.ofNullable(providerClass));
+    }
+
     @Entity
     static class TestEntity {
+    }
+
+    private static final class RecordingProvider implements PersistenceProvider<TestEntity> {
+        private boolean used;
+
+        @Override
+        public Class<TestEntity> type() {
+            return TestEntity.class;
+        }
+
+        @Override
+        public Uni<TestEntity> persist(TestEntity entity) {
+            used = true;
+            return Uni.createFrom().item(entity);
+        }
+
+        @Override
+        public boolean supports(Object entity) {
+            return entity instanceof TestEntity;
+        }
+
+        private boolean used() {
+            return used;
+        }
     }
 }

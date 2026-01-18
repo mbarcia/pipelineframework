@@ -35,11 +35,19 @@ Providers implement `PersistenceProvider<T>` and declare whether they support th
 
 This lets you plug in multiple backends without changing the plugin code.
 
+To lock a specific provider (recommended for production), set
+`pipeline.persistence.provider.class` to the provider's fully-qualified class name. The persistence
+manager will fail fast if the configured provider cannot be found or does not support the current
+execution context. For build-time validation, pass `-Apipeline.provider.class.persistence=<fqcn>`
+to the annotation processor.
+
 ## Parallelism guidance
 
-The persistence plugin declares `STRICT_ADVISED` ordering by default. With `pipeline.parallelism=AUTO`,
-the framework will run it sequentially and warn; with `pipeline.parallelism=PARALLEL` the framework will
-allow parallel execution and warn that ordering advice is overridden.
+Persistence providers can declare ordering hints. When a provider does not declare hints, the framework
+assumes `RELAXED` ordering and `SAFE` thread safety and emits warnings. With `pipeline.parallelism=AUTO`,
+the framework will run providers that advise strict ordering sequentially (with a warning); with
+`pipeline.parallelism=PARALLEL` the framework will allow parallel execution and warn that ordering
+advice is overridden.
 
 If your workload depends on ordering (for example, sequence numbers or cross-step dependencies), keep
 the pipeline in `SEQUENTIAL` or `AUTO`.

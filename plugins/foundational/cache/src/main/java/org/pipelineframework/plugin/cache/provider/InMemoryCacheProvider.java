@@ -27,7 +27,9 @@ import io.quarkus.arc.Unremovable;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.smallrye.mutiny.Uni;
 import org.jboss.logging.Logger;
+import org.pipelineframework.annotation.ParallelismHint;
 import org.pipelineframework.cache.CacheProvider;
+import org.pipelineframework.parallelism.OrderingRequirement;
 import org.pipelineframework.parallelism.ThreadSafety;
 
 /**
@@ -36,6 +38,7 @@ import org.pipelineframework.parallelism.ThreadSafety;
 @ApplicationScoped
 @Unremovable
 @IfBuildProperty(name = "pipeline.cache.provider", stringValue = "memory")
+@ParallelismHint(ordering = OrderingRequirement.RELAXED, threadSafety = ThreadSafety.SAFE)
 public class InMemoryCacheProvider implements CacheProvider<Object> {
 
     private static final Logger LOG = Logger.getLogger(InMemoryCacheProvider.class);

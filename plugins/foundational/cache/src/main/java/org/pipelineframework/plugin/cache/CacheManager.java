@@ -19,6 +19,8 @@ package org.pipelineframework.plugin.cache;
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
@@ -28,7 +30,9 @@ import io.quarkus.arc.Unremovable;
 import io.smallrye.mutiny.Uni;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
+import org.pipelineframework.annotation.ParallelismHint;
 import org.pipelineframework.cache.CacheProvider;
+import org.pipelineframework.parallelism.OrderingRequirement;
 import org.pipelineframework.parallelism.ThreadSafety;
 
 /**
@@ -41,12 +45,17 @@ public class CacheManager {
     private static final Logger LOG = Logger.getLogger(CacheManager.class);
 
     private List<CacheProvider<?>> providers;
+    private final Set<Class<?>> warnedOrderingDefaults = ConcurrentHashMap.newKeySet();
+    private final Set<Class<?>> warnedThreadSafetyDefaults = ConcurrentHashMap.newKeySet();
 
     @Inject
     Instance<CacheProvider<?>> providerInstance;
 
     @ConfigProperty(name = "pipeline.cache.provider")
     Optional<String> cacheProvider;
+
+    @ConfigProperty(name = "pipeline.cache.provider.class")
+    Optional<String> cacheProviderClass;
 
     @ConfigProperty(name = "quarkus.profile", defaultValue = "prod")
     String profile;
@@ -200,6 +209,18 @@ public class CacheManager {
             LOG.warn("No cache providers available");
             return null;
         }
+        if (cacheProviderClass != null && cacheProviderClass.isPresent() && !cacheProviderClass.get().isBlank()) {
+            String configuredClass = cacheProviderClass.get().trim();
+            for (CacheProvider<?> provider : providers) {
+                Class<?> providerClass = provider.getClass();
+                if (providerClass.getName().equals(configuredClass) ||
+                    providerClass.getSimpleName().equals(configuredClass)) {
+                    return provider;
+                }
+            }
+            throw new IllegalStateException(
+                "No cache provider matches pipeline.cache.provider.class=" + configuredClass);
+        }
         if (cacheProvider != null && cacheProvider.isPresent() && !cacheProvider.get().isBlank()) {
             String configuredProvider = cacheProvider.get();
             for (CacheProvider<?> provider : providers) {
@@ -231,12 +252,50 @@ public class CacheManager {
      * @return {@code SAFE} if all providers declare SAFE, otherwise {@code UNSAFE}
      */
     public ThreadSafety threadSafety() {
-        if (providers == null || providers.isEmpty()) {
+        CacheProvider<?> provider = resolveProvider();
+        if (provider == null) {
             return ThreadSafety.SAFE;
         }
-        boolean allSafe = providers.stream()
-            .allMatch(provider -> provider.threadSafety() == ThreadSafety.SAFE);
-        return allSafe ? ThreadSafety.SAFE : ThreadSafety.UNSAFE;
+        warnIfThreadSafetyDefault(provider);
+        return provider.threadSafety();
+    }
+
+    /**
+     * Determine ordering requirements based on the resolved provider's hint.
+     *
+     * @return the provider's ordering requirement, or {@code RELAXED} if unspecified
+     */
+    public OrderingRequirement orderingRequirement() {
+        CacheProvider<?> provider = resolveProvider();
+        if (provider == null) {
+            return OrderingRequirement.RELAXED;
+        }
+        ParallelismHint hint = provider.getClass().getAnnotation(ParallelismHint.class);
+        if (hint == null) {
+            warnIfOrderingDefault(provider);
+        }
+        return hint == null ? OrderingRequirement.RELAXED : hint.ordering();
+    }
+
+    private void warnIfOrderingDefault(CacheProvider<?> provider) {
+        Class<?> providerClass = provider.getClass();
+        if (warnedOrderingDefaults.add(providerClass)) {
+            LOG.warnf("Cache provider %s does not declare @ParallelismHint; assuming RELAXED ordering.",
+                providerClass.getName());
+        }
+    }
+
+    private void warnIfThreadSafetyDefault(CacheProvider<?> provider) {
+        try {
+            var method = provider.getClass().getMethod("threadSafety");
+            if (method.getDeclaringClass().equals(CacheProvider.class)
+                && warnedThreadSafetyDefaults.add(provider.getClass())) {
+                LOG.warnf("Cache provider %s does not override threadSafety(); assuming SAFE.",
+                    provider.getClass().getName());
+            }
+        } catch (NoSuchMethodException ignored) {
+            // No warning; fallback to provider implementation.
+        }
     }
 
     private boolean isNonProdProfile() {

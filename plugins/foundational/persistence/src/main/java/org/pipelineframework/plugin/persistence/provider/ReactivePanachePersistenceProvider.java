@@ -24,6 +24,8 @@ import io.quarkus.arc.Unremovable;
 import io.quarkus.hibernate.reactive.panache.Panache;
 import io.smallrye.mutiny.Uni;
 import org.jboss.logging.Logger;
+import org.pipelineframework.annotation.ParallelismHint;
+import org.pipelineframework.parallelism.OrderingRequirement;
 import org.pipelineframework.parallelism.ThreadSafety;
 import org.pipelineframework.persistence.PersistenceProvider;
 
@@ -32,6 +34,7 @@ import org.pipelineframework.persistence.PersistenceProvider;
  */
 @ApplicationScoped
 @Unremovable
+@ParallelismHint(ordering = OrderingRequirement.STRICT_ADVISED, threadSafety = ThreadSafety.SAFE)
 public class ReactivePanachePersistenceProvider implements PersistenceProvider<Object> {
 
   private static final Logger LOG = Logger.getLogger(ReactivePanachePersistenceProvider.class);

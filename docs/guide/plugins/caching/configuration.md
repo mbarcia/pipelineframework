@@ -35,13 +35,18 @@ Cache plugin service properties:
 
 ```
 pipeline.cache.provider=caffeine
+pipeline.cache.provider.class=org.pipelineframework.plugin.cache.provider.CaffeineCacheProvider
 pipeline.cache.policy=prefer-cache
 pipeline.cache.ttl=PT10M
 pipeline.cache.caffeine.maximum-size=10000
 pipeline.cache.caffeine.expire-after-write=PT30M
 ```
 
-If only one provider is on the classpath, `pipeline.cache.provider` can be omitted.
+If only one provider is on the classpath, `pipeline.cache.provider` can be omitted. If a provider does
+not declare hints, the framework assumes `RELAXED` ordering and `SAFE` thread safety and emits warnings.
+To lock a specific
+provider for production, set `pipeline.cache.provider.class` to its fully-qualified class name. For
+build-time validation, pass `-Apipeline.provider.class.cache=<fqcn>` to the annotation processor.
 
 ## Cache key strategies
 

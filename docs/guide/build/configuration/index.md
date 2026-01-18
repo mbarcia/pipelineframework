@@ -99,6 +99,7 @@ Prefix: `pipeline.cache`
 | Property                                      | Type     | Default           | Description                                                                                                              |
 |-----------------------------------------------|----------|-------------------|--------------------------------------------------------------------------------------------------------------------------|
 | `pipeline.cache.provider`                     | string   | none              | Cache provider name (for example `redis`, `caffeine`, `memory`).                                                         |
+| `pipeline.cache.provider.class`               | string   | none              | Fully-qualified cache provider class name to lock selection at runtime.                                                  |
 | `pipeline.cache.policy`                       | string   | `cache-only`      | Default cache policy (`prefer-cache`/`return-cached`, `cache-only`, `skip-if-present`, `require-cache`, `bypass-cache`). |
 | `pipeline.cache.ttl`                          | duration | none              | Default cache TTL.                                                                                                       |
 | `pipeline.cache.caffeine.name`                | string   | `pipeline-cache`  | Cache name for the Caffeine provider.                                                                                    |
@@ -114,6 +115,7 @@ Prefix: `pipeline.persistence`
 | Property                             | Type   | Default | Description                                                        |
 |--------------------------------------|--------|---------|--------------------------------------------------------------------|
 | `pipeline.persistence.duplicate-key` | string | `fail`  | Duplicate key policy for persistence (`fail`, `ignore`, `upsert`). |
+| `pipeline.persistence.provider.class` | string | none | Fully-qualified persistence provider class name to lock selection at runtime. |
 
 ### Pipeline Execution
 
@@ -137,6 +139,14 @@ Prefix: `pipeline.defaults`
 | `pipeline.defaults.jitter`                       | boolean | `false`  | Adds jitter to retry delays.                |
 | `pipeline.defaults.backpressure-buffer-capacity` | integer | `1024`   | Backpressure buffer capacity.               |
 | `pipeline.defaults.backpressure-strategy`        | string  | `BUFFER` | Backpressure strategy (`BUFFER` or `DROP`). |
+
+### Build-Time Validation (Annotation Processor)
+
+These are build-time options passed to the annotation processor (not runtime config).
+
+| Option                                | Type   | Default | Description                                                                 |
+|---------------------------------------|--------|---------|-----------------------------------------------------------------------------|
+| `pipeline.provider.class.<name>`      | string | none    | Provider class name to validate ordering/thread-safety hints (e.g. `pipeline.provider.class.cache=...`). |
 
 ### Per-Step Overrides
 

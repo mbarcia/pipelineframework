@@ -20,7 +20,6 @@ import jakarta.inject.Inject;
 
 import io.smallrye.mutiny.Uni;
 import org.jboss.logging.Logger;
-import org.pipelineframework.annotation.ParallelismHint;
 import org.pipelineframework.cache.PipelineCacheKeyFormat;
 import org.pipelineframework.context.PipelineContext;
 import org.pipelineframework.context.PipelineContextHolder;
@@ -32,7 +31,6 @@ import org.pipelineframework.service.ReactiveSideEffectService;
 /**
  * Side-effect plugin that invalidates cached entries using configured cache key strategies.
  */
-@ParallelismHint(ordering = OrderingRequirement.RELAXED, threadSafety = ThreadSafety.SAFE)
 public class CacheInvalidationService<T> implements ReactiveSideEffectService<T>, ParallelismHints {
     private static final Logger LOG = Logger.getLogger(CacheInvalidationService.class);
 
@@ -77,7 +75,10 @@ public class CacheInvalidationService<T> implements ReactiveSideEffectService<T>
 
     @Override
     public OrderingRequirement orderingRequirement() {
-        return OrderingRequirement.RELAXED;
+        if (cacheManager == null) {
+            return OrderingRequirement.RELAXED;
+        }
+        return cacheManager.orderingRequirement();
     }
 
     @Override
