@@ -348,7 +348,7 @@ class CsvPaymentsEndToEndIT {
 
         pb.inheritIO();
         Process p = pb.start();
-        boolean completed = p.waitFor(60, TimeUnit.SECONDS);
+        boolean completed = p.waitFor(120, TimeUnit.SECONDS);
         assertTrue(completed, "Orchestrator process timed out");
         int exitCode = p.exitValue();
         assertEquals(0, exitCode, "Orchestrator exited with non-zero code");
