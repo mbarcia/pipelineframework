@@ -165,7 +165,7 @@
                 <executions>
                     <execution>
                         <id>merge-orchestrator-client-classes</id>
-                        <phase>process-classes</phase>
+                        <phase>prepare-package</phase>
                         <goals>
                             <goal>copy-resources</goal>
                         </goals>
