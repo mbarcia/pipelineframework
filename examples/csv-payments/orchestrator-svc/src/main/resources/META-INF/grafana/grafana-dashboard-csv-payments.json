@@ -217,9 +217,9 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "irate(grpc_server_requests_received_messages_total[$__rate_interval])",
+          "expr": "irate(rpc_server_request_count_total[$__rate_interval])",
           "instant": false,
-          "legendFormat": "{{service}}",
+          "legendFormat": "{{rpc_service}}",
           "range": true,
           "refId": "A"
         }
@@ -409,9 +409,9 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "irate(grpc_server_processing_duration_milliseconds_count{statusCode=\"OK\"}[$__rate_interval]) / ignoring(statusCode) rate(grpc_server_requests_received_messages_total[$__rate_interval]) * 100",
+          "expr": "irate(rpc_server_duration_milliseconds_count{rpc_grpc_status_code=\"OK\"}[$__rate_interval]) / ignoring(rpc_grpc_status_code) rate(rpc_server_request_count_total[$__rate_interval]) * 100",
           "instant": false,
-          "legendFormat": "{{service}}",
+          "legendFormat": "{{rpc_service}}",
           "range": true,
           "refId": "A"
         }
