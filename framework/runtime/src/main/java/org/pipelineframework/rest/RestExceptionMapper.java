@@ -17,6 +17,7 @@
 package org.pipelineframework.rest;
 
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.ws.rs.NotFoundException;
 import jakarta.ws.rs.core.Response;
 
 import org.jboss.logging.Logger;
@@ -54,6 +55,10 @@ public class RestExceptionMapper {
         if (ex instanceof CachePolicyViolation) {
             LOG.warn("Cache policy violation", ex);
             return RestResponse.status(Response.Status.PRECONDITION_FAILED, ex.getMessage());
+        }
+        if (ex instanceof NotFoundException) {
+            LOG.debug("Request did not match a REST endpoint", ex);
+            return RestResponse.status(Response.Status.NOT_FOUND, "Not Found");
         }
         if (ex instanceof IllegalArgumentException) {
             LOG.warn("Invalid request", ex);
