@@ -36,7 +36,6 @@ import org.pipelineframework.step.*;
 import org.pipelineframework.step.blocking.StepOneToManyBlocking;
 import org.pipelineframework.step.functional.ManyToOne;
 import org.pipelineframework.step.future.StepOneToOneCompletableFuture;
-import org.pipelineframework.telemetry.PipelineTelemetry;
 
 /**
  * A service that runs a sequence of pipeline steps against a reactive source.
@@ -74,9 +73,6 @@ public class PipelineRunner implements AutoCloseable {
     @Inject
     PipelineConfig pipelineConfig;
 
-    @Inject
-    PipelineTelemetry telemetry;
-
     /**
      * Default constructor for PipelineRunner.
      */
@@ -108,9 +104,6 @@ public class PipelineRunner implements AutoCloseable {
         Object current = input;
         ParallelismPolicy parallelismPolicy = resolveParallelismPolicy();
         int maxConcurrency = resolveMaxConcurrency();
-        PipelineTelemetry.RunContext telemetryContext =
-            telemetry.startRun(current, orderedSteps.size(), parallelismPolicy, maxConcurrency);
-        current = telemetry.instrumentInput(current, telemetryContext);
 
         for (Object step : orderedSteps) {
             if (step == null) {
@@ -131,31 +124,27 @@ public class PipelineRunner implements AutoCloseable {
             switch (step) {
                 case StepOneToOne stepOneToOne -> {
                     boolean parallel = shouldParallelize(stepOneToOne, parallelismPolicy, StepParallelismType.ONE_TO_ONE);
-                    current = applyOneToOneUnchecked(
-                        stepOneToOne, current, parallel, maxConcurrency, telemetry, telemetryContext);
+                    current = applyOneToOneUnchecked(stepOneToOne, current, parallel, maxConcurrency);
                 }
                 case StepOneToOneCompletableFuture stepFuture -> {
                     boolean parallel = shouldParallelize(stepFuture, parallelismPolicy, StepParallelismType.ONE_TO_ONE_FUTURE);
-                    current = applyOneToOneFutureUnchecked(
-                        stepFuture, current, parallel, maxConcurrency, telemetry, telemetryContext);
+                    current = applyOneToOneFutureUnchecked(stepFuture, current, parallel, maxConcurrency);
                 }
                 case StepOneToMany stepOneToMany -> {
                     boolean parallel = shouldParallelize(stepOneToMany, parallelismPolicy, StepParallelismType.ONE_TO_MANY);
-                    current = applyOneToManyUnchecked(
-                        stepOneToMany, current, parallel, maxConcurrency, telemetry, telemetryContext);
+                    current = applyOneToManyUnchecked(stepOneToMany, current, parallel, maxConcurrency);
                 }
                 case StepOneToManyBlocking stepOneToManyBlocking -> {
                     boolean parallel = shouldParallelize(stepOneToManyBlocking, parallelismPolicy, StepParallelismType.ONE_TO_MANY_BLOCKING);
-                    current = applyOneToManyBlockingUnchecked(
-                        stepOneToManyBlocking, current, parallel, maxConcurrency, telemetry, telemetryContext);
+                    current = applyOneToManyBlockingUnchecked(stepOneToManyBlocking, current, parallel, maxConcurrency);
                 }
-                case ManyToOne manyToOne -> current = applyManyToOneUnchecked(manyToOne, current, telemetry, telemetryContext);
-                case StepManyToMany manyToMany -> current = applyManyToManyUnchecked(manyToMany, current, telemetry, telemetryContext);
+                case ManyToOne manyToOne -> current = applyManyToOneUnchecked(manyToOne, current);
+                case StepManyToMany manyToMany -> current = applyManyToManyUnchecked(manyToMany, current);
                 default -> logger.errorf("Step not recognised: %s", step.getClass().getName());
             }
         }
 
-        return telemetry.instrumentRunCompletion(current, telemetryContext); // could be Uni<?> or Multi<?>
+        return current; // could be Uni<?> or Multi<?>
     }
 
     /**
@@ -327,50 +316,29 @@ public class PipelineRunner implements AutoCloseable {
      */
     @SuppressWarnings({"unchecked"})
     public static <I, O> Object applyOneToOneUnchecked(StepOneToOne<I, O> step, Object current) {
-        return applyOneToOneUnchecked(step, current, false, DEFAULT_MAX_CONCURRENCY, null, null);
+        return applyOneToOneUnchecked(step, current, false, DEFAULT_MAX_CONCURRENCY);
     }
 
     @SuppressWarnings({"unchecked"})
     public static <I, O> Object applyOneToOneUnchecked(
-        StepOneToOne<I, O> step,
-        Object current,
-        boolean parallel,
-        int maxConcurrency,
-        PipelineTelemetry telemetry,
-        PipelineTelemetry.RunContext telemetryContext) {
+        StepOneToOne<I, O> step, Object current, boolean parallel, int maxConcurrency) {
         if (current instanceof Uni<?>) {
-            Uni<O> result = step.apply((Uni<I>) current)
+            return step.apply((Uni<I>) current)
                 .onItem().transformToUni(CachePolicyEnforcer::enforce);
-            if (telemetry == null) {
-                return result;
-            }
-            return telemetry.instrumentStepUni(step.getClass(), result, telemetryContext, false);
         } else if (current instanceof Multi<?>) {
             if (parallel) {
                 logger.debugf("Applying step %s (merge)", step.getClass());
                 return ((Multi<I>) current)
                     .onItem()
-                    .transformToUni(item -> {
-                        Uni<O> result = step.apply(Uni.createFrom().item(item))
-                            .onItem().transformToUni(CachePolicyEnforcer::enforce);
-                        if (telemetry == null) {
-                            return result;
-                        }
-                        return telemetry.instrumentStepUni(step.getClass(), result, telemetryContext, true);
-                    })
+                    .transformToUni(item -> step.apply(Uni.createFrom().item(item))
+                        .onItem().transformToUni(CachePolicyEnforcer::enforce))
                     .merge(maxConcurrency);
             } else {
                 logger.debugf("Applying step %s (concatenate)", step.getClass());
                 return ((Multi<I>) current)
                     .onItem()
-                    .transformToUni(item -> {
-                        Uni<O> result = step.apply(Uni.createFrom().item(item))
-                            .onItem().transformToUni(CachePolicyEnforcer::enforce);
-                        if (telemetry == null) {
-                            return result;
-                        }
-                        return telemetry.instrumentStepUni(step.getClass(), result, telemetryContext, true);
-                    })
+                    .transformToUni(item -> step.apply(Uni.createFrom().item(item))
+                        .onItem().transformToUni(CachePolicyEnforcer::enforce))
                     .concatenate();
             }
         } else {
@@ -380,40 +348,19 @@ public class PipelineRunner implements AutoCloseable {
 
     @SuppressWarnings("unchecked")
     private static <I, O> Object applyOneToOneFutureUnchecked(
-        StepOneToOneCompletableFuture<I, O> step,
-        Object current,
-        boolean parallel,
-        int maxConcurrency,
-        PipelineTelemetry telemetry,
-        PipelineTelemetry.RunContext telemetryContext) {
+        StepOneToOneCompletableFuture<I, O> step, Object current, boolean parallel, int maxConcurrency) {
         if (current instanceof Uni<?>) {
-            Uni<O> result = step.apply((Uni<I>) current);
-            if (telemetry == null) {
-                return result;
-            }
-            return telemetry.instrumentStepUni(step.getClass(), result, telemetryContext, false);
+            return step.apply((Uni<I>) current);
         } else if (current instanceof Multi<?>) {
             if (parallel) {
                 return ((Multi<I>) current)
                     .onItem()
-                    .transformToUni(item -> {
-                        Uni<O> result = step.apply(Uni.createFrom().item(item));
-                        if (telemetry == null) {
-                            return result;
-                        }
-                        return telemetry.instrumentStepUni(step.getClass(), result, telemetryContext, true);
-                    })
+                    .transformToUni(item -> step.apply(Uni.createFrom().item(item)))
                     .merge(maxConcurrency);
             } else {
                 return ((Multi<I>) current)
                     .onItem()
-                    .transformToUni(item -> {
-                        Uni<O> result = step.apply(Uni.createFrom().item(item));
-                        if (telemetry == null) {
-                            return result;
-                        }
-                        return telemetry.instrumentStepUni(step.getClass(), result, telemetryContext, true);
-                    })
+                    .transformToUni(item -> step.apply(Uni.createFrom().item(item)))
                     .concatenate();
             }
         } else {
@@ -423,42 +370,21 @@ public class PipelineRunner implements AutoCloseable {
 
     @SuppressWarnings({"unchecked"})
     private static <I, O> Object applyOneToManyBlockingUnchecked(
-        StepOneToManyBlocking<I, O> step,
-        Object current,
-        boolean parallel,
-        int maxConcurrency,
-        PipelineTelemetry telemetry,
-        PipelineTelemetry.RunContext telemetryContext) {
+        StepOneToManyBlocking<I, O> step, Object current, boolean parallel, int maxConcurrency) {
         if (current instanceof Uni<?>) {
-            Multi<O> result = step.apply((Uni<I>) current);
-            if (telemetry == null) {
-                return result;
-            }
-            return telemetry.instrumentStepMulti(step.getClass(), result, telemetryContext, false);
+            return step.apply((Uni<I>) current);
         } else if (current instanceof Multi<?>) {
             if (parallel) {
                 logger.debugf("Applying step %s (merge)", step.getClass());
                 return ((Multi<I>) current)
                     .onItem()
-                    .transformToMulti(item -> {
-                        Multi<O> result = step.apply(Uni.createFrom().item(item));
-                        if (telemetry == null) {
-                            return result;
-                        }
-                        return telemetry.instrumentStepMulti(step.getClass(), result, telemetryContext, true);
-                    })
+                    .transformToMulti(item -> step.apply(Uni.createFrom().item(item)))
                     .merge(maxConcurrency);
             } else {
                 logger.debugf("Applying step %s (concatenate)", step.getClass());
                 return ((Multi<I>) current)
                     .onItem()
-                    .transformToMulti(item -> {
-                        Multi<O> result = step.apply(Uni.createFrom().item(item));
-                        if (telemetry == null) {
-                            return result;
-                        }
-                        return telemetry.instrumentStepMulti(step.getClass(), result, telemetryContext, true);
-                    })
+                    .transformToMulti(item -> step.apply(Uni.createFrom().item(item)))
                     .concatenate();
             }
         } else {
@@ -468,42 +394,21 @@ public class PipelineRunner implements AutoCloseable {
 
     @SuppressWarnings({"unchecked"})
     private static <I, O> Object applyOneToManyUnchecked(
-        StepOneToMany<I, O> step,
-        Object current,
-        boolean parallel,
-        int maxConcurrency,
-        PipelineTelemetry telemetry,
-        PipelineTelemetry.RunContext telemetryContext) {
+        StepOneToMany<I, O> step, Object current, boolean parallel, int maxConcurrency) {
         if (current instanceof Uni<?>) {
-            Multi<O> result = step.apply((Uni<I>) current);
-            if (telemetry == null) {
-                return result;
-            }
-            return telemetry.instrumentStepMulti(step.getClass(), result, telemetryContext, false);
+            return step.apply((Uni<I>) current);
         } else if (current instanceof Multi<?>) {
             if (parallel) {
                 logger.debugf("Applying step %s (merge)", step.getClass());
                 return ((Multi<I>) current)
                     .onItem()
-                    .transformToMulti(item -> {
-                        Multi<O> result = step.apply(Uni.createFrom().item(item));
-                        if (telemetry == null) {
-                            return result;
-                        }
-                        return telemetry.instrumentStepMulti(step.getClass(), result, telemetryContext, true);
-                    })
+                    .transformToMulti(item -> step.apply(Uni.createFrom().item(item)))
                     .merge(maxConcurrency);
             } else {
                 logger.debugf("Applying step %s (concatenate)", step.getClass());
                 return ((Multi<I>) current)
                     .onItem()
-                    .transformToMulti(item -> {
-                        Multi<O> result = step.apply(Uni.createFrom().item(item));
-                        if (telemetry == null) {
-                            return result;
-                        }
-                        return telemetry.instrumentStepMulti(step.getClass(), result, telemetryContext, true);
-                    })
+                    .transformToMulti(item -> step.apply(Uni.createFrom().item(item)))
                     .concatenate();
             }
         } else {
@@ -512,50 +417,26 @@ public class PipelineRunner implements AutoCloseable {
     }
 
     @SuppressWarnings("unchecked")
-    private static <I, O> Object applyManyToOneUnchecked(
-        ManyToOne<I, O> step,
-        Object current,
-        PipelineTelemetry telemetry,
-        PipelineTelemetry.RunContext telemetryContext) {
+    private static <I, O> Object applyManyToOneUnchecked(ManyToOne<I, O> step, Object current) {
         if (current instanceof Multi<?>) {
-            Uni<O> result = step.apply((Multi<I>) current);
-            if (telemetry == null) {
-                return result;
-            }
-            return telemetry.instrumentStepUni(step.getClass(), result, telemetryContext, false);
+            return step.apply((Multi<I>) current);
         } else if (current instanceof Uni<?>) {
             // convert Uni to Multi and call apply
-            Uni<O> result = step.apply(((Uni<I>) current).toMulti());
-            if (telemetry == null) {
-                return result;
-            }
-            return telemetry.instrumentStepUni(step.getClass(), result, telemetryContext, false);
+            return step.apply(((Uni<I>) current).toMulti());
         } else {
             throw new IllegalArgumentException(MessageFormat.format("Unsupported current type for StepManyToOne: {0}", current));
         }
     }
 
     @SuppressWarnings("unchecked")
-    private static <I, O> Object applyManyToManyUnchecked(
-        StepManyToMany<I, O> step,
-        Object current,
-        PipelineTelemetry telemetry,
-        PipelineTelemetry.RunContext telemetryContext) {
+    private static <I, O> Object applyManyToManyUnchecked(StepManyToMany<I, O> step, Object current) {
         if (current instanceof Uni<?>) {
             // Single async source — convert to Multi and process
-            Multi<O> result = step.apply(((Uni<I>) current).toMulti());
-            if (telemetry == null) {
-                return result;
-            }
-            return telemetry.instrumentStepMulti(step.getClass(), result, telemetryContext, false);
+            return step.apply(((Uni<I>) current).toMulti());
         } else if (current instanceof Multi<?> c) {
             logger.debugf("Applying many-to-many step %s on full stream", step.getClass());
             // ✅ Just pass the whole stream to the step
-            Multi<O> result = step.apply((Multi<I>) c);
-            if (telemetry == null) {
-                return result;
-            }
-            return telemetry.instrumentStepMulti(step.getClass(), result, telemetryContext, false);
+            return step.apply((Multi<I>) c);
         } else {
             throw new IllegalArgumentException(MessageFormat.format(
                     "Unsupported current type for StepManyToMany: {0}", current));
