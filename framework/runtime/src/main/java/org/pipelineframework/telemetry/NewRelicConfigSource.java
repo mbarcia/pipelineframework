@@ -22,9 +22,11 @@ import java.util.Map;
 import java.util.Set;
 
 import org.eclipse.microprofile.config.spi.ConfigSource;
+import org.jboss.logging.Logger;
 
 public class NewRelicConfigSource implements ConfigSource {
 
+    private static final Logger logger = Logger.getLogger(NewRelicConfigSource.class);
     private static final String LICENSE_ENV = "NEW_RELIC_LICENSE_KEY";
     private static final String ENDPOINT_ENV = "NEW_RELIC_OTLP_ENDPOINT";
     private static final String DEFAULT_ENDPOINT = "https://otlp.eu01.nr-data.net:443";
@@ -65,6 +67,7 @@ public class NewRelicConfigSource implements ConfigSource {
         if (licenseKey == null || licenseKey.isBlank()) {
             return Collections.emptyMap();
         }
+        logger.infof("New Relic OTLP export enabled via %s (LGTM disabled).", LICENSE_ENV);
         Map<String, String> values = new HashMap<>();
         values.put("quarkus.otel.enabled", "true");
         values.put("quarkus.otel.traces.enabled", "true");
