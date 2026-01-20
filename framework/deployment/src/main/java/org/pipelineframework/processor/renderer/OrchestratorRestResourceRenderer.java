@@ -37,6 +37,7 @@ public class OrchestratorRestResourceRenderer implements PipelineRenderer<Orches
         ClassName uni = ClassName.get("io.smallrye.mutiny", "Uni");
         ClassName multi = ClassName.get("io.smallrye.mutiny", "Multi");
         ClassName executionService = ClassName.get("org.pipelineframework", "PipelineExecutionService");
+        ClassName span = ClassName.get("io.opentelemetry.api.trace", "Span");
 
         ClassName inputType = ClassName.get(binding.basePackage() + ".common.dto", binding.inputTypeName() + "Dto");
         ClassName outputType = ClassName.get(binding.basePackage() + ".common.dto", binding.outputTypeName() + "Dto");
@@ -71,6 +72,9 @@ public class OrchestratorRestResourceRenderer implements PipelineRenderer<Orches
             ? ParameterizedTypeName.get(multi, inputType)
             : inputType;
         runMethod.addParameter(inputParamType, "input");
+
+        runMethod.addStatement("$T.current().setAttribute($S, true)", span, "tpf.orchestrator");
+        runMethod.addStatement("$T.current().setAttribute($S, $S)", span, "tpf.transport", "rest");
 
         String methodSuffix = binding.outputStreaming() ? "Streaming" : "Unary";
         if (binding.inputStreaming()) {

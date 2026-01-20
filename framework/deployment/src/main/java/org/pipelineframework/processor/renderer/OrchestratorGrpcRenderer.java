@@ -42,6 +42,7 @@ public class OrchestratorGrpcRenderer implements PipelineRenderer<OrchestratorBi
         ClassName uni = ClassName.get("io.smallrye.mutiny", "Uni");
         ClassName multi = ClassName.get("io.smallrye.mutiny", "Multi");
         ClassName executionService = ClassName.get("org.pipelineframework", "PipelineExecutionService");
+        ClassName span = ClassName.get("io.opentelemetry.api.trace", "Span");
 
         OrchestratorGrpcBindingResolver resolver = new OrchestratorGrpcBindingResolver();
         var grpcBinding = safeResolveBinding(binding, descriptorSet, ctx);
@@ -82,6 +83,9 @@ public class OrchestratorGrpcRenderer implements PipelineRenderer<OrchestratorBi
             ? ParameterizedTypeName.get(multi, inputType)
             : inputType;
         runMethod.addParameter(inputParamType, "input");
+
+        runMethod.addStatement("$T.current().setAttribute($S, true)", span, "tpf.orchestrator");
+        runMethod.addStatement("$T.current().setAttribute($S, $S)", span, "tpf.transport", "grpc");
 
         String methodSuffix = binding.outputStreaming() ? "Streaming" : "Unary";
         if (binding.inputStreaming()) {
