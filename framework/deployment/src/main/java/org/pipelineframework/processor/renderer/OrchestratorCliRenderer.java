@@ -42,12 +42,6 @@ public class OrchestratorCliRenderer implements PipelineRenderer<OrchestratorBin
         ClassName inject = ClassName.get("jakarta.inject", "Inject");
         ClassName multi = ClassName.get("io.smallrye.mutiny", "Multi");
         ClassName appClassName = ClassName.get(binding.basePackage() + ".orchestrator", APP_CLASS);
-        ClassName globalOpenTelemetry = ClassName.get("io.opentelemetry.api", "GlobalOpenTelemetry");
-        ClassName tracer = ClassName.get("io.opentelemetry.api.trace", "Tracer");
-        ClassName span = ClassName.get("io.opentelemetry.api.trace", "Span");
-        ClassName spanKind = ClassName.get("io.opentelemetry.api.trace", "SpanKind");
-        ClassName statusCode = ClassName.get("io.opentelemetry.api.trace", "StatusCode");
-        ClassName scope = ClassName.get("io.opentelemetry.context", "Scope");
 
         ClassName inputDtoType = ClassName.get(binding.basePackage() + ".common.dto", binding.inputTypeName() + "Dto");
         TypeName inputType = restMode ? inputDtoType : resolveGrpcInputType(binding, ctx);
@@ -85,23 +79,12 @@ public class OrchestratorCliRenderer implements PipelineRenderer<OrchestratorBin
                 .build();
         }
 
-        MethodSpec.Builder mainMethodBuilder = MethodSpec.methodBuilder("main")
+        MethodSpec mainMethod = MethodSpec.methodBuilder("main")
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
             .returns(void.class)
-            .addParameter(String[].class, "args");
-
-        if (binding.appName() != null && !binding.appName().isBlank()) {
-            mainMethodBuilder.addStatement(
-                "if (System.getProperty($S) == null) System.setProperty($S, $S)",
-                "quarkus.application.name",
-                "quarkus.application.name",
-                binding.appName());
-        }
-
-        mainMethodBuilder.addStatement(
-            "$T.run($T.class, args)", ClassName.get("io.quarkus.runtime", "Quarkus"), appClassName);
-
-        MethodSpec mainMethod = mainMethodBuilder.build();
+            .addParameter(String[].class, "args")
+            .addStatement("$T.run($T.class, args)", ClassName.get("io.quarkus.runtime", "Quarkus"), appClassName)
+            .build();
 
         MethodSpec runMethod = MethodSpec.methodBuilder("run")
             .addAnnotation(Override.class)
@@ -116,31 +99,15 @@ public class OrchestratorCliRenderer implements PipelineRenderer<OrchestratorBin
         String uniMapSuffix = mapperName == null ? "" : ".map(" + mapperName + "::toGrpc)";
         String uniToMultiSuffix = ".toMulti()";
 
-        String spanAttributes = restMode
-            ? ".setAttribute(\"tpf.orchestrator\", true)"
-                + ".setAttribute(\"tpf.transport\", \"rest\")"
-                + ".setAttribute(\"http.method\", \"POST\")"
-                + ".setAttribute(\"http.route\", \"/pipeline/run\")"
-            : ".setAttribute(\"tpf.orchestrator\", true)"
-                + ".setAttribute(\"tpf.transport\", \"grpc\")"
-                + ".setAttribute(\"rpc.system\", \"grpc\")"
-                + ".setAttribute(\"rpc.service\", \"OrchestratorService\")"
-                + ".setAttribute(\"rpc.method\", \"Run\")";
-
         MethodSpec callMethod = MethodSpec.methodBuilder("call")
             .addAnnotation(Override.class)
             .addModifiers(Modifier.PUBLIC)
             .returns(Integer.class)
-            .addStatement("$T tracer = $T.getTracer($S)", tracer, globalOpenTelemetry, "org.pipelineframework.orchestrator.cli")
-            .addStatement("$T span = tracer.spanBuilder($S)%s.setSpanKind($T.SERVER).startSpan()"
-                .formatted(spanAttributes), span, "tpf.orchestrator.cli.run", spanKind)
-            .beginControlFlow("try ($T scope = span.makeCurrent())", scope)
             .addCode("""
                 String actualInputList = firstNonBlank(inputList, System.getenv("PIPELINE_INPUT_LIST"));
                 String actualInput = firstNonBlank(input, System.getenv("PIPELINE_INPUT"));
                 if (isBlank(actualInputList) && isBlank(actualInput)) {
                     System.out.println("Input parameter is empty");
-                    span.setStatus($T.ERROR, "Input parameter is empty");
                     return $T.ExitCode.USAGE;
                 }
 
@@ -149,7 +116,6 @@ public class OrchestratorCliRenderer implements PipelineRenderer<OrchestratorBin
                     if (!isBlank(actualInputList)) {
                         if (!looksLikeJsonArray(actualInputList)) {
                             System.err.println("Input list must be a JSON array.");
-                            span.setStatus($T.ERROR, "Input list must be a JSON array");
                             return $T.ExitCode.USAGE;
                         }
                         inputMulti = inputDeserializer
@@ -159,12 +125,10 @@ public class OrchestratorCliRenderer implements PipelineRenderer<OrchestratorBin
                             .uniFromJson(actualInput, $T.class)%s%s;
                     } else {
                         System.err.println("Input must be a JSON object.");
-                        span.setStatus($T.ERROR, "Input must be a JSON object");
                         return $T.ExitCode.USAGE;
                     }
                 } catch (Exception e) {
                     System.err.println("Failed to deserialize input JSON: " + sanitizeErrorMessage(e.getMessage()));
-                    span.setStatus($T.ERROR, "Failed to deserialize input JSON");
                     return $T.ExitCode.USAGE;
                 }
 
@@ -175,30 +139,17 @@ public class OrchestratorCliRenderer implements PipelineRenderer<OrchestratorBin
                         .await().indefinitely();
 
                 System.out.println("Pipeline execution completed");
-                span.setStatus($T.OK);
                 return $T.ExitCode.OK;
                 """.formatted(multiMapSuffix, uniMapSuffix, uniToMultiSuffix),
-                statusCode,
                 commandLine,
                 inputMultiType,
-                statusCode,
                 commandLine,
                 inputDtoType,
                 inputDtoType,
-                statusCode,
                 commandLine,
-                statusCode,
                 commandLine,
                 duration,
-                statusCode,
                 commandLine)
-            .nextControlFlow("catch (Exception e)")
-            .addStatement("span.recordException(e)")
-            .addStatement("span.setStatus($T.ERROR, e.getMessage())", statusCode)
-            .addStatement("throw e")
-            .nextControlFlow("finally")
-            .addStatement("span.end()")
-            .endControlFlow()
             .build();
 
         MethodSpec isBlankMethod = MethodSpec.methodBuilder("isBlank")
