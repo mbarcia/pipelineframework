@@ -40,8 +40,13 @@ public class OrchestratorCliRenderer implements PipelineRenderer<OrchestratorBin
         ClassName duration = ClassName.get("java.time", "Duration");
         ClassName dependent = ClassName.get("jakarta.enterprise.context", "Dependent");
         ClassName inject = ClassName.get("jakarta.inject", "Inject");
+        ClassName instance = ClassName.get("jakarta.enterprise.inject", "Instance");
         ClassName multi = ClassName.get("io.smallrye.mutiny", "Multi");
         ClassName appClassName = ClassName.get(binding.basePackage() + ".orchestrator", APP_CLASS);
+        ClassName meterRegistry = ClassName.get("io.micrometer.core.instrument", "MeterRegistry");
+        ClassName tags = ClassName.get("io.micrometer.core.instrument", "Tags");
+        ClassName timer = ClassName.get("io.micrometer.core.instrument", "Timer");
+        ClassName timerSample = timer.nestedClass("Sample");
 
         ClassName inputDtoType = ClassName.get(binding.basePackage() + ".common.dto", binding.inputTypeName() + "Dto");
         TypeName inputType = restMode ? inputDtoType : resolveGrpcInputType(binding, ctx);
@@ -64,6 +69,10 @@ public class OrchestratorCliRenderer implements PipelineRenderer<OrchestratorBin
             .build();
 
         FieldSpec pipelineExecutionServiceField = FieldSpec.builder(pipelineExecutionService, "pipelineExecutionService")
+            .addAnnotation(inject)
+            .build();
+
+        FieldSpec meterRegistryField = FieldSpec.builder(ParameterizedTypeName.get(instance, meterRegistry), "meterRegistry")
             .addAnnotation(inject)
             .build();
 
@@ -134,12 +143,34 @@ public class OrchestratorCliRenderer implements PipelineRenderer<OrchestratorBin
 
                 pipelineExecutionService.awaitStartupHealth($T.ofMinutes(2));
 
-                pipelineExecutionService.executePipeline(inputMulti)
-                        .collect().asList()
-                        .await().indefinitely();
+                if (meterRegistry.isUnsatisfied()) {
+                    pipelineExecutionService.executePipeline(inputMulti)
+                            .collect().asList()
+                            .await().indefinitely();
 
-                System.out.println("Pipeline execution completed");
-                return $T.ExitCode.OK;
+                    System.out.println("Pipeline execution completed");
+                    return $T.ExitCode.OK;
+                }
+
+                $T registry = meterRegistry.get();
+                $T grpcTags = $T.of($S, $S, $S, $S);
+                $T sample = $T.start(registry);
+                String grpcStatus = "0";
+                try {
+                    pipelineExecutionService.executePipeline(inputMulti)
+                            .collect().asList()
+                            .await().indefinitely();
+
+                    System.out.println("Pipeline execution completed");
+                    return $T.ExitCode.OK;
+                } catch (Exception e) {
+                    grpcStatus = "2";
+                    throw e;
+                } finally {
+                    $T allTags = grpcTags.and($S, grpcStatus);
+                    registry.counter($S, allTags).increment();
+                    sample.stop(registry.timer($S, allTags));
+                }
                 """.formatted(multiMapSuffix, uniMapSuffix, uniToMultiSuffix),
                 commandLine,
                 inputMultiType,
@@ -149,7 +180,21 @@ public class OrchestratorCliRenderer implements PipelineRenderer<OrchestratorBin
                 commandLine,
                 commandLine,
                 duration,
-                commandLine)
+                commandLine,
+                meterRegistry,
+                tags,
+                tags,
+                "service",
+                "OrchestratorService",
+                "method",
+                "Run",
+                timerSample,
+                timer,
+                commandLine,
+                tags,
+                "grpc.status",
+                "grpc.server.requests.received",
+                "grpc.server.processing.duration")
             .build();
 
         MethodSpec isBlankMethod = MethodSpec.methodBuilder("isBlank")
@@ -216,6 +261,7 @@ public class OrchestratorCliRenderer implements PipelineRenderer<OrchestratorBin
             .addField(inputField)
             .addField(inputListField)
             .addField(pipelineExecutionServiceField)
+            .addField(meterRegistryField)
             .addField(inputDeserializerField)
             .addMethod(mainMethod)
             .addMethod(runMethod)
