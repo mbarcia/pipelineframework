@@ -29,7 +29,9 @@ public class NewRelicConfigSource implements ConfigSource {
     private static final Logger logger = Logger.getLogger(NewRelicConfigSource.class);
     private static final String LICENSE_ENV = "NEW_RELIC_LICENSE_KEY";
     private static final String ENDPOINT_ENV = "NEW_RELIC_OTLP_ENDPOINT";
+    private static final String METRIC_INTERVAL_ENV = "NEW_RELIC_METRIC_EXPORT_INTERVAL";
     private static final String DEFAULT_ENDPOINT = "https://otlp.eu01.nr-data.net:443";
+    private static final String DEFAULT_METRIC_INTERVAL = "15s";
 
     private final Map<String, String> properties;
 
@@ -72,7 +74,7 @@ public class NewRelicConfigSource implements ConfigSource {
         values.put("quarkus.otel.enabled", "true");
         values.put("quarkus.otel.traces.enabled", "true");
         values.put("quarkus.otel.metrics.enabled", "true");
-        values.put("quarkus.otel.metric.export.interval", "5s");
+        values.put("quarkus.otel.metric.export.interval", resolveMetricInterval());
         values.put("quarkus.otel.traces.sampler", "parentbased_traceidratio");
         values.put("quarkus.otel.traces.sampler.arg", "0.001");
         values.put("quarkus.otel.exporter.otlp.endpoint", resolveEndpoint());
@@ -90,5 +92,13 @@ public class NewRelicConfigSource implements ConfigSource {
             return DEFAULT_ENDPOINT;
         }
         return endpoint;
+    }
+
+    private String resolveMetricInterval() {
+        String interval = System.getenv(METRIC_INTERVAL_ENV);
+        if (interval == null || interval.isBlank()) {
+            return DEFAULT_METRIC_INTERVAL;
+        }
+        return interval;
     }
 }

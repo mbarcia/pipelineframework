@@ -32,7 +32,7 @@ Enabled settings (defaults):
 - `quarkus.otel.enabled=true`
 - `quarkus.otel.traces.enabled=true`
 - `quarkus.otel.metrics.enabled=true`
-- `quarkus.otel.metric.export.interval=5s`
+- `quarkus.otel.metric.export.interval=15s` (override with `NEW_RELIC_METRIC_EXPORT_INTERVAL` or `QUARKUS_OTEL_METRIC_EXPORT_INTERVAL`)
 - `quarkus.otel.traces.sampler=parentbased_traceidratio`
 - `quarkus.otel.traces.sampler.arg=0.001`
 - `quarkus.otel.exporter.otlp.endpoint=${NEW_RELIC_OTLP_ENDPOINT:https://otlp.eu01.nr-data.net:443}`
@@ -59,6 +59,9 @@ export QUARKUS_MICROMETER_EXPORT_PROMETHEUS_ENABLED=true
 ```
 
 This enables Prometheus metrics for Grafana dashboards and activates the LGTM stack.
+
+Note: when LGTM Dev Services are enabled, Quarkus may override some OTel timing defaults
+for dev convenience (for example `quarkus.otel.metric.export.interval=10s`).
 
 ### Prometheus/Micrometer Defaults
 
