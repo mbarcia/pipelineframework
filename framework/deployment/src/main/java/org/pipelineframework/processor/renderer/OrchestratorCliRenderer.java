@@ -47,6 +47,10 @@ public class OrchestratorCliRenderer implements PipelineRenderer<OrchestratorBin
         ClassName tags = ClassName.get("io.micrometer.core.instrument", "Tags");
         ClassName timer = ClassName.get("io.micrometer.core.instrument", "Timer");
         ClassName timerSample = timer.nestedClass("Sample");
+        ClassName rpcMetrics = ClassName.get("org.pipelineframework.telemetry", "RpcMetrics");
+        ClassName telemetryFlush = ClassName.get("org.pipelineframework.telemetry", "TelemetryFlush");
+        ClassName grpcStatus = ClassName.get("io.grpc", "Status");
+        ClassName grpcStatusCode = grpcStatus.nestedClass("Code");
 
         ClassName inputDtoType = ClassName.get(binding.basePackage() + ".common.dto", binding.inputTypeName() + "Dto");
         TypeName inputType = restMode ? inputDtoType : resolveGrpcInputType(binding, ctx);
@@ -143,18 +147,12 @@ public class OrchestratorCliRenderer implements PipelineRenderer<OrchestratorBin
 
                 pipelineExecutionService.awaitStartupHealth($T.ofMinutes(2));
 
-                if (meterRegistry.isUnsatisfied()) {
-                    pipelineExecutionService.executePipeline(inputMulti)
-                            .collect().asList()
-                            .await().indefinitely();
-
-                    System.out.println("Pipeline execution completed");
-                    return $T.ExitCode.OK;
-                }
-
-                $T registry = meterRegistry.get();
-                $T grpcTags = $T.of($S, $S, $S, $S);
-                $T sample = $T.start(registry);
+                boolean hasRegistry = !meterRegistry.isUnsatisfied();
+                $T registry = hasRegistry ? meterRegistry.get() : null;
+                $T grpcTags = hasRegistry ? $T.of($S, $S, $S, $S) : null;
+                $T sample = hasRegistry ? $T.start(registry) : null;
+                long startTime = System.nanoTime();
+                $T statusCode = $T.OK;
                 String grpcStatus = "0";
                 try {
                     pipelineExecutionService.executePipeline(inputMulti)
@@ -164,12 +162,17 @@ public class OrchestratorCliRenderer implements PipelineRenderer<OrchestratorBin
                     System.out.println("Pipeline execution completed");
                     return $T.ExitCode.OK;
                 } catch (Exception e) {
+                    statusCode = $T.UNKNOWN;
                     grpcStatus = "2";
                     throw e;
                 } finally {
-                    $T allTags = grpcTags.and($S, grpcStatus);
-                    registry.counter($S, allTags).increment();
-                    sample.stop(registry.timer($S, allTags));
+                    $T.recordGrpcServer($S, $S, statusCode, System.nanoTime() - startTime);
+                    if (hasRegistry) {
+                        $T allTags = grpcTags.and($S, grpcStatus);
+                        registry.counter($S, allTags).increment();
+                        sample.stop(registry.timer($S, allTags));
+                    }
+                    $T.flush();
                 }
                 """.formatted(multiMapSuffix, uniMapSuffix, uniToMultiSuffix),
                 commandLine,
@@ -180,7 +183,6 @@ public class OrchestratorCliRenderer implements PipelineRenderer<OrchestratorBin
                 commandLine,
                 commandLine,
                 duration,
-                commandLine,
                 meterRegistry,
                 tags,
                 tags,
@@ -190,11 +192,18 @@ public class OrchestratorCliRenderer implements PipelineRenderer<OrchestratorBin
                 "Run",
                 timerSample,
                 timer,
+                grpcStatusCode,
+                grpcStatusCode,
                 commandLine,
+                grpcStatusCode,
+                rpcMetrics,
+                "OrchestratorService",
+                "Run",
                 tags,
                 "grpc.status",
                 "grpc.server.requests.received",
-                "grpc.server.processing.duration")
+                "grpc.server.processing.duration",
+                telemetryFlush)
             .build();
 
         MethodSpec isBlankMethod = MethodSpec.methodBuilder("isBlank")

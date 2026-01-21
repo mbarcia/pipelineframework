@@ -30,6 +30,7 @@ import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
+import io.grpc.Status;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import io.smallrye.mutiny.infrastructure.Infrastructure;
@@ -38,6 +39,8 @@ import org.apache.commons.lang3.time.StopWatch;
 import org.jboss.logging.Logger;
 import org.pipelineframework.config.PipelineConfig;
 import org.pipelineframework.config.pipeline.PipelineOrderResourceLoader;
+import org.pipelineframework.telemetry.ApmCompatibilityMetrics;
+import org.pipelineframework.telemetry.RpcMetrics;
 
 /**
  * Service responsible for executing pipeline logic.
@@ -48,6 +51,8 @@ import org.pipelineframework.config.pipeline.PipelineOrderResourceLoader;
 public class PipelineExecutionService {
 
   private static final Logger LOG = Logger.getLogger(PipelineExecutionService.class);
+  private static final String ORCHESTRATOR_SERVICE = "OrchestratorService";
+  private static final String ORCHESTRATOR_METHOD = "Run";
 
   /** Pipeline configuration for this service. */
   @Inject
@@ -309,35 +314,55 @@ public class PipelineExecutionService {
   }
 
   private <T> Multi<T> attachMultiHooks(Multi<T> multi, StopWatch watch) {
+    long[] startTime = new long[1];
     return multi
         .onSubscription().invoke(ignored -> {
           LOG.info("PIPELINE BEGINS processing");
+          startTime[0] = System.nanoTime();
           watch.start();
         })
         .onCompletion().invoke(() -> {
           watch.stop();
+          RpcMetrics.recordGrpcServer(ORCHESTRATOR_SERVICE, ORCHESTRATOR_METHOD, Status.OK,
+              System.nanoTime() - startTime[0]);
+          ApmCompatibilityMetrics.recordOrchestratorSuccess(durationMillis(startTime[0]));
           LOG.infof("✅ PIPELINE FINISHED processing in %s seconds", watch.getTime(TimeUnit.SECONDS));
         })
         .onFailure().invoke(failure -> {
           watch.stop();
+          RpcMetrics.recordGrpcServer(ORCHESTRATOR_SERVICE, ORCHESTRATOR_METHOD, Status.fromThrowable(failure),
+              System.nanoTime() - startTime[0]);
+          ApmCompatibilityMetrics.recordOrchestratorFailure(durationMillis(startTime[0]));
           LOG.errorf(failure, "❌ PIPELINE FAILED after %s seconds", watch.getTime(TimeUnit.SECONDS));
         });
   }
 
   private <T> Uni<T> attachUniHooks(Uni<T> uni, StopWatch watch) {
+    long[] startTime = new long[1];
     return uni
         .onSubscription().invoke(ignored -> {
           LOG.info("PIPELINE BEGINS processing");
+          startTime[0] = System.nanoTime();
           watch.start();
         })
         .onItemOrFailure().invoke((item, failure) -> {
           watch.stop();
           if (failure == null) {
+            RpcMetrics.recordGrpcServer(ORCHESTRATOR_SERVICE, ORCHESTRATOR_METHOD, Status.OK,
+                System.nanoTime() - startTime[0]);
+            ApmCompatibilityMetrics.recordOrchestratorSuccess(durationMillis(startTime[0]));
             LOG.infof("✅ PIPELINE FINISHED processing in %s seconds", watch.getTime(TimeUnit.SECONDS));
           } else {
+            RpcMetrics.recordGrpcServer(ORCHESTRATOR_SERVICE, ORCHESTRATOR_METHOD, Status.fromThrowable(failure),
+                System.nanoTime() - startTime[0]);
+            ApmCompatibilityMetrics.recordOrchestratorFailure(durationMillis(startTime[0]));
             LOG.errorf(failure, "❌ PIPELINE FAILED after %s seconds", watch.getTime(TimeUnit.SECONDS));
           }
         });
+  }
+
+  private static double durationMillis(long startNanos) {
+    return (System.nanoTime() - startNanos) / 1_000_000d;
   }
 
   /**
