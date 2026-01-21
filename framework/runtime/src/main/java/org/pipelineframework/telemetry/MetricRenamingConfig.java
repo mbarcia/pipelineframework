@@ -29,6 +29,16 @@ import io.quarkus.runtime.Startup;
 @ApplicationScoped
 public class MetricRenamingConfig {
 
+    /**
+     * Produces a MeterFilter that rewrites gRPC server metric identifiers and tags to RPC-style names.
+     *
+     * The filter only modifies Meter.Id objects whose name starts with "grpc.server." — other IDs are returned unchanged.
+     * When applied, metric names are mapped to RPC equivalents and tags are rewritten (for example:
+     * "service" → "rpc.service", "method" → "rpc.method", "grpc.status" → "rpc.grpc.status_code").
+     * If no "rpc.system" tag is present after rewriting, a tag "rpc.system" with value "grpc" is appended.
+     *
+     * @return a MeterFilter that renames matching gRPC server metric names to RPC names and rewrites/augments their tags; non-matching IDs are left unchanged.
+     */
     @Produces
     @Startup
     public MeterFilter grpcRenameFilter() {
@@ -46,6 +56,16 @@ public class MetricRenamingConfig {
         };
     }
 
+    /**
+     * Map select gRPC server metric names to their RPC-style equivalents.
+     *
+     * @param name the original metric name
+     * @return {@code rpc.server.duration} for {@code grpc.server.processing.duration},
+     *         {@code rpc.server.duration.max} for {@code grpc.server.processing.duration.max},
+     *         {@code rpc.server.request.count} for {@code grpc.server.requests.received},
+     *         {@code rpc.server.response.count} for {@code grpc.server.responses.sent},
+     *         otherwise returns the original {@code name}
+     */
     private static String mapGrpcName(String name) {
         return switch (name) {
             case "grpc.server.processing.duration" -> "rpc.server.duration";
@@ -56,6 +76,15 @@ public class MetricRenamingConfig {
         };
     }
 
+    /**
+     * Rename and normalise gRPC-related metric tags, and ensure an `rpc.system` tag is present.
+     *
+     * <p>Renames keys: `service` → `rpc.service`, `method` → `rpc.method`, `grpc.status` → `rpc.grpc.status_code`.
+     * Preserves existing `rpc.system` tags; if none exists, appends `rpc.system=grpc`.</p>
+     *
+     * @param tags the original list of metric tags to process
+     * @return a new list containing the renamed and possibly augmented tags
+     */
     private static List<Tag> renameGrpcTags(List<Tag> tags) {
         List<Tag> renamed = new ArrayList<>(tags.size() + 1);
         boolean hasRpcSystem = false;
