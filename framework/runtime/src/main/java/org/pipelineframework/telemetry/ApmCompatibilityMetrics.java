@@ -19,7 +19,7 @@ package org.pipelineframework.telemetry;
 import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
-import io.opentelemetry.api.metrics.DoubleHistogram;
+import io.opentelemetry.api.metrics.DoubleCounter;
 import io.opentelemetry.api.metrics.LongCounter;
 import io.opentelemetry.api.metrics.Meter;
 
@@ -37,8 +37,8 @@ public final class ApmCompatibilityMetrics {
         METER.counterBuilder("apm.service.transaction.count").build();
     private static final LongCounter ERROR_COUNT =
         METER.counterBuilder("apm.service.error.count").build();
-    private static final DoubleHistogram TRANSACTION_DURATION =
-        METER.histogramBuilder("apm.service.transaction.duration").setUnit("ms").build();
+    private static final DoubleCounter TRANSACTION_DURATION =
+        METER.counterBuilder("apm.service.transaction.duration").setUnit("ms").ofDoubles().build();
 
     private static final AttributeKey<String> TRANSACTION_TYPE = AttributeKey.stringKey("transaction.type");
     private static final AttributeKey<String> TRANSACTION_NAME = AttributeKey.stringKey("transaction.name");
@@ -60,7 +60,7 @@ public final class ApmCompatibilityMetrics {
             .put(TRANSACTION_NAME, "OtherTransaction/OrchestratorService/Run")
             .build();
         TRANSACTION_COUNT.add(1, attributes);
-        TRANSACTION_DURATION.record(durationMs, attributes);
+        TRANSACTION_DURATION.add(durationMs, attributes);
         if (error) {
             ERROR_COUNT.add(1, attributes);
         }
