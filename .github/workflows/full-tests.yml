@@ -91,7 +91,30 @@ jobs:
           load: true
 
       - name: Run Integration Tests
+        env:
+          MAVEN_ARGS: -B -T 1 -V --no-transfer-progress
         run: ./mvnw $MAVEN_ARGS verify
+
+      - name: Dump integration test reports on failure
+        if: failure()
+        run: |
+          echo "=== Failsafe reports ==="
+          find . -path "*/target/failsafe-reports/*.txt" -print -exec tail -n 200 {} \;
+          echo "=== Surefire reports ==="
+          find . -path "*/target/surefire-reports/*.txt" -print -exec tail -n 200 {} \;
+
+      - name: Upload test reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: |
+            **/target/surefire-reports/*.txt
+            **/target/surefire-reports/*.xml
+            **/target/failsafe-reports/*.txt
+            **/target/failsafe-reports/*.xml
+          retention-days: 7
+          if-no-files-found: warn
 
       - name: Generate JaCoCo aggregate report
         if: github.event_name != 'pull_request'
