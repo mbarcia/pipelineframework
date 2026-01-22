@@ -49,6 +49,14 @@ Run-level span attributes (on `tpf.pipeline.run`):
 
 These are designed for batch-style pipelines where throughput should be measured while the pipeline is running.
 
+Tip: gauges report the instantaneous value, so after a run finishes they will return to 0.
+When querying, use a max over time window to surface the peak:
+
+```text
+max(tpf_step_inflight) by (tpf_step_class)
+max(tpf_step_pending) by (tpf_step_class)
+```
+
 ## Custom Metrics
 
 Use Micrometer to add counters and timers inside your services:
