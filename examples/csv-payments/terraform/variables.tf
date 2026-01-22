@@ -21,6 +21,12 @@ variable "newrelic_entity_type" {
   description = "New Relic entity type for services."
 }
 
+variable "service_guids" {
+  type        = map(string)
+  default     = {}
+  description = "Optional service GUID overrides keyed by role."
+}
+
 variable "service_names" {
   type = map(string)
   default = {

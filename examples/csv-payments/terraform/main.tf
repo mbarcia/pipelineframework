@@ -1,5 +1,8 @@
 data "newrelic_entity" "services" {
-  for_each = var.service_names
+  for_each = {
+    for key, name in var.service_names : key => name
+    if lookup(var.service_guids, key, "") == ""
+  }
   name     = each.value
   domain   = var.newrelic_entity_domain
   type     = var.newrelic_entity_type
@@ -7,29 +10,33 @@ data "newrelic_entity" "services" {
 }
 
 locals {
+  service_guids = merge(
+    { for key, name in var.service_names : key => lookup(var.service_guids, key, null) },
+    { for key, entity in data.newrelic_entity.services : key => entity.guid }
+  )
   services = {
     orchestrator = {
-      guid = data.newrelic_entity.services["orchestrator"].guid
+      guid = local.service_guids["orchestrator"]
       name = var.service_names.orchestrator
     }
     input = {
-      guid = data.newrelic_entity.services["input"].guid
+      guid = local.service_guids["input"]
       name = var.service_names.input
     }
     output = {
-      guid = data.newrelic_entity.services["output"].guid
+      guid = local.service_guids["output"]
       name = var.service_names.output
     }
     payments_processing = {
-      guid = data.newrelic_entity.services["payments_processing"].guid
+      guid = local.service_guids["payments_processing"]
       name = var.service_names.payments_processing
     }
     payment_status = {
-      guid = data.newrelic_entity.services["payment_status"].guid
+      guid = local.service_guids["payment_status"]
       name = var.service_names.payment_status
     }
     persistence = {
-      guid = data.newrelic_entity.services["persistence"].guid
+      guid = local.service_guids["persistence"]
       name = var.service_names.persistence
     }
   }
