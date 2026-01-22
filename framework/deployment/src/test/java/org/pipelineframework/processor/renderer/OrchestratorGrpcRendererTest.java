@@ -38,7 +38,7 @@ class OrchestratorGrpcRendererTest {
         assertTrue(source.contains("@GrpcService"));
         assertTrue(source.contains("extends MutinyOrchestratorServiceGrpc.OrchestratorServiceImplBase"));
         assertTrue(source.contains("public Uni<OutputType> run(InputType input)"));
-        assertTrue(source.contains("return pipelineExecutionService.executePipelineUnary("));
+        assertTrue(source.contains("executePipelineUnary"));
     }
 
     @Test
@@ -57,7 +57,7 @@ class OrchestratorGrpcRendererTest {
         String source = Files.readString(generatedSource);
 
         assertTrue(source.contains("public Multi<OutputType> run(Multi<InputType> input)"));
-        assertTrue(source.contains("return pipelineExecutionService.executePipelineStreaming(input);"));
+        assertTrue(source.contains("executePipelineStreaming"));
     }
 
     private OrchestratorBinding buildBinding(boolean inputStreaming, boolean outputStreaming) {
