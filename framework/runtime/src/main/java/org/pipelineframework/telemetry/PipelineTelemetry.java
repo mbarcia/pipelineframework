@@ -37,6 +37,9 @@ import io.smallrye.mutiny.Uni;
 import org.pipelineframework.config.ParallelismPolicy;
 import org.pipelineframework.config.PipelineStepConfig;
 
+/**
+ * Records pipeline-level spans and metrics for step execution.
+ */
 @ApplicationScoped
 @Unremovable
 public class PipelineTelemetry {
@@ -57,6 +60,11 @@ public class PipelineTelemetry {
     private final DoubleHistogram pipelineRunDuration;
     private final DoubleHistogram stepDuration;
 
+    /**
+     * Create a telemetry helper from the configured pipeline settings.
+     *
+     * @param stepConfig pipeline configuration mapping
+     */
     @Inject
     public PipelineTelemetry(PipelineStepConfig stepConfig) {
         PipelineStepConfig.TelemetryConfig telemetry = stepConfig.telemetry();
@@ -101,6 +109,15 @@ public class PipelineTelemetry {
         }
     }
 
+    /**
+     * Start a pipeline run and return the telemetry context.
+     *
+     * @param input pipeline input
+     * @param stepCount number of steps
+     * @param policy parallelism policy
+     * @param maxConcurrency max concurrency
+     * @return telemetry run context
+     */
     public RunContext startRun(Object input, int stepCount, ParallelismPolicy policy, int maxConcurrency) {
         if (!enabled) {
             return RunContext.disabled();
@@ -125,6 +142,13 @@ public class PipelineTelemetry {
         return new RunContext(context, span, System.nanoTime(), attributes, enabled);
     }
 
+    /**
+     * Instrument pipeline input to count items.
+     *
+     * @param input input Uni or Multi
+     * @param runContext telemetry context
+     * @return instrumented input
+     */
     public Object instrumentInput(Object input, RunContext runContext) {
         if (!metricsEnabled || runContext == null || !runContext.enabled()) {
             return input;
@@ -138,6 +162,13 @@ public class PipelineTelemetry {
         return input;
     }
 
+    /**
+     * Attach completion hooks to a Uni or Multi to close the run.
+     *
+     * @param current Uni or Multi
+     * @param runContext telemetry context
+     * @return instrumented publisher
+     */
     public Object instrumentRunCompletion(Object current, RunContext runContext) {
         if (runContext == null || !runContext.enabled()) {
             return current;
@@ -153,6 +184,16 @@ public class PipelineTelemetry {
         return current;
     }
 
+    /**
+     * Instrument a step execution that returns a Uni.
+     *
+     * @param stepClass step class
+     * @param uni step result
+     * @param runContext telemetry context
+     * @param perItemOperation true when called per item
+     * @param <T> output type
+     * @return instrumented Uni
+     */
     public <T> Uni<T> instrumentStepUni(
         Class<?> stepClass,
         Uni<T> uni,
@@ -169,6 +210,16 @@ public class PipelineTelemetry {
         });
     }
 
+    /**
+     * Instrument a step execution that returns a Multi.
+     *
+     * @param stepClass step class
+     * @param multi step result
+     * @param runContext telemetry context
+     * @param perItemOperation true when called per item
+     * @param <T> output type
+     * @return instrumented Multi
+     */
     public <T> Multi<T> instrumentStepMulti(
         Class<?> stepClass,
         Multi<T> multi,
@@ -242,6 +293,15 @@ public class PipelineTelemetry {
         return (System.nanoTime() - startNanos) / 1_000_000d;
     }
 
+    /**
+     * Immutable run context used for pipeline telemetry.
+     *
+     * @param context parent context
+     * @param span run span
+     * @param startNanos start time
+     * @param attributes run attributes
+     * @param enabled whether telemetry is enabled
+     */
     public record RunContext(
         Context context,
         Span span,

@@ -45,6 +45,14 @@ public final class RpcMetrics {
     private RpcMetrics() {
     }
 
+    /**
+     * Record gRPC server RPC metrics for a completed call.
+     *
+     * @param service gRPC service name
+     * @param method gRPC method name
+     * @param code gRPC status code
+     * @param durationNanos duration in nanoseconds
+     */
     public static void recordGrpcServer(String service, String method, Status.Code code, long durationNanos) {
         if (service == null || method == null) {
             return;
@@ -61,6 +69,14 @@ public final class RpcMetrics {
         SERVER_DURATION.record(durationNanos / 1_000_000.0, attributes);
     }
 
+    /**
+     * Record gRPC server RPC metrics for a completed call.
+     *
+     * @param service gRPC service name
+     * @param method gRPC method name
+     * @param status gRPC status
+     * @param durationNanos duration in nanoseconds
+     */
     public static void recordGrpcServer(String service, String method, Status status, long durationNanos) {
         Status.Code code = status == null ? Status.Code.UNKNOWN : status.getCode();
         recordGrpcServer(service, method, code, durationNanos);

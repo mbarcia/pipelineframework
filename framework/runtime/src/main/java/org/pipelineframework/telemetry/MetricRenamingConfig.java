@@ -26,8 +26,18 @@ import io.micrometer.core.instrument.Tag;
 import io.micrometer.core.instrument.config.MeterFilter;
 import io.quarkus.runtime.Startup;
 
+/**
+ * Renames Micrometer gRPC metrics to OpenTelemetry RPC semantic conventions.
+ */
+
 @ApplicationScoped
 public class MetricRenamingConfig {
+
+    /**
+     * Default constructor.
+     */
+    public MetricRenamingConfig() {
+    }
 
     /**
      * Produces a MeterFilter that rewrites gRPC server metric identifiers and tags to RPC-style names.

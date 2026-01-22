@@ -46,10 +46,20 @@ public final class ApmCompatibilityMetrics {
     private ApmCompatibilityMetrics() {
     }
 
+    /**
+     * Record a successful orchestrator transaction duration.
+     *
+     * @param durationMs duration in milliseconds
+     */
     public static void recordOrchestratorSuccess(double durationMs) {
         record(durationMs, false);
     }
 
+    /**
+     * Record a failed orchestrator transaction duration.
+     *
+     * @param durationMs duration in milliseconds
+     */
     public static void recordOrchestratorFailure(double durationMs) {
         record(durationMs, true);
     }

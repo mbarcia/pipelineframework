@@ -28,6 +28,9 @@ public final class TelemetryFlush {
     private TelemetryFlush() {
     }
 
+    /**
+     * Force-flush OpenTelemetry meters and tracers if the SDK is present.
+     */
     public static void flush() {
         try {
             var openTelemetry = GlobalOpenTelemetry.get();

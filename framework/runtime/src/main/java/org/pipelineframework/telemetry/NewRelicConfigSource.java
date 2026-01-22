@@ -24,6 +24,9 @@ import java.util.Set;
 import org.eclipse.microprofile.config.spi.ConfigSource;
 import org.jboss.logging.Logger;
 
+/**
+ * Config source that enables New Relic OTLP export when a license key is present.
+ */
 public class NewRelicConfigSource implements ConfigSource {
 
     private static final Logger logger = Logger.getLogger(NewRelicConfigSource.class);

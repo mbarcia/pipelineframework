@@ -24,11 +24,20 @@ import org.eclipse.microprofile.config.Config;
 import org.eclipse.microprofile.config.ConfigProvider;
 import org.jboss.logging.Logger;
 
+/**
+ * Logs effective telemetry configuration when New Relic is enabled.
+ */
 @ApplicationScoped
 public class TelemetryConfigReporter {
 
     private static final Logger logger = Logger.getLogger(TelemetryConfigReporter.class);
     private static final String LICENSE_ENV = "NEW_RELIC_LICENSE_KEY";
+
+    /**
+     * Default constructor.
+     */
+    public TelemetryConfigReporter() {
+    }
 
     void onStart(@Observes StartupEvent event) {
         String licenseKey = System.getenv(LICENSE_ENV);
