@@ -1,42 +1,69 @@
-data "newrelic_entity" "services" {
-  for_each = {
-    for key, name in var.service_names : key => name
-    if lookup(var.service_guids, key, "") == ""
-  }
-  name     = each.value
-  domain   = var.newrelic_entity_domain
-  type     = var.newrelic_entity_type
+data "newrelic_entity" "orchestrator" {
+  name       = var.service_names.orchestrator
+  domain     = var.newrelic_entity_domain
+  type       = var.newrelic_entity_type
+  account_id = var.newrelic_account_id
+}
+
+data "newrelic_entity" "input" {
+  name       = var.service_names.input
+  domain     = var.newrelic_entity_domain
+  type       = var.newrelic_entity_type
+  account_id = var.newrelic_account_id
+}
+
+data "newrelic_entity" "output" {
+  name       = var.service_names.output
+  domain     = var.newrelic_entity_domain
+  type       = var.newrelic_entity_type
+  account_id = var.newrelic_account_id
+}
+
+data "newrelic_entity" "payments_processing" {
+  name       = var.service_names.payments_processing
+  domain     = var.newrelic_entity_domain
+  type       = var.newrelic_entity_type
+  account_id = var.newrelic_account_id
+}
+
+data "newrelic_entity" "payment_status" {
+  name       = var.service_names.payment_status
+  domain     = var.newrelic_entity_domain
+  type       = var.newrelic_entity_type
+  account_id = var.newrelic_account_id
+}
+
+data "newrelic_entity" "persistence" {
+  name       = var.service_names.persistence
+  domain     = var.newrelic_entity_domain
+  type       = var.newrelic_entity_type
   account_id = var.newrelic_account_id
 }
 
 locals {
-  service_guids = merge(
-    { for key, name in var.service_names : key => lookup(var.service_guids, key, null) },
-    { for key, entity in data.newrelic_entity.services : key => entity.guid }
-  )
   services = {
     orchestrator = {
-      guid = local.service_guids["orchestrator"]
+      guid = data.newrelic_entity.orchestrator.guid
       name = var.service_names.orchestrator
     }
     input = {
-      guid = local.service_guids["input"]
+      guid = data.newrelic_entity.input.guid
       name = var.service_names.input
     }
     output = {
-      guid = local.service_guids["output"]
+      guid = data.newrelic_entity.output.guid
       name = var.service_names.output
     }
     payments_processing = {
-      guid = local.service_guids["payments_processing"]
+      guid = data.newrelic_entity.payments_processing.guid
       name = var.service_names.payments_processing
     }
     payment_status = {
-      guid = local.service_guids["payment_status"]
+      guid = data.newrelic_entity.payment_status.guid
       name = var.service_names.payment_status
     }
     persistence = {
-      guid = local.service_guids["persistence"]
+      guid = data.newrelic_entity.persistence.guid
       name = var.service_names.persistence
     }
   }
