@@ -1,17 +1,11 @@
-terraform {
-  required_providers {
-    newrelic = {
-      source = "newrelic/newrelic"
-    }
-  }
-}
-
 data "newrelic_entity" "services" {
   for_each = var.service_names
   name     = each.value
   domain   = "APM"
   type     = "APPLICATION"
 }
+
+data "newrelic_account" "current" {}
 
 locals {
   services = {
@@ -65,7 +59,7 @@ resource "newrelic_service_level" "orchestrator_availability" {
   description = "Pipeline runs that complete without errors for orchestrator-svc."
 
   events {
-    account_id = var.newrelic_account_id
+    account_id = data.newrelic_account.current.id
 
     valid_events {
       from  = "Span"
@@ -95,7 +89,7 @@ resource "newrelic_service_level" "row_latency" {
   description = "Approx per-row latency from core step gRPC spans (per-item tracing not required)."
 
   events {
-    account_id = var.newrelic_account_id
+    account_id = data.newrelic_account.current.id
 
     valid_events {
       from  = "Span"
@@ -126,7 +120,7 @@ resource "newrelic_service_level" "step_reliability" {
   description = "Share of gRPC requests without span errors for ${each.value.name}."
 
   events {
-    account_id = var.newrelic_account_id
+    account_id = data.newrelic_account.current.id
 
     valid_events {
       from  = "Span"
@@ -157,7 +151,7 @@ resource "newrelic_service_level" "step_latency" {
   description = "Share of gRPC requests under 500ms for ${each.value.name}."
 
   events {
-    account_id = var.newrelic_account_id
+    account_id = data.newrelic_account.current.id
 
     valid_events {
       from  = "Span"
