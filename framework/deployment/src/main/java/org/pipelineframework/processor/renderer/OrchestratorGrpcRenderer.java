@@ -84,11 +84,79 @@ public class OrchestratorGrpcRenderer implements PipelineRenderer<OrchestratorBi
         runMethod.addParameter(inputParamType, "input");
 
         String methodSuffix = binding.outputStreaming() ? "Streaming" : "Unary";
-        if (binding.inputStreaming()) {
-            runMethod.addStatement("return pipelineExecutionService.executePipeline$L(input)", methodSuffix);
+        runMethod.addStatement("long startTime = System.nanoTime()");
+        if (binding.outputStreaming()) {
+            if (binding.inputStreaming()) {
+                runMethod.addCode("""
+                    return pipelineExecutionService.<$T>executePipeline$L(input)
+                        .onFailure().invoke(failure -> $T.recordGrpcServer($S, $S, $T.fromThrowable(failure),
+                            System.nanoTime() - startTime))
+                        .onCompletion().invoke(() -> $T.recordGrpcServer($S, $S, $T.OK, System.nanoTime() - startTime));
+                    """,
+                    outputType,
+                    methodSuffix,
+                    ClassName.get("org.pipelineframework.telemetry", "RpcMetrics"),
+                    ORCHESTRATOR_SERVICE,
+                    ORCHESTRATOR_METHOD,
+                    ClassName.get("io.grpc", "Status"),
+                    ClassName.get("org.pipelineframework.telemetry", "RpcMetrics"),
+                    ORCHESTRATOR_SERVICE,
+                    ORCHESTRATOR_METHOD,
+                    ClassName.get("io.grpc", "Status"));
+            } else {
+                runMethod.addCode("""
+                    return pipelineExecutionService.<$T>executePipeline$L($T.createFrom().item(input))
+                        .onFailure().invoke(failure -> $T.recordGrpcServer($S, $S, $T.fromThrowable(failure),
+                            System.nanoTime() - startTime))
+                        .onCompletion().invoke(() -> $T.recordGrpcServer($S, $S, $T.OK, System.nanoTime() - startTime));
+                    """,
+                    outputType,
+                    methodSuffix,
+                    uni,
+                    ClassName.get("org.pipelineframework.telemetry", "RpcMetrics"),
+                    ORCHESTRATOR_SERVICE,
+                    ORCHESTRATOR_METHOD,
+                    ClassName.get("io.grpc", "Status"),
+                    ClassName.get("org.pipelineframework.telemetry", "RpcMetrics"),
+                    ORCHESTRATOR_SERVICE,
+                    ORCHESTRATOR_METHOD,
+                    ClassName.get("io.grpc", "Status"));
+            }
+        } else if (binding.inputStreaming()) {
+            runMethod.addCode("""
+                return pipelineExecutionService.<$T>executePipeline$L(input)
+                    .onItem().invoke(item -> $T.recordGrpcServer($S, $S, $T.OK, System.nanoTime() - startTime))
+                    .onFailure().invoke(failure -> $T.recordGrpcServer($S, $S, $T.fromThrowable(failure),
+                        System.nanoTime() - startTime));
+                """,
+                outputType,
+                methodSuffix,
+                ClassName.get("org.pipelineframework.telemetry", "RpcMetrics"),
+                ORCHESTRATOR_SERVICE,
+                ORCHESTRATOR_METHOD,
+                ClassName.get("io.grpc", "Status"),
+                ClassName.get("org.pipelineframework.telemetry", "RpcMetrics"),
+                ORCHESTRATOR_SERVICE,
+                ORCHESTRATOR_METHOD,
+                ClassName.get("io.grpc", "Status"));
         } else {
-            runMethod.addStatement("return pipelineExecutionService.executePipeline$L($T.createFrom().item(input))",
-                methodSuffix, uni);
+            runMethod.addCode("""
+                return pipelineExecutionService.<$T>executePipeline$L($T.createFrom().item(input))
+                    .onItem().invoke(item -> $T.recordGrpcServer($S, $S, $T.OK, System.nanoTime() - startTime))
+                    .onFailure().invoke(failure -> $T.recordGrpcServer($S, $S, $T.fromThrowable(failure),
+                        System.nanoTime() - startTime));
+                """,
+                outputType,
+                methodSuffix,
+                uni,
+                ClassName.get("org.pipelineframework.telemetry", "RpcMetrics"),
+                ORCHESTRATOR_SERVICE,
+                ORCHESTRATOR_METHOD,
+                ClassName.get("io.grpc", "Status"),
+                ClassName.get("org.pipelineframework.telemetry", "RpcMetrics"),
+                ORCHESTRATOR_SERVICE,
+                ORCHESTRATOR_METHOD,
+                ClassName.get("io.grpc", "Status"));
         }
 
         TypeSpec service = TypeSpec.classBuilder(GRPC_CLASS)

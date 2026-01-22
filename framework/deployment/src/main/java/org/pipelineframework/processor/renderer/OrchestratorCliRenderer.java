@@ -40,8 +40,17 @@ public class OrchestratorCliRenderer implements PipelineRenderer<OrchestratorBin
         ClassName duration = ClassName.get("java.time", "Duration");
         ClassName dependent = ClassName.get("jakarta.enterprise.context", "Dependent");
         ClassName inject = ClassName.get("jakarta.inject", "Inject");
+        ClassName instance = ClassName.get("jakarta.enterprise.inject", "Instance");
         ClassName multi = ClassName.get("io.smallrye.mutiny", "Multi");
         ClassName appClassName = ClassName.get(binding.basePackage() + ".orchestrator", APP_CLASS);
+        ClassName meterRegistry = ClassName.get("io.micrometer.core.instrument", "MeterRegistry");
+        ClassName tags = ClassName.get("io.micrometer.core.instrument", "Tags");
+        ClassName timer = ClassName.get("io.micrometer.core.instrument", "Timer");
+        ClassName timerSample = timer.nestedClass("Sample");
+        ClassName rpcMetrics = ClassName.get("org.pipelineframework.telemetry", "RpcMetrics");
+        ClassName telemetryFlush = ClassName.get("org.pipelineframework.telemetry", "TelemetryFlush");
+        ClassName grpcStatus = ClassName.get("io.grpc", "Status");
+        ClassName grpcStatusCode = grpcStatus.nestedClass("Code");
 
         ClassName inputDtoType = ClassName.get(binding.basePackage() + ".common.dto", binding.inputTypeName() + "Dto");
         TypeName inputType = restMode ? inputDtoType : resolveGrpcInputType(binding, ctx);
@@ -64,6 +73,10 @@ public class OrchestratorCliRenderer implements PipelineRenderer<OrchestratorBin
             .build();
 
         FieldSpec pipelineExecutionServiceField = FieldSpec.builder(pipelineExecutionService, "pipelineExecutionService")
+            .addAnnotation(inject)
+            .build();
+
+        FieldSpec meterRegistryField = FieldSpec.builder(ParameterizedTypeName.get(instance, meterRegistry), "meterRegistry")
             .addAnnotation(inject)
             .build();
 
@@ -134,12 +147,33 @@ public class OrchestratorCliRenderer implements PipelineRenderer<OrchestratorBin
 
                 pipelineExecutionService.awaitStartupHealth($T.ofMinutes(2));
 
-                pipelineExecutionService.executePipeline(inputMulti)
-                        .collect().asList()
-                        .await().indefinitely();
+                boolean hasRegistry = !meterRegistry.isUnsatisfied();
+                $T registry = hasRegistry ? meterRegistry.get() : null;
+                $T grpcTags = hasRegistry ? $T.of($S, $S, $S, $S) : null;
+                $T sample = hasRegistry ? $T.start(registry) : null;
+                long startTime = System.nanoTime();
+                $T statusCode = $T.OK;
+                String grpcStatus = "0";
+                try {
+                    pipelineExecutionService.executePipeline(inputMulti)
+                            .collect().asList()
+                            .await().indefinitely();
 
-                System.out.println("Pipeline execution completed");
-                return $T.ExitCode.OK;
+                    System.out.println("Pipeline execution completed");
+                    return $T.ExitCode.OK;
+                } catch (Exception e) {
+                    statusCode = $T.UNKNOWN;
+                    grpcStatus = "2";
+                    throw e;
+                } finally {
+                    $T.recordGrpcServer($S, $S, statusCode, System.nanoTime() - startTime);
+                    if (hasRegistry) {
+                        $T allTags = grpcTags.and($S, grpcStatus);
+                        registry.counter($S, allTags).increment();
+                        sample.stop(registry.timer($S, allTags));
+                    }
+                    $T.flush();
+                }
                 """.formatted(multiMapSuffix, uniMapSuffix, uniToMultiSuffix),
                 commandLine,
                 inputMultiType,
@@ -149,7 +183,27 @@ public class OrchestratorCliRenderer implements PipelineRenderer<OrchestratorBin
                 commandLine,
                 commandLine,
                 duration,
-                commandLine)
+                meterRegistry,
+                tags,
+                tags,
+                "service",
+                "OrchestratorService",
+                "method",
+                "Run",
+                timerSample,
+                timer,
+                grpcStatusCode,
+                grpcStatusCode,
+                commandLine,
+                grpcStatusCode,
+                rpcMetrics,
+                "OrchestratorService",
+                "Run",
+                tags,
+                "grpc.status",
+                "grpc.server.requests.received",
+                "grpc.server.processing.duration",
+                telemetryFlush)
             .build();
 
         MethodSpec isBlankMethod = MethodSpec.methodBuilder("isBlank")
@@ -216,6 +270,7 @@ public class OrchestratorCliRenderer implements PipelineRenderer<OrchestratorBin
             .addField(inputField)
             .addField(inputListField)
             .addField(pipelineExecutionServiceField)
+            .addField(meterRegistryField)
             .addField(inputDeserializerField)
             .addMethod(mainMethod)
             .addMethod(runMethod)

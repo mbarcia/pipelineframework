@@ -70,8 +70,8 @@ public class MetricRenamingConfig {
         return switch (name) {
             case "grpc.server.processing.duration" -> "rpc.server.duration";
             case "grpc.server.processing.duration.max" -> "rpc.server.duration.max";
-            case "grpc.server.requests.received" -> "rpc.server.request.count";
-            case "grpc.server.responses.sent" -> "rpc.server.response.count";
+            case "grpc.server.requests.received" -> "rpc.server.requests";
+            case "grpc.server.responses.sent" -> "rpc.server.responses";
             default -> name;
         };
     }
@@ -97,6 +97,7 @@ public class MetricRenamingConfig {
                 key = "rpc.method";
             } else if ("grpc.status".equals(key)) {
                 key = "rpc.grpc.status_code";
+                value = normalizeGrpcStatus(value);
             } else if ("rpc.system".equals(key)) {
                 hasRpcSystem = true;
             }
@@ -106,5 +107,35 @@ public class MetricRenamingConfig {
             renamed.add(Tag.of("rpc.system", "grpc"));
         }
         return renamed;
+    }
+
+    private static String normalizeGrpcStatus(String value) {
+        if (value == null || value.isBlank()) {
+            return value;
+        }
+        String trimmed = value.trim();
+        if (trimmed.chars().allMatch(Character::isDigit)) {
+            return trimmed;
+        }
+        return switch (trimmed) {
+            case "OK" -> "0";
+            case "CANCELLED" -> "1";
+            case "UNKNOWN" -> "2";
+            case "INVALID_ARGUMENT" -> "3";
+            case "DEADLINE_EXCEEDED" -> "4";
+            case "NOT_FOUND" -> "5";
+            case "ALREADY_EXISTS" -> "6";
+            case "PERMISSION_DENIED" -> "7";
+            case "RESOURCE_EXHAUSTED" -> "8";
+            case "FAILED_PRECONDITION" -> "9";
+            case "ABORTED" -> "10";
+            case "OUT_OF_RANGE" -> "11";
+            case "UNIMPLEMENTED" -> "12";
+            case "INTERNAL" -> "13";
+            case "UNAVAILABLE" -> "14";
+            case "DATA_LOSS" -> "15";
+            case "UNAUTHENTICATED" -> "16";
+            default -> trimmed;
+        };
     }
 }
