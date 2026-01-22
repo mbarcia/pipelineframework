@@ -16,7 +16,11 @@
 
 package org.pipelineframework.telemetry;
 
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.LongAdder;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
@@ -26,6 +30,7 @@ import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.DoubleHistogram;
 import io.opentelemetry.api.metrics.LongCounter;
 import io.opentelemetry.api.metrics.Meter;
+import io.opentelemetry.api.metrics.ObservableLongMeasurement;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.api.trace.StatusCode;
@@ -46,6 +51,15 @@ public class PipelineTelemetry {
 
     private static final AttributeKey<String> INPUT_KIND = AttributeKey.stringKey("tpf.input");
     private static final AttributeKey<String> STEP_CLASS = AttributeKey.stringKey("tpf.step.class");
+    private static final AttributeKey<Long> ITEM_COUNT = AttributeKey.longKey("tpf.item.count");
+    private static final AttributeKey<Double> ITEM_AVG_MS = AttributeKey.doubleKey("tpf.item.avg_ms");
+    private static final AttributeKey<Double> ITEMS_PER_MIN = AttributeKey.doubleKey("tpf.items.per_min");
+    private static final AttributeKey<Long> PARALLEL_MAX_IN_FLIGHT =
+        AttributeKey.longKey("tpf.parallel.max_in_flight");
+    private static final AttributeKey<Double> PARALLEL_AVG_IN_FLIGHT =
+        AttributeKey.doubleKey("tpf.parallel.avg_in_flight");
+    private static final AttributeKey<Long> PENDING_MAX = AttributeKey.longKey("tpf.pending.max");
+    private static final AttributeKey<Double> PENDING_AVG = AttributeKey.doubleKey("tpf.pending.avg");
 
     private final boolean enabled;
     private final boolean metricsEnabled;
@@ -59,6 +73,8 @@ public class PipelineTelemetry {
     private final LongCounter stepErrorCounter;
     private final DoubleHistogram pipelineRunDuration;
     private final DoubleHistogram stepDuration;
+    private final ConcurrentMap<String, AtomicLong> inflightByStep;
+    private final ConcurrentMap<String, AtomicLong> pendingByStep;
 
     /**
      * Create a telemetry helper from the configured pipeline settings.
@@ -74,6 +90,8 @@ public class PipelineTelemetry {
         this.metricsEnabled = enabled && Boolean.TRUE.equals(telemetry.metrics().enabled());
         this.tracer = GlobalOpenTelemetry.getTracer("org.pipelineframework");
         this.meter = GlobalOpenTelemetry.getMeter("org.pipelineframework");
+        this.inflightByStep = new ConcurrentHashMap<>();
+        this.pendingByStep = new ConcurrentHashMap<>();
         if (metricsEnabled) {
             this.pipelineRunCounter = meter.counterBuilder("tpf.pipeline.run.count")
                 .setDescription("Pipeline runs")
@@ -99,6 +117,16 @@ public class PipelineTelemetry {
                 .setDescription("Pipeline step duration")
                 .setUnit("ms")
                 .build();
+            meter.gaugeBuilder("tpf.step.inflight")
+                .setDescription("In-flight items per step")
+                .setUnit("1")
+                .ofLongs()
+                .buildWithCallback(this::recordInflightGauge);
+            meter.gaugeBuilder("tpf.step.pending")
+                .setDescription("Pending items per step")
+                .setUnit("1")
+                .ofLongs()
+                .buildWithCallback(this::recordPendingGauge);
         } else {
             this.pipelineRunCounter = null;
             this.pipelineRunErrorCounter = null;
@@ -139,7 +167,21 @@ public class PipelineTelemetry {
                 .startSpan();
             context = context.with(span);
         }
-        return new RunContext(context, span, System.nanoTime(), attributes, enabled);
+        return new RunContext(
+            context,
+            span,
+            System.nanoTime(),
+            attributes,
+            enabled,
+            new AtomicLong(),
+            new AtomicLong(),
+            new AtomicLong(),
+            new LongAdder(),
+            new LongAdder(),
+            new AtomicLong(),
+            new AtomicLong(),
+            new LongAdder(),
+            new LongAdder());
     }
 
     /**
@@ -154,10 +196,16 @@ public class PipelineTelemetry {
             return input;
         }
         if (input instanceof Uni<?> uni) {
-            return uni.onItem().invoke(item -> itemCounter.add(1, runContext.attributes()));
+            return uni.onItem().invoke(item -> {
+                itemCounter.add(1, runContext.attributes());
+                runContext.itemCount().incrementAndGet();
+            });
         }
         if (input instanceof Multi<?> multi) {
-            return multi.onItem().invoke(item -> itemCounter.add(1, runContext.attributes()));
+            return multi.onItem().invoke(item -> {
+                itemCounter.add(1, runContext.attributes());
+                runContext.itemCount().incrementAndGet();
+            });
         }
         return input;
     }
@@ -204,10 +252,12 @@ public class PipelineTelemetry {
         }
         Span span = startStepSpan(stepClass, runContext, perItemOperation);
         long startNanos = System.nanoTime();
-        return uni.onItemOrFailure().invoke((item, failure) -> {
-            recordStepOutcome(stepClass, startNanos, failure);
-            endSpan(span, failure);
-        });
+            onItemStart(stepClass, runContext);
+            return uni.onItemOrFailure().invoke((item, failure) -> {
+                recordStepOutcome(stepClass, startNanos, failure);
+                onItemEnd(stepClass, runContext);
+                endSpan(span, failure);
+            });
     }
 
     /**
@@ -231,9 +281,11 @@ public class PipelineTelemetry {
         Span span = startStepSpan(stepClass, runContext, perItemOperation);
         long startNanos = System.nanoTime();
         AtomicReference<Throwable> failureRef = new AtomicReference<>();
+        onItemStart(stepClass, runContext);
         return multi.onFailure().invoke(failureRef::set)
             .onTermination().invoke(() -> {
                 recordStepOutcome(stepClass, startNanos, failureRef.get());
+                onItemEnd(stepClass, runContext);
                 endSpan(span, failureRef.get());
             });
     }
@@ -275,7 +327,99 @@ public class PipelineTelemetry {
                 pipelineRunErrorCounter.add(1, runContext.attributes());
             }
         }
+        if (tracingEnabled && runContext.span() != null) {
+            long items = runContext.itemCount().get();
+            double durationMs = nanosToMillis(runContext.startNanos());
+            double avgMs = items > 0 ? durationMs / items : 0.0;
+            double perMin = durationMs > 0 ? (items * 60_000d) / durationMs : 0.0;
+            runContext.span().setAttribute(ITEM_COUNT, items);
+            runContext.span().setAttribute(ITEM_AVG_MS, avgMs);
+            runContext.span().setAttribute(ITEMS_PER_MIN, perMin);
+            long samples = runContext.inflightSamples().sum();
+            double inflightAvg = samples > 0 ? runContext.inflightSum().sum() / (double) samples : 0.0;
+            runContext.span().setAttribute(PARALLEL_MAX_IN_FLIGHT, runContext.inflightMax().get());
+            runContext.span().setAttribute(PARALLEL_AVG_IN_FLIGHT, inflightAvg);
+            long pendingSamples = runContext.pendingSamples().sum();
+            double pendingAvg = pendingSamples > 0 ? runContext.pendingSum().sum() / (double) pendingSamples : 0.0;
+            runContext.span().setAttribute(PENDING_MAX, runContext.pendingMax().get());
+            runContext.span().setAttribute(PENDING_AVG, pendingAvg);
+        }
         endSpan(runContext.span(), failure);
+    }
+
+    /**
+     * Mark an item as queued for processing.
+     *
+     * @param stepClass step class
+     * @param runContext telemetry context
+     */
+    public void onItemQueued(Class<?> stepClass, RunContext runContext) {
+        if (runContext == null || !runContext.enabled()) {
+            return;
+        }
+        long current = runContext.pendingCurrent().incrementAndGet();
+        runContext.pendingSamples().increment();
+        runContext.pendingSum().add(current);
+        runContext.pendingMax().accumulateAndGet(current, Math::max);
+        if (metricsEnabled) {
+            pendingByStep
+                .computeIfAbsent(stepClass.getName(), key -> new AtomicLong())
+                .incrementAndGet();
+        }
+    }
+
+    private void onItemStart(Class<?> stepClass, RunContext runContext) {
+        if (runContext == null || !runContext.enabled()) {
+            return;
+        }
+        long current = runContext.inflightCurrent().incrementAndGet();
+        runContext.inflightSamples().increment();
+        runContext.inflightSum().add(current);
+        runContext.inflightMax().accumulateAndGet(current, Math::max);
+        if (metricsEnabled) {
+            inflightByStep
+                .computeIfAbsent(stepClass.getName(), key -> new AtomicLong())
+                .incrementAndGet();
+        }
+    }
+
+    private void onItemEnd(Class<?> stepClass, RunContext runContext) {
+        if (runContext == null || !runContext.enabled()) {
+            return;
+        }
+        long current = runContext.inflightCurrent().decrementAndGet();
+        runContext.inflightSamples().increment();
+        runContext.inflightSum().add(Math.max(current, 0));
+        if (metricsEnabled) {
+            AtomicLong currentStep = inflightByStep.get(stepClass.getName());
+            if (currentStep != null) {
+                currentStep.updateAndGet(value -> Math.max(0, value - 1));
+            }
+        }
+        AtomicLong pendingCurrent = runContext.pendingCurrent();
+        if (pendingCurrent.get() > 0) {
+            long pending = pendingCurrent.decrementAndGet();
+            runContext.pendingSamples().increment();
+            runContext.pendingSum().add(Math.max(pending, 0));
+        }
+        if (metricsEnabled) {
+            AtomicLong pendingStep = pendingByStep.get(stepClass.getName());
+            if (pendingStep != null) {
+                pendingStep.updateAndGet(value -> Math.max(0, value - 1));
+            }
+        }
+    }
+
+    private void recordInflightGauge(ObservableLongMeasurement measurement) {
+        inflightByStep.forEach((step, count) -> {
+            measurement.record(count.get(), Attributes.of(STEP_CLASS, step));
+        });
+    }
+
+    private void recordPendingGauge(ObservableLongMeasurement measurement) {
+        pendingByStep.forEach((step, count) -> {
+            measurement.record(count.get(), Attributes.of(STEP_CLASS, step));
+        });
     }
 
     private void endSpan(Span span, Throwable failure) {
@@ -301,16 +445,48 @@ public class PipelineTelemetry {
      * @param startNanos start time
      * @param attributes run attributes
      * @param enabled whether telemetry is enabled
+     * @param itemCount items observed during the run
+     * @param inflightCurrent current in-flight item count
+     * @param inflightMax max in-flight item count
+     * @param inflightSamples number of in-flight samples taken
+     * @param inflightSum sum of in-flight samples
+     * @param pendingCurrent current pending item count
+     * @param pendingMax max pending item count
+     * @param pendingSamples number of pending samples taken
+     * @param pendingSum sum of pending samples
      */
     public record RunContext(
         Context context,
         Span span,
         long startNanos,
         Attributes attributes,
-        boolean enabled) {
+        boolean enabled,
+        AtomicLong itemCount,
+        AtomicLong inflightCurrent,
+        AtomicLong inflightMax,
+        LongAdder inflightSamples,
+        LongAdder inflightSum,
+        AtomicLong pendingCurrent,
+        AtomicLong pendingMax,
+        LongAdder pendingSamples,
+        LongAdder pendingSum) {
 
         static RunContext disabled() {
-            return new RunContext(Context.current(), null, 0L, Attributes.empty(), false);
+            return new RunContext(
+                Context.current(),
+                null,
+                0L,
+                Attributes.empty(),
+                false,
+                new AtomicLong(),
+                new AtomicLong(),
+                new AtomicLong(),
+                new LongAdder(),
+                new LongAdder(),
+                new AtomicLong(),
+                new AtomicLong(),
+                new LongAdder(),
+                new LongAdder());
         }
     }
 }

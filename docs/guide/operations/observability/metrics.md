@@ -30,6 +30,25 @@ Pair metrics with Grafana dashboards that show:
 3. Error rate by step
 4. Pipeline end-to-end latency
 
+## Parallelism and Backpressure
+
+TPF emits additional metrics and span attributes to showcase parallelism and queue pressure:
+
+Metrics (OTel/Micrometer):
+- `tpf.step.inflight` (gauge): in-flight items per step (`tpf.step.class` attribute)
+- `tpf.step.pending` (gauge): queued + in-flight items per step (`tpf.step.class` attribute); useful as a backpressure proxy
+
+Run-level span attributes (on `tpf.pipeline.run`):
+- `tpf.parallel.max_in_flight`
+- `tpf.parallel.avg_in_flight`
+- `tpf.pending.max`
+- `tpf.pending.avg`
+- `tpf.item.count`
+- `tpf.item.avg_ms`
+- `tpf.items.per_min`
+
+These are designed for batch-style pipelines where throughput should be measured while the pipeline is running.
+
 ## Custom Metrics
 
 Use Micrometer to add counters and timers inside your services:

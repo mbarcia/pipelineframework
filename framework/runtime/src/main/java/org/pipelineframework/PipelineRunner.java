@@ -359,9 +359,10 @@ public class PipelineRunner implements AutoCloseable {
             }
             return telemetry.instrumentStepUni(step.getClass(), result, telemetryContext, false);
         } else if (current instanceof Multi<?>) {
+            Multi<I> multi = instrumentQueue((Multi<I>) current, step.getClass(), telemetry, telemetryContext);
             if (parallel) {
                 logger.debugf("Applying step %s (merge)", step.getClass());
-                return ((Multi<I>) current)
+                return multi
                     .onItem()
                     .transformToUni(item -> {
                         Uni<O> result = step.apply(Uni.createFrom().item(item))
@@ -374,7 +375,7 @@ public class PipelineRunner implements AutoCloseable {
                     .merge(maxConcurrency);
             } else {
                 logger.debugf("Applying step %s (concatenate)", step.getClass());
-                return ((Multi<I>) current)
+                return multi
                     .onItem()
                     .transformToUni(item -> {
                         Uni<O> result = step.apply(Uni.createFrom().item(item))
@@ -406,8 +407,9 @@ public class PipelineRunner implements AutoCloseable {
             }
             return telemetry.instrumentStepUni(step.getClass(), result, telemetryContext, false);
         } else if (current instanceof Multi<?>) {
+            Multi<I> multi = instrumentQueue((Multi<I>) current, step.getClass(), telemetry, telemetryContext);
             if (parallel) {
-                return ((Multi<I>) current)
+                return multi
                     .onItem()
                     .transformToUni(item -> {
                         Uni<O> result = step.apply(Uni.createFrom().item(item));
@@ -418,7 +420,7 @@ public class PipelineRunner implements AutoCloseable {
                     })
                     .merge(maxConcurrency);
             } else {
-                return ((Multi<I>) current)
+                return multi
                     .onItem()
                     .transformToUni(item -> {
                         Uni<O> result = step.apply(Uni.createFrom().item(item));
@@ -451,7 +453,8 @@ public class PipelineRunner implements AutoCloseable {
         } else if (current instanceof Multi<?>) {
             if (parallel) {
                 logger.debugf("Applying step %s (merge)", step.getClass());
-                return ((Multi<I>) current)
+                Multi<I> multi = instrumentQueue((Multi<I>) current, step.getClass(), telemetry, telemetryContext);
+                return multi
                     .onItem()
                     .transformToMulti(item -> {
                         Multi<O> result = step.apply(Uni.createFrom().item(item));
@@ -463,7 +466,8 @@ public class PipelineRunner implements AutoCloseable {
                     .merge(maxConcurrency);
             } else {
                 logger.debugf("Applying step %s (concatenate)", step.getClass());
-                return ((Multi<I>) current)
+                Multi<I> multi = instrumentQueue((Multi<I>) current, step.getClass(), telemetry, telemetryContext);
+                return multi
                     .onItem()
                     .transformToMulti(item -> {
                         Multi<O> result = step.apply(Uni.createFrom().item(item));
@@ -496,7 +500,8 @@ public class PipelineRunner implements AutoCloseable {
         } else if (current instanceof Multi<?>) {
             if (parallel) {
                 logger.debugf("Applying step %s (merge)", step.getClass());
-                return ((Multi<I>) current)
+                Multi<I> multi = instrumentQueue((Multi<I>) current, step.getClass(), telemetry, telemetryContext);
+                return multi
                     .onItem()
                     .transformToMulti(item -> {
                         Multi<O> result = step.apply(Uni.createFrom().item(item));
@@ -508,7 +513,8 @@ public class PipelineRunner implements AutoCloseable {
                     .merge(maxConcurrency);
             } else {
                 logger.debugf("Applying step %s (concatenate)", step.getClass());
-                return ((Multi<I>) current)
+                Multi<I> multi = instrumentQueue((Multi<I>) current, step.getClass(), telemetry, telemetryContext);
+                return multi
                     .onItem()
                     .transformToMulti(item -> {
                         Multi<O> result = step.apply(Uni.createFrom().item(item));
@@ -573,6 +579,17 @@ public class PipelineRunner implements AutoCloseable {
             throw new IllegalArgumentException(MessageFormat.format(
                     "Unsupported current type for StepManyToMany: {0}", current));
         }
+    }
+
+    private static <I> Multi<I> instrumentQueue(
+        Multi<I> input,
+        Class<?> stepClass,
+        PipelineTelemetry telemetry,
+        PipelineTelemetry.RunContext telemetryContext) {
+        if (telemetry == null || telemetryContext == null || !telemetryContext.enabled()) {
+            return input;
+        }
+        return input.onItem().invoke(item -> telemetry.onItemQueued(stepClass, telemetryContext));
     }
 
     /**

@@ -118,8 +118,8 @@ resource "newrelic_service_level" "orchestrator_availability" {
 
 resource "newrelic_service_level" "row_latency" {
   guid        = local.services.orchestrator.guid
-  name        = "Row latency (core steps)"
-  description = "Approx per-row latency from core step gRPC spans (per-item tracing not required)."
+  name        = "Item latency (core steps)"
+  description = "Approx per-item latency from core step gRPC spans."
 
   events {
     account_id = var.newrelic_account_id
@@ -137,6 +137,96 @@ resource "newrelic_service_level" "row_latency" {
 
   objective {
     target = 95.0
+    time_window {
+      rolling {
+        count = 7
+        unit  = "DAY"
+      }
+    }
+  }
+}
+
+resource "newrelic_service_level" "item_avg_latency" {
+  guid        = local.services.orchestrator.guid
+  name        = "Item avg latency (run)"
+  description = "Average per-item latency across a run (computed from run duration and item count)."
+
+  events {
+    account_id = var.newrelic_account_id
+
+    valid_events {
+      from  = "Span"
+      where = "service.name = '${local.services.orchestrator.name}' AND name = 'tpf.pipeline.run' AND tpf.item.count > 0"
+    }
+
+    good_events {
+      from  = "Span"
+      where = "service.name = '${local.services.orchestrator.name}' AND name = 'tpf.pipeline.run' AND tpf.item.count > 0 AND tpf.item.avg_ms < 300"
+    }
+  }
+
+  objective {
+    target = 95.0
+    time_window {
+      rolling {
+        count = 7
+        unit  = "DAY"
+      }
+    }
+  }
+}
+
+resource "newrelic_service_level" "items_per_min" {
+  guid        = local.services.orchestrator.guid
+  name        = "Items per minute (run)"
+  description = "Run throughput measured as items per minute while the pipeline is running."
+
+  events {
+    account_id = var.newrelic_account_id
+
+    valid_events {
+      from  = "Span"
+      where = "service.name = '${local.services.orchestrator.name}' AND name = 'tpf.pipeline.run' AND tpf.item.count > 0"
+    }
+
+    good_events {
+      from  = "Span"
+      where = "service.name = '${local.services.orchestrator.name}' AND name = 'tpf.pipeline.run' AND tpf.item.count > 0 AND tpf.items.per_min >= 12000"
+    }
+  }
+
+  objective {
+    target = 90.0
+    time_window {
+      rolling {
+        count = 7
+        unit  = "DAY"
+      }
+    }
+  }
+}
+
+resource "newrelic_service_level" "item_success_rate" {
+  guid        = local.services.orchestrator.guid
+  name        = "Item success rate (core steps)"
+  description = "Share of item-level gRPC calls without errors across core steps."
+
+  events {
+    account_id = var.newrelic_account_id
+
+    valid_events {
+      from  = "Span"
+      where = "span.kind = 'server' AND rpc.system = 'grpc' AND ${local.core_step_name_filter}"
+    }
+
+    good_events {
+      from  = "Span"
+      where = "span.kind = 'server' AND rpc.system = 'grpc' AND ${local.core_step_name_filter} AND (status.code IS NULL OR status.code != 'ERROR')"
+    }
+  }
+
+  objective {
+    target = 99.0
     time_window {
       rolling {
         count = 7
