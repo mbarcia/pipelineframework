@@ -1,3 +1,8 @@
+variable "newrelic_account_id" {
+  type        = number
+  description = "New Relic account ID."
+}
+
 variable "service_names" {
   type = map(string)
   default = {
