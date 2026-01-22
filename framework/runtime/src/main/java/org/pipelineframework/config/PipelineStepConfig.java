@@ -214,6 +214,23 @@ public interface PipelineStepConfig {
          */
         @WithDefault("false")
         Boolean perItem();
+
+        /**
+         * Force sampling of gRPC client spans from the orchestrator.
+         *
+         * @return true to force client spans for allowlisted services
+         */
+        @WithDefault("false")
+        @WithName("client-spans.force")
+        Boolean clientSpansForce();
+
+        /**
+         * Comma-separated allowlist of gRPC service names that should always emit client spans.
+         *
+         * @return allowlisted service names
+         */
+        @WithName("client-spans.allowlist")
+        Optional<String> clientSpansAllowlist();
     }
 
     /**

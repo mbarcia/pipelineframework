@@ -71,6 +71,19 @@ quarkus.micrometer.export.prometheus.enabled=${QUARKUS_MICROMETER_EXPORT_PROMETH
 ```
 so Prometheus/LGTM are opt-in and do not slow down normal dev runs.
 
+## Forcing gRPC Client Spans (Dependencies)
+
+Some pipelines need dependency edges even with low sampling. You can force sampling
+of gRPC client spans for selected services:
+
+```properties
+pipeline.telemetry.tracing.client-spans.force=true
+pipeline.telemetry.tracing.client-spans.allowlist=ProcessCsvPaymentsInputService,ProcessCsvPaymentsOutputFileService
+```
+
+When enabled, the orchestrator will always emit client spans for the allowlisted
+services (using a sampled parent context) even if the global sampler is low.
+
 ## Optional: OTel Java Agent for JVM Runtime UI
 
 New Relic’s JVM Runtime UI expects OpenTelemetry Java agent runtime metrics

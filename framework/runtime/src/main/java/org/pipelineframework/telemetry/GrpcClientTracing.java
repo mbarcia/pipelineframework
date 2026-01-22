@@ -16,18 +16,21 @@
 
 package org.pipelineframework.telemetry;
 
+import java.util.Collections;
+import java.util.Set;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 import io.grpc.Status;
 import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.common.AttributeKey;
-import io.opentelemetry.api.trace.Span;
-import io.opentelemetry.api.trace.SpanKind;
-import io.opentelemetry.api.trace.StatusCode;
-import io.opentelemetry.api.trace.Tracer;
+import io.opentelemetry.api.trace.*;
+import io.opentelemetry.context.Context;
 import io.opentelemetry.context.Scope;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
+import org.eclipse.microprofile.config.ConfigProvider;
 
 /**
  * Adds OpenTelemetry gRPC client spans around reactive calls.
@@ -40,10 +43,23 @@ public final class GrpcClientTracing {
     private static final AttributeKey<String> RPC_METHOD = AttributeKey.stringKey("rpc.method");
     private static final AttributeKey<Long> RPC_GRPC_STATUS = AttributeKey.longKey("rpc.grpc.status_code");
     private static final AttributeKey<String> PEER_SERVICE = AttributeKey.stringKey("peer.service");
+    private static final String FORCE_CLIENT_SPANS_KEY = "pipeline.telemetry.tracing.client-spans.force";
+    private static final String ALLOWLIST_KEY = "pipeline.telemetry.tracing.client-spans.allowlist";
+    private static final boolean FORCE_CLIENT_SPANS = readForceClientSpans();
+    private static final Set<String> ALLOWLIST = readAllowlist();
 
     private GrpcClientTracing() {
     }
 
+    /**
+     * Wrap a unary gRPC client call with an OpenTelemetry client span.
+     *
+     * @param service gRPC service name
+     * @param method gRPC method name
+     * @param uni the reactive result
+     * @param <T> output type
+     * @return instrumented Uni
+     */
     public static <T> Uni<T> traceUnary(String service, String method, Uni<T> uni) {
         if (service == null || method == null) {
             return uni;
@@ -58,6 +74,15 @@ public final class GrpcClientTracing {
         });
     }
 
+    /**
+     * Wrap a streaming gRPC client call with an OpenTelemetry client span.
+     *
+     * @param service gRPC service name
+     * @param method gRPC method name
+     * @param multi the reactive stream
+     * @param <T> output type
+     * @return instrumented Multi
+     */
     public static <T> Multi<T> traceMulti(String service, String method, Multi<T> multi) {
         if (service == null || method == null) {
             return multi;
@@ -75,13 +100,16 @@ public final class GrpcClientTracing {
     }
 
     private static Span startSpan(String service, String method) {
-        return TRACER.spanBuilder(service + "/" + method)
+        var builder = TRACER.spanBuilder(service + "/" + method)
             .setSpanKind(SpanKind.CLIENT)
             .setAttribute(RPC_SYSTEM, "grpc")
             .setAttribute(RPC_SERVICE, service)
             .setAttribute(RPC_METHOD, method)
-            .setAttribute(PEER_SERVICE, service)
-            .startSpan();
+            .setAttribute(PEER_SERVICE, service);
+        if (shouldForceSample(service)) {
+            builder.setParent(forceSampledParent());
+        }
+        return builder.startSpan();
     }
 
     private static void endSpan(Span span, Throwable failure) {
@@ -96,5 +124,55 @@ public final class GrpcClientTracing {
         }
         span.setAttribute(RPC_GRPC_STATUS, (long) statusCode.value());
         span.end();
+    }
+
+    private static boolean shouldForceSample(String service) {
+        if (!FORCE_CLIENT_SPANS) {
+            return false;
+        }
+        if (ALLOWLIST.isEmpty()) {
+            return true;
+        }
+        return ALLOWLIST.contains(service);
+    }
+
+    private static Context forceSampledParent() {
+        SpanContext parent = sampledParentContext();
+        return Context.root().with(Span.wrap(parent));
+    }
+
+    private static SpanContext sampledParentContext() {
+        long high = ThreadLocalRandom.current().nextLong();
+        long low = ThreadLocalRandom.current().nextLong();
+        if (high == 0 && low == 0) {
+            low = 1;
+        }
+        String traceId = TraceId.fromLongs(high, low);
+        String spanId = SpanId.fromLong(ThreadLocalRandom.current().nextLong());
+        return SpanContext.create(traceId, spanId, TraceFlags.getSampled(), TraceState.getDefault());
+    }
+
+    private static boolean readForceClientSpans() {
+        try {
+            return ConfigProvider.getConfig().getOptionalValue(FORCE_CLIENT_SPANS_KEY, Boolean.class).orElse(false);
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    private static Set<String> readAllowlist() {
+        try {
+            String raw = ConfigProvider.getConfig().getOptionalValue(ALLOWLIST_KEY, String.class).orElse("");
+            if (raw.isBlank()) {
+                return Collections.emptySet();
+            }
+            return Collections.unmodifiableSet(
+                java.util.Arrays.stream(raw.split(","))
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .collect(Collectors.toSet()));
+        } catch (Exception ignored) {
+            return Collections.emptySet();
+        }
     }
 }
