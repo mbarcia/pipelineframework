@@ -43,7 +43,7 @@ Enabled settings (defaults):
 - `quarkus.observability.lgtm.enabled=false`
 
 Usage:
-```
+```bash
 export NEW_RELIC_LICENSE_KEY=...
 export NEW_RELIC_OTLP_ENDPOINT=https://otlp.nr-data.net:443
 ./mvnw quarkus:dev
@@ -52,7 +52,7 @@ export NEW_RELIC_OTLP_ENDPOINT=https://otlp.nr-data.net:443
 ### LGTM (explicit opt-in)
 
 LGTM Dev Services are off by default. Enable them explicitly:
-```
+```bash
 export QUARKUS_OBSERVABILITY_LGTM_ENABLED=true
 export QUARKUS_MICROMETER_EXPORT_PROMETHEUS_ENABLED=true
 ./mvnw quarkus:dev
@@ -66,7 +66,7 @@ for dev convenience (for example `quarkus.otel.metric.export.interval=10s`).
 ### Prometheus/Micrometer Defaults
 
 Templates and example services default to:
-```
+```properties
 quarkus.micrometer.export.prometheus.enabled=${QUARKUS_MICROMETER_EXPORT_PROMETHEUS_ENABLED:false}
 ```
 so Prometheus/LGTM are opt-in and do not slow down normal dev runs.
