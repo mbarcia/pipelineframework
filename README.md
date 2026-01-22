@@ -4,7 +4,7 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Java 21+](https://img.shields.io/badge/Java-21+-brightgreen.svg)](https://adoptium.net/)
 [![Quarkus](https://img.shields.io/badge/Quarkus-3.29.4-orange)](https://quarkus.io)
-[![CodeRabbit](https://img.shields.io/coderabbit/prs/github/mbarcia/pipelineframework?label=CodeRabbit&color=purple
+[![CodeRabbit](https://img.shields.io/coderabbit/prs/github/The-Pipeline-Framework/pipelineframework?label=CodeRabbit&color=purple
 )](https://coderabbit.ai)
 
 The Pipeline Framework is a powerful framework for building reactive pipeline processing systems. It simplifies the development of distributed systems by providing a consistent way to create, configure, and deploy pipeline steps with automatic gRPC and REST adapter generation.

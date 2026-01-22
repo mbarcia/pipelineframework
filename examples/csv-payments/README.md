@@ -1,4 +1,4 @@
-[![Workflow for CSV-Payments-PoC](https://github.com/mbarcia/pipelineframework/actions/workflows/tests.yaml/badge.svg)](https://github.com/mbarcia/pipelineframework/actions/workflows/tests.yaml)
+[![Workflow for CSV-Payments-PoC](https://github.com/The-Pipeline-Framework/pipelineframework/actions/workflows/tests.yaml/badge.svg)](https://github.com/The-Pipeline-Framework/pipelineframework/actions/workflows/tests.yaml)
 
 # CSV Payments Processing Application
 
