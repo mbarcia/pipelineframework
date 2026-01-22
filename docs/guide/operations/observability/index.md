@@ -70,3 +70,24 @@ Templates and example services default to:
 quarkus.micrometer.export.prometheus.enabled=${QUARKUS_MICROMETER_EXPORT_PROMETHEUS_ENABLED:false}
 ```
 so Prometheus/LGTM are opt-in and do not slow down normal dev runs.
+
+## Optional: OTel Java Agent for JVM Runtime UI
+
+New Relic’s JVM Runtime UI expects OpenTelemetry Java agent runtime metrics
+(for example `process.runtime.jvm.*`). The Micrometer JVM binder exports `jvm.*`
+metrics, which show up in Metrics Explorer but do not fully populate the JVM UI.
+
+If you want the full JVM Runtime page in dev, you can opt in to the OTel Java agent:
+
+```bash
+curl -L -o otel-javaagent.jar https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/latest/download/opentelemetry-javaagent.jar
+```
+
+```bash
+export JAVA_TOOL_OPTIONS="-javaagent:$(pwd)/otel-javaagent.jar"
+export OTEL_SERVICE_NAME=orchestrator-svc
+export OTEL_EXPORTER_OTLP_ENDPOINT=${NEW_RELIC_OTLP_ENDPOINT:-https://otlp.eu01.nr-data.net:443}
+export OTEL_EXPORTER_OTLP_HEADERS=api-key=${NEW_RELIC_LICENSE_KEY}
+```
+
+Unset `JAVA_TOOL_OPTIONS` to disable the agent.
