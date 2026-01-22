@@ -39,6 +39,7 @@ public final class GrpcClientTracing {
     private static final AttributeKey<String> RPC_SERVICE = AttributeKey.stringKey("rpc.service");
     private static final AttributeKey<String> RPC_METHOD = AttributeKey.stringKey("rpc.method");
     private static final AttributeKey<Long> RPC_GRPC_STATUS = AttributeKey.longKey("rpc.grpc.status_code");
+    private static final AttributeKey<String> PEER_SERVICE = AttributeKey.stringKey("peer.service");
 
     private GrpcClientTracing() {
     }
@@ -79,6 +80,7 @@ public final class GrpcClientTracing {
             .setAttribute(RPC_SYSTEM, "grpc")
             .setAttribute(RPC_SERVICE, service)
             .setAttribute(RPC_METHOD, method)
+            .setAttribute(PEER_SERVICE, service)
             .startSpan();
     }
 
