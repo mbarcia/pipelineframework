@@ -35,35 +35,72 @@ public class NewRelicConfigSource implements ConfigSource {
 
     private final Map<String, String> properties;
 
+    /**
+     * Initialises the config source and populates its properties from the environment.
+     *
+     * The properties map is constructed from the NEW_RELIC_LICENSE_KEY and, optionally,
+     * NEW_RELIC_OTLP_ENDPOINT environment variables to configure OpenTelemetry/OTLP settings.
+     */
     public NewRelicConfigSource() {
         this.properties = buildProperties();
     }
 
+    /**
+     * Provide all configuration properties exposed by this config source.
+     *
+     * @return an unmodifiable map of configuration property names to their string values
+     */
     @Override
     public Map<String, String> getProperties() {
         return properties;
     }
 
+    /**
+     * Provide the set of property names exposed by this config source.
+     *
+     * @return the set of property names available from this config source.
+     */
     @Override
     public Set<String> getPropertyNames() {
         return this.properties.keySet();
     }
 
+    /**
+     * Retrieve the configured value for a given property name.
+     *
+     * @param propertyName the configuration property key to look up
+     * @return the property value, or `null` if the property is not present
+     */
     @Override
     public String getValue(String propertyName) {
         return properties.get(propertyName);
     }
 
+    /**
+     * Provide the name of this configuration source.
+     *
+     * @return the config source name "pipelineframework-newrelic-config"
+     */
     @Override
     public String getName() {
         return "pipelineframework-newrelic-config";
     }
 
+    /**
+     * Provide the config source ordinal used to determine precedence.
+     *
+     * @return the ordinal value for this ConfigSource (200)
+     */
     @Override
     public int getOrdinal() {
         return 200;
     }
 
+    /**
+     * Builds the configuration properties used to enable and configure Quarkus OpenTelemetry/OTLP export to New Relic when a license key is available.
+     *
+     * @return an unmodifiable map of Quarkus OpenTelemetry/OTLP configuration properties when the New Relic license key environment variable is set and non-blank; an empty map otherwise
+     */
     private Map<String, String> buildProperties() {
         String licenseKey = System.getenv(LICENSE_ENV);
         if (licenseKey == null || licenseKey.isBlank()) {
@@ -86,6 +123,15 @@ public class NewRelicConfigSource implements ConfigSource {
         return Collections.unmodifiableMap(values);
     }
 
+    /**
+     * Resolve the OTLP endpoint URL used for exporting telemetry to New Relic.
+     *
+     * Reads the {@code NEW_RELIC_OTLP_ENDPOINT} environment variable and falls back to the default
+     * endpoint when the variable is unset or contains only whitespace.
+     *
+     * @return {@code DEFAULT_ENDPOINT} if the environment variable is unset or blank, otherwise the
+     *         endpoint string provided by the environment variable
+     */
     private String resolveEndpoint() {
         String endpoint = System.getenv(ENDPOINT_ENV);
         if (endpoint == null || endpoint.isBlank()) {
