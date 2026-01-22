@@ -17,7 +17,7 @@ variable "newrelic_entity_domain" {
 
 variable "newrelic_entity_type" {
   type        = string
-  default     = "SERVICE"
+  default     = "APPLICATION"
   description = "New Relic entity type for services."
 }
 
