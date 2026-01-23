@@ -21,6 +21,7 @@ quarkus.http.host-enabled=true
 
 # REST alternative:
 # quarkus.http.ssl-port=8443
+
 # quarkus.grpc.server.use-separate-server=false
 # quarkus.grpc.server.plain-text=false
 # quarkus.http.ssl.certificate.key-store-file=${SERVER_KEYSTORE_PATH:../target/dev-certs/orchestrator-svc/server-keystore.jks}
@@ -43,7 +44,9 @@ quarkus.http.enable-compression=true
 quarkus.rest-client.http2=true
 
 # gRPC alternative:
-# quarkus.http.host-enabled=false
+# Vert.x configuration
+#quarkus.grpc.server.use-separate-server=false
+#quarkus.http.host-enabled=true
 {{/if}}
 
 # Pipeline Configuration
