@@ -91,7 +91,7 @@
               }
             ]
           },
-          "unit": "req/s"
+          "unit": "items/s"
         },
         "overrides": []
       },
@@ -99,102 +99,6 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 1
-      },
-      "id": 2,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "irate(http_server_requests_milliseconds_count[$__rate_interval])",
-          "instant": false,
-          "legendFormat": "{{job}}",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Requests per Second by Service",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "req/s"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
         "y": 1
       },
       "id": 7,
@@ -217,15 +121,17 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "irate(rpc_server_request_count_total[$__rate_interval])",
+          "expr": "sum by (tpf_step_class) (rate(tpf_step_duration_milliseconds_count[$__rate_interval]))",
           "instant": false,
-          "legendFormat": "{{rpc_service}}",
+          "legendFormat": "{{tpf_step_class}}",
           "range": true,
           "refId": "A"
         }
       ],
       "title": "Pipeline Steps Throughput",
-      "type": "timeseries"
+      "type": "timeseries",
+      "description": "Items processed per second per step (from tpf.step.duration count).",
+      "minInterval": "10s"
     },
     {
       "datasource": {
@@ -283,7 +189,7 @@
               }
             ]
           },
-          "unit": "s"
+          "unit": "ms"
         },
         "overrides": []
       },
@@ -291,7 +197,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 9
+        "y": 1
       },
       "id": 3,
       "options": {
@@ -313,15 +219,17 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "irate(http_server_requests_milliseconds_sum[$__rate_interval]) / rate(http_server_requests_milliseconds_count[$__rate_interval])",
+          "expr": "sum by (tpf_step_class) (rate(tpf_step_duration_milliseconds_sum[$__rate_interval])) / sum by (tpf_step_class) (rate(tpf_step_duration_milliseconds_count[$__rate_interval]))",
           "instant": false,
-          "legendFormat": "{{job}}",
+          "legendFormat": "{{tpf_step_class}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Average Response Time by Service",
-      "type": "timeseries"
+      "title": "Step Average Latency",
+      "type": "timeseries",
+      "description": "Average step latency derived from tpf.step.duration histogram.",
+      "minInterval": "10s"
     },
     {
       "datasource": {
@@ -379,7 +287,7 @@
               }
             ]
           },
-          "unit": "percent"
+          "unit": "short"
         },
         "overrides": []
       },
@@ -409,15 +317,16 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "irate(rpc_server_duration_milliseconds_count{rpc_grpc_status_code=\"OK\"}[$__rate_interval]) / ignoring(rpc_grpc_status_code) rate(rpc_server_request_count_total[$__rate_interval]) * 100",
+          "expr": "100 * (1 - ((sum by (tpf_step_class) (rate(tpf_step_errors_total[$__rate_interval])) or on(tpf_step_class) (sum by (tpf_step_class) (rate(tpf_step_duration_milliseconds_count[$__rate_interval])) * 0)) / sum by (tpf_step_class) (rate(tpf_step_duration_milliseconds_count[$__rate_interval]))))",
           "instant": false,
-          "legendFormat": "{{rpc_service}}",
+          "legendFormat": "{{tpf_step_class}}",
           "range": true,
           "refId": "A"
         }
       ],
       "title": "Pipeline Steps Success Rate",
-      "type": "timeseries"
+      "type": "timeseries",
+      "minInterval": "10s"
     },
     {
       "collapsed": false,
@@ -425,7 +334,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 25
+        "y": 17
       },
       "id": 4,
       "panels": [],
@@ -496,7 +405,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 26
+        "y": 18
       },
       "id": 5,
       "options": {
@@ -526,7 +435,8 @@
         }
       ],
       "title": "JVM Heap Memory Usage",
-      "type": "timeseries"
+      "type": "timeseries",
+      "minInterval": "10s"
     },
     {
       "datasource": {
@@ -584,7 +494,7 @@
               }
             ]
           },
-          "unit": "percent"
+          "unit": "short"
         },
         "overrides": []
       },
@@ -592,7 +502,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 26
+        "y": 18
       },
       "id": 6,
       "options": {
@@ -622,7 +532,8 @@
         }
       ],
       "title": "JVM GC Time Percentage",
-      "type": "timeseries"
+      "type": "timeseries",
+      "minInterval": "10s"
     },
     {
       "collapsed": false,
@@ -630,7 +541,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 34
+        "y": 26
       },
       "id": 9,
       "panels": [],
@@ -701,7 +612,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 35
+        "y": 27
       },
       "id": 10,
       "options": {
@@ -723,15 +634,18 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "tpf_step_inflight",
+          "expr": "max_over_time(tpf_step_inflight_ratio[$__range])",
           "instant": false,
           "legendFormat": "{{tpf_step_class}}",
           "range": true,
-          "refId": "A"
+          "refId": "A",
+          "interval": "10s"
         }
       ],
-      "title": "Step In-flight Items",
-      "type": "timeseries"
+      "title": "In-flight Items",
+      "type": "timeseries",
+      "description": "Peak in-flight items observed per step.",
+      "minInterval": "10s"
     },
     {
       "datasource": {
@@ -819,15 +733,117 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "tpf_step_pending",
+          "expr": "max_over_time(tpf_step_buffer_queued_ratio[$__range]) / max_over_time(tpf_step_buffer_capacity_ratio[$__range]) * 100",
           "instant": false,
           "legendFormat": "{{tpf_step_class}}",
           "range": true,
-          "refId": "A"
+          "refId": "A",
+          "interval": "10s"
         }
       ],
-      "title": "Step Pending Items",
-      "type": "timeseries"
+      "title": "Buffer Utilization (ratio)",
+      "type": "timeseries",
+      "description": "Ratio of queued buffer items to configured capacity per step.",
+      "minInterval": "10s"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 35
+      },
+      "id": 12,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max_over_time(tpf_step_buffer_queued_ratio[$__range])",
+          "instant": false,
+          "legendFormat": "{{tpf_step_class}}",
+          "range": true,
+          "refId": "A",
+          "interval": "10s"
+        }
+      ],
+      "title": "Buffer Depth (items)",
+      "type": "timeseries",
+      "description": "Peak number of queued items sitting in the backpressure buffer per step.",
+      "minInterval": "10s"
     }
   ],
   "refresh": "30s",

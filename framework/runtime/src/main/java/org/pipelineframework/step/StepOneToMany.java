@@ -20,6 +20,7 @@ import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import org.jboss.logging.Logger;
 import org.pipelineframework.step.functional.OneToMany;
+import org.pipelineframework.telemetry.BackpressureBufferMetrics;
 
 /**
  * 1 -> N
@@ -55,12 +56,12 @@ public interface StepOneToMany<I, O> extends OneToMany<I, O>, Configurable, Dead
 
             // Apply overflow strategy
             if ("buffer".equalsIgnoreCase(backpressureStrategy())) {
-                multi = multi.onOverflow().buffer(backpressureBufferCapacity());
+                multi = BackpressureBufferMetrics.buffer(multi, this.getClass(), backpressureBufferCapacity());
             } else if ("drop".equalsIgnoreCase(backpressureStrategy())) {
                 multi = multi.onOverflow().drop();
             } else {
                 // default behavior - buffer with default capacity
-                multi = multi.onOverflow().buffer(128); // default buffer size
+                multi = BackpressureBufferMetrics.buffer(multi, this.getClass(), 128);
             }
 
             return multi.onItem().transform(o -> {

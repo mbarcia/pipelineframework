@@ -19,6 +19,7 @@ package org.pipelineframework.step;
 import io.smallrye.mutiny.Multi;
 import org.jboss.logging.Logger;
 import org.pipelineframework.step.functional.ManyToMany;
+import org.pipelineframework.telemetry.BackpressureBufferMetrics;
 
 /**
  * N -> N
@@ -53,12 +54,12 @@ public interface StepManyToMany<I, O> extends Configurable, ManyToMany<I, O>, De
 
         // Apply overflow strategy
         if ("buffer".equalsIgnoreCase(backpressureStrategy())) {
-            output = output.onOverflow().buffer(backpressureBufferCapacity());
+            output = BackpressureBufferMetrics.buffer(output, this.getClass(), backpressureBufferCapacity());
         } else if ("drop".equalsIgnoreCase(backpressureStrategy())) {
             output = output.onOverflow().drop();
         } else {
             // default behavior - buffer with default capacity
-            output = output.onOverflow().buffer(128); // default buffer size
+            output = BackpressureBufferMetrics.buffer(output, this.getClass(), 128);
         }
 
         return output.onItem().transform(item -> {

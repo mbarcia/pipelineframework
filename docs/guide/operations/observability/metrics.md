@@ -46,6 +46,9 @@ Metrics (OTel/Micrometer):
 - `tpf.step.buffer.queued` (gauge): queued items in the backpressure buffer (`tpf.step.class` attribute)
 - `tpf.step.buffer.capacity` (gauge): configured backpressure buffer capacity per step (`tpf.step.class` attribute)
 
+Note: when Prometheus consumes these gauges via the OTLP bridge, dimensionless units (`1`)
+are exported with a `_ratio` suffix (for example `tpf_step_inflight_ratio`).
+
 Run-level span attributes (on `tpf.pipeline.run`):
 - `tpf.parallel.max_in_flight`
 - `tpf.parallel.avg_in_flight`

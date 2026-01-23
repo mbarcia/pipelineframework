@@ -9,7 +9,7 @@ Observability in The Pipeline Framework is designed for distributed pipelines: y
 3. **Logging**: Structured logs with correlation identifiers
 4. **Health Checks**: Liveness/readiness for orchestration
 5. **Alerting**: Dashboards and alert rules tuned for pipeline behavior
-6. **Parallelism**: In-flight and pending item gauges plus run-level throughput attributes
+6. **Parallelism**: In-flight and buffer depth gauges plus run-level throughput attributes
 
 ## Sections
 

@@ -20,7 +20,7 @@ Pair alerts with dashboards that show step latency, item throughput (while runni
 1. Run failure rate above threshold (orchestrator)
 2. Step error rate above SLO (gRPC server spans)
 3. Item latency above SLO (run average or per-step)
-4. Backpressure pressure rising (pending items high/flat)
+4. Backpressure pressure rising (buffer queued stays high)
 5. Orchestrator runtime failure or restart loops
 
 ## Practical Defaults
@@ -29,7 +29,7 @@ Start with:
 
 1. Run failure rate > 1% over 1 day (warning)
 2. Item avg latency > 2x baseline for 10 minutes (warning)
-3. Pending items flat and high for 5 minutes (warning)
+3. Buffer queued stays high for 5 minutes (warning)
 4. DLQ growth sustained for 5 minutes (critical)
 
 When using New Relic, derive these from `tpf.pipeline.run` spans and `tpf.step.*` metrics.

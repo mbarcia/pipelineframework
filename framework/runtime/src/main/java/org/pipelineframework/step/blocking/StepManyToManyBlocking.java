@@ -24,6 +24,7 @@ import org.jboss.logging.Logger;
 import org.pipelineframework.step.Configurable;
 import org.pipelineframework.step.DeadLetterQueue;
 import org.pipelineframework.step.functional.ManyToMany;
+import org.pipelineframework.telemetry.BackpressureBufferMetrics;
 
 /**
  * Imperative variant of StepManyToMany that works with Lists instead of Multi.
@@ -88,7 +89,8 @@ List<O> applyStreamingList(List<I> upstream);
         // default behavior - buffer with default capacity (no explicit overflow strategy needed)
         Multi<I> backpressuredInput = input;
         if ("buffer".equalsIgnoreCase(backpressureStrategy())) {
-            backpressuredInput = backpressuredInput.onOverflow().buffer(backpressureBufferCapacity());
+            backpressuredInput =
+                BackpressureBufferMetrics.buffer(backpressuredInput, this.getClass(), backpressureBufferCapacity());
         } else if ("drop".equalsIgnoreCase(backpressureStrategy())) {
             backpressuredInput = backpressuredInput.onOverflow().drop();
         }

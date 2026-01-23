@@ -58,8 +58,6 @@ public class PipelineTelemetry {
         AttributeKey.longKey("tpf.parallel.max_in_flight");
     private static final AttributeKey<Double> PARALLEL_AVG_IN_FLIGHT =
         AttributeKey.doubleKey("tpf.parallel.avg_in_flight");
-    private static final AttributeKey<Long> PENDING_MAX = AttributeKey.longKey("tpf.pending.max");
-    private static final AttributeKey<Double> PENDING_AVG = AttributeKey.doubleKey("tpf.pending.avg");
 
     private final boolean enabled;
     private final boolean metricsEnabled;
@@ -74,7 +72,6 @@ public class PipelineTelemetry {
     private final DoubleHistogram pipelineRunDuration;
     private final DoubleHistogram stepDuration;
     private final ConcurrentMap<String, AtomicLong> inflightByStep;
-    private final ConcurrentMap<String, AtomicLong> pendingByStep;
 
     /**
      * Create a telemetry helper from the configured pipeline settings.
@@ -91,7 +88,6 @@ public class PipelineTelemetry {
         this.tracer = GlobalOpenTelemetry.getTracer("org.pipelineframework");
         this.meter = GlobalOpenTelemetry.getMeter("org.pipelineframework");
         this.inflightByStep = new ConcurrentHashMap<>();
-        this.pendingByStep = new ConcurrentHashMap<>();
         if (metricsEnabled) {
             this.pipelineRunCounter = meter.counterBuilder("tpf.pipeline.run.count")
                 .setDescription("Pipeline runs")
@@ -122,11 +118,6 @@ public class PipelineTelemetry {
                 .setUnit("1")
                 .ofLongs()
                 .buildWithCallback(this::recordInflightGauge);
-            meter.gaugeBuilder("tpf.step.pending")
-                .setDescription("Pending items per step")
-                .setUnit("1")
-                .ofLongs()
-                .buildWithCallback(this::recordPendingGauge);
         } else {
             this.pipelineRunCounter = null;
             this.pipelineRunErrorCounter = null;
@@ -174,10 +165,6 @@ public class PipelineTelemetry {
             attributes,
             enabled,
             new AtomicLong(),
-            new AtomicLong(),
-            new AtomicLong(),
-            new LongAdder(),
-            new LongAdder(),
             new AtomicLong(),
             new AtomicLong(),
             new LongAdder(),
@@ -339,33 +326,8 @@ public class PipelineTelemetry {
             double inflightAvg = samples > 0 ? runContext.inflightSum().sum() / (double) samples : 0.0;
             runContext.span().setAttribute(PARALLEL_MAX_IN_FLIGHT, runContext.inflightMax().get());
             runContext.span().setAttribute(PARALLEL_AVG_IN_FLIGHT, inflightAvg);
-            long pendingSamples = runContext.pendingSamples().sum();
-            double pendingAvg = pendingSamples > 0 ? runContext.pendingSum().sum() / (double) pendingSamples : 0.0;
-            runContext.span().setAttribute(PENDING_MAX, runContext.pendingMax().get());
-            runContext.span().setAttribute(PENDING_AVG, pendingAvg);
         }
         endSpan(runContext.span(), failure);
-    }
-
-    /**
-     * Mark an item as queued for processing.
-     *
-     * @param stepClass step class
-     * @param runContext telemetry context
-     */
-    public void onItemQueued(Class<?> stepClass, RunContext runContext) {
-        if (runContext == null || !runContext.enabled()) {
-            return;
-        }
-        long current = runContext.pendingCurrent().incrementAndGet();
-        runContext.pendingSamples().increment();
-        runContext.pendingSum().add(current);
-        runContext.pendingMax().accumulateAndGet(current, Math::max);
-        if (metricsEnabled) {
-            pendingByStep
-                .computeIfAbsent(stepClass.getName(), key -> new AtomicLong())
-                .incrementAndGet();
-        }
     }
 
     private void onItemStart(Class<?> stepClass, RunContext runContext) {
@@ -396,28 +358,10 @@ public class PipelineTelemetry {
                 currentStep.updateAndGet(value -> Math.max(0, value - 1));
             }
         }
-        AtomicLong pendingCurrent = runContext.pendingCurrent();
-        if (pendingCurrent.get() > 0) {
-            long pending = pendingCurrent.decrementAndGet();
-            runContext.pendingSamples().increment();
-            runContext.pendingSum().add(Math.max(pending, 0));
-        }
-        if (metricsEnabled) {
-            AtomicLong pendingStep = pendingByStep.get(stepClass.getName());
-            if (pendingStep != null) {
-                pendingStep.updateAndGet(value -> Math.max(0, value - 1));
-            }
-        }
     }
 
     private void recordInflightGauge(ObservableLongMeasurement measurement) {
         inflightByStep.forEach((step, count) -> {
-            measurement.record(count.get(), Attributes.of(STEP_CLASS, step));
-        });
-    }
-
-    private void recordPendingGauge(ObservableLongMeasurement measurement) {
-        pendingByStep.forEach((step, count) -> {
             measurement.record(count.get(), Attributes.of(STEP_CLASS, step));
         });
     }
@@ -450,10 +394,6 @@ public class PipelineTelemetry {
      * @param inflightMax max in-flight item count
      * @param inflightSamples number of in-flight samples taken
      * @param inflightSum sum of in-flight samples
-     * @param pendingCurrent current pending item count
-     * @param pendingMax max pending item count
-     * @param pendingSamples number of pending samples taken
-     * @param pendingSum sum of pending samples
      */
     public record RunContext(
         Context context,
@@ -465,11 +405,7 @@ public class PipelineTelemetry {
         AtomicLong inflightCurrent,
         AtomicLong inflightMax,
         LongAdder inflightSamples,
-        LongAdder inflightSum,
-        AtomicLong pendingCurrent,
-        AtomicLong pendingMax,
-        LongAdder pendingSamples,
-        LongAdder pendingSum) {
+        LongAdder inflightSum) {
 
         static RunContext disabled() {
             return new RunContext(
@@ -479,10 +415,6 @@ public class PipelineTelemetry {
                 Attributes.empty(),
                 false,
                 new AtomicLong(),
-                new AtomicLong(),
-                new AtomicLong(),
-                new LongAdder(),
-                new LongAdder(),
                 new AtomicLong(),
                 new AtomicLong(),
                 new LongAdder(),

@@ -66,10 +66,8 @@ class PipelineTelemetryTest {
                 telemetry.startRun(input, 1, ParallelismPolicy.AUTO, 4);
 
             Multi<Integer> instrumented = (Multi<Integer>) telemetry.instrumentInput(input, runContext);
-            Multi<Integer> queued = instrumented.onItem()
-                .invoke(item -> telemetry.onItemQueued(DummyStep.class, runContext));
             Multi<Integer> stepped =
-                telemetry.instrumentStepMulti(DummyStep.class, queued, runContext, true);
+                telemetry.instrumentStepMulti(DummyStep.class, instrumented, runContext, true);
             Multi<Integer> completed =
                 (Multi<Integer>) telemetry.instrumentRunCompletion(stepped, runContext);
 
@@ -87,12 +85,9 @@ class PipelineTelemetryTest {
             assertNotNull(attributes.get(AttributeKey.doubleKey("tpf.items.per_min")));
             assertNotNull(attributes.get(AttributeKey.longKey("tpf.parallel.max_in_flight")));
             assertNotNull(attributes.get(AttributeKey.doubleKey("tpf.parallel.avg_in_flight")));
-            assertNotNull(attributes.get(AttributeKey.longKey("tpf.pending.max")));
-            assertNotNull(attributes.get(AttributeKey.doubleKey("tpf.pending.avg")));
 
             assertTrue(attributes.get(AttributeKey.longKey("tpf.item.count")) >= 3L);
             assertTrue(attributes.get(AttributeKey.longKey("tpf.parallel.max_in_flight")) >= 1L);
-            assertTrue(attributes.get(AttributeKey.longKey("tpf.pending.max")) >= 1L);
         } finally {
             tracerProvider.shutdown();
             meterProvider.shutdown();
@@ -101,7 +96,7 @@ class PipelineTelemetryTest {
     }
 
     @Test
-    void exposesStepInflightAndPendingGauges() {
+    void exposesStepInflightGauge() {
         InMemorySpanExporter exporter = InMemorySpanExporter.create();
         SdkTracerProvider tracerProvider = SdkTracerProvider.builder()
             .addSpanProcessor(SimpleSpanProcessor.create(exporter))
@@ -124,10 +119,8 @@ class PipelineTelemetryTest {
                 telemetry.startRun(input, 1, ParallelismPolicy.AUTO, 4);
 
             Multi<Integer> instrumented = (Multi<Integer>) telemetry.instrumentInput(input, runContext);
-            Multi<Integer> queued = instrumented.onItem()
-                .invoke(item -> telemetry.onItemQueued(DummyStep.class, runContext));
             Multi<Integer> stepped =
-                telemetry.instrumentStepMulti(DummyStep.class, queued, runContext, true);
+                telemetry.instrumentStepMulti(DummyStep.class, instrumented, runContext, true);
             Multi<Integer> completed =
                 (Multi<Integer>) telemetry.instrumentRunCompletion(stepped, runContext);
 
@@ -138,17 +131,9 @@ class PipelineTelemetryTest {
                 .filter(metric -> "tpf.step.inflight".equals(metric.getName()))
                 .findFirst()
                 .orElseThrow();
-            MetricData pending = metrics.stream()
-                .filter(metric -> "tpf.step.pending".equals(metric.getName()))
-                .findFirst()
-                .orElseThrow();
 
             String stepClass = DummyStep.class.getName();
             assertEquals(1, inflight.getLongGaugeData().getPoints().stream()
-                .filter(point -> stepClass.equals(point.getAttributes()
-                    .get(AttributeKey.stringKey("tpf.step.class"))))
-                .count());
-            assertEquals(1, pending.getLongGaugeData().getPoints().stream()
                 .filter(point -> stepClass.equals(point.getAttributes()
                     .get(AttributeKey.stringKey("tpf.step.class"))))
                 .count());
