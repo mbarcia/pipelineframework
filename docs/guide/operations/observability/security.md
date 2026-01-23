@@ -11,6 +11,9 @@ Observability data can contain sensitive information. Treat it like production d
 
 Ensure metrics and trace backends are protected with authentication and network policies. Avoid exposing telemetry endpoints publicly.
 
+When exporting to OTLP over HTTP, prefer TLS endpoints and authenticate with headers (for example
+`quarkus.otel.exporter.otlp.headers=api-key=...`).
+
 ## Data Minimization
 
 Keep attributes and log fields minimal. Prefer identifiers over payloads.

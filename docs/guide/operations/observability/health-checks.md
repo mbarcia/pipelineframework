@@ -12,6 +12,12 @@ Common endpoints:
 2. `/q/health/live` (liveness)
 3. `/q/health/ready` (readiness)
 
+## Pipeline Startup Checks
+
+The orchestrator performs startup health checks for dependent services before running a pipeline.
+These are controlled by `pipeline.health.startup-timeout` and will fail startup if required services
+are unhealthy.
+
 ## Custom Checks
 
 Add checks for dependencies such as databases or external APIs.
@@ -32,3 +38,4 @@ public class PaymentProviderHealthCheck implements HealthCheck {
 1. Keep checks fast
 2. Fail readiness when critical dependencies are down
 3. Use graceful degradation when possible
+4. Keep startup checks aligned with pipeline dependencies
