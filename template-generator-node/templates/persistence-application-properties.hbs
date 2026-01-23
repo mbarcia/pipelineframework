@@ -46,6 +46,7 @@ quarkus.micrometer.binder.http-client.enabled=${QUARKUS_OTEL_METRICS_ENABLED:${Q
 quarkus.micrometer.binder.jvm=true
 
 # OpenTelemetry defaults
+quarkus.otel.exporter.otlp.endpoint=http://localhost:4318
 quarkus.otel.exporter.otlp.protocol=http/protobuf
 quarkus.otel.exporter.otlp.compression=gzip
 quarkus.otel.exporter.otlp.metrics.temporality.preference=delta
