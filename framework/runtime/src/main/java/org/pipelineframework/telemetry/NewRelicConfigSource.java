@@ -113,6 +113,7 @@ public class NewRelicConfigSource implements ConfigSource {
         if (licenseKey == null || licenseKey.isBlank()) {
             return Collections.emptyMap();
         }
+        licenseKey = licenseKey.trim();
         logger.infof("New Relic OTLP export enabled via %s (LGTM disabled).", LICENSE_ENV);
         Map<String, String> values = new HashMap<>();
         values.put("quarkus.otel.enabled", "true");
@@ -144,7 +145,7 @@ public class NewRelicConfigSource implements ConfigSource {
         if (endpoint == null || endpoint.isBlank()) {
             return DEFAULT_ENDPOINT;
         }
-        return endpoint;
+        return endpoint.trim();
     }
 
     private String resolveMetricInterval(Map<String, String> env) {
@@ -152,6 +153,6 @@ public class NewRelicConfigSource implements ConfigSource {
         if (interval == null || interval.isBlank()) {
             return DEFAULT_METRIC_INTERVAL;
         }
-        return interval;
+        return interval.trim();
     }
 }
