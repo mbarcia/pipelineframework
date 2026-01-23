@@ -30,19 +30,25 @@ Pair metrics with Grafana dashboards that show:
 3. Error rate by step
 4. Pipeline end-to-end latency
 
+## LGTM Metrics Pipeline
+
+LGTM Dev Services ship an OTLP collector and Prometheus. Grafana's built-in dashboards read
+from the Prometheus datasource, so Prometheus scraping must be enabled even if OTLP export
+is configured. For OTLP-first dashboards, you need a Grafana datasource that reads OTLP
+metrics storage (for example Mimir) instead of Prometheus.
+
 ## Parallelism and Backpressure
 
-TPF emits additional metrics and span attributes to showcase parallelism and queue pressure:
+TPF emits additional metrics and span attributes to showcase parallelism and buffer pressure:
 
 Metrics (OTel/Micrometer):
 - `tpf.step.inflight` (gauge): in-flight items per step (`tpf.step.class` attribute)
-- `tpf.step.pending` (gauge): queued + in-flight items per step (`tpf.step.class` attribute); useful as a backpressure proxy
+- `tpf.step.buffer.queued` (gauge): queued items in the backpressure buffer (`tpf.step.class` attribute)
+- `tpf.step.buffer.capacity` (gauge): configured backpressure buffer capacity per step (`tpf.step.class` attribute)
 
 Run-level span attributes (on `tpf.pipeline.run`):
 - `tpf.parallel.max_in_flight`
 - `tpf.parallel.avg_in_flight`
-- `tpf.pending.max`
-- `tpf.pending.avg`
 - `tpf.item.count`
 - `tpf.item.avg_ms`
 - `tpf.items.per_min`
@@ -54,7 +60,7 @@ When querying, use a max over time window to surface the peak:
 
 ```text
 max(tpf_step_inflight) by (tpf_step_class)
-max(tpf_step_pending) by (tpf_step_class)
+max(tpf_step_buffer_queued) by (tpf_step_class)
 ```
 
 ## Custom Metrics
