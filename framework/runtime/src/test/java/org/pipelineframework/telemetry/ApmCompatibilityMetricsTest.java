@@ -51,10 +51,17 @@ class ApmCompatibilityMetricsTest {
                 .filter(metric -> "apm.service.transaction.count".equals(metric.getName()))
                 .findFirst()
                 .orElseThrow();
+            MetricData duration = metrics.stream()
+                .filter(metric -> "apm.service.transaction.duration".equals(metric.getName()))
+                .findFirst()
+                .orElseThrow();
             boolean hasTransactionName = count.getLongSumData().getPoints().stream()
                 .anyMatch(point -> "OtherTransaction/OrchestratorService/Run".equals(
                     point.getAttributes().get(AttributeKey.stringKey("transaction.name"))));
             assertTrue(hasTransactionName);
+            assertTrue(duration.getHistogramData().getPoints().stream()
+                .anyMatch(point -> "OtherTransaction/OrchestratorService/Run".equals(
+                    point.getAttributes().get(AttributeKey.stringKey("transaction.name")))));
         } finally {
             meterProvider.shutdown();
             GlobalOpenTelemetry.resetForTest();
