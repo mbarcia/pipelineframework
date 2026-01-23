@@ -84,6 +84,8 @@ quarkus.micrometer.binder.http-client.enabled=${QUARKUS_OTEL_METRICS_ENABLED:${Q
 quarkus.micrometer.binder.jvm=true
 
 # OpenTelemetry configuration
+# Prometheus export is opt-in to avoid running LGTM/Prometheus by default in dev.
+# The following defaults only apply when OpenTelemetry is enabled (for example via NEW_RELIC_LICENSE_KEY).
 quarkus.otel.exporter.otlp.endpoint=http://otel-collector:4317
 quarkus.otel.exporter.otlp.protocol=http/protobuf
 quarkus.otel.exporter.otlp.compression=gzip
