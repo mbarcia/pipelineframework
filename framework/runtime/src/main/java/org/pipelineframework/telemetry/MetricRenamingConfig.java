@@ -82,7 +82,7 @@ public class MetricRenamingConfig {
             case "grpc.server.processing.duration.max" -> "rpc.server.duration.max";
             case "grpc.server.requests.received" -> "rpc.server.requests";
             case "grpc.server.responses.sent" -> "rpc.server.responses";
-            default -> name;
+            default -> "rpc.server." + name.substring("grpc.server.".length());
         };
     }
 
