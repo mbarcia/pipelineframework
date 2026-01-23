@@ -37,7 +37,6 @@ import org.eclipse.microprofile.config.ConfigProvider;
  */
 public final class GrpcClientTracing {
 
-    private static final Tracer TRACER = GlobalOpenTelemetry.getTracer("org.pipelineframework.grpc.client");
     private static final AttributeKey<String> RPC_SYSTEM = AttributeKey.stringKey("rpc.system");
     private static final AttributeKey<String> RPC_SERVICE = AttributeKey.stringKey("rpc.service");
     private static final AttributeKey<String> RPC_METHOD = AttributeKey.stringKey("rpc.method");
@@ -100,7 +99,7 @@ public final class GrpcClientTracing {
     }
 
     private static Span startSpan(String service, String method) {
-        var builder = TRACER.spanBuilder(service + "/" + method)
+        var builder = tracer().spanBuilder(service + "/" + method)
             .setSpanKind(SpanKind.CLIENT)
             .setAttribute(RPC_SYSTEM, "grpc")
             .setAttribute(RPC_SERVICE, service)
@@ -110,6 +109,10 @@ public final class GrpcClientTracing {
             builder.setParent(forceSampledParent());
         }
         return builder.startSpan();
+    }
+
+    private static Tracer tracer() {
+        return GlobalOpenTelemetry.getTracer("org.pipelineframework.grpc.client");
     }
 
     private static void endSpan(Span span, Throwable failure) {

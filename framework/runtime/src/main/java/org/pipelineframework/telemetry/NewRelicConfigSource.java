@@ -45,7 +45,11 @@ public class NewRelicConfigSource implements ConfigSource {
      * NEW_RELIC_OTLP_ENDPOINT environment variables to configure OpenTelemetry/OTLP settings.
      */
     public NewRelicConfigSource() {
-        this.properties = buildProperties();
+        this.properties = buildProperties(System.getenv());
+    }
+
+    NewRelicConfigSource(Map<String, String> env) {
+        this.properties = buildProperties(env);
     }
 
     /**
@@ -104,8 +108,8 @@ public class NewRelicConfigSource implements ConfigSource {
      *
      * @return an unmodifiable map of Quarkus OpenTelemetry/OTLP configuration properties when the New Relic license key environment variable is set and non-blank; an empty map otherwise
      */
-    private Map<String, String> buildProperties() {
-        String licenseKey = System.getenv(LICENSE_ENV);
+    private Map<String, String> buildProperties(Map<String, String> env) {
+        String licenseKey = env.get(LICENSE_ENV);
         if (licenseKey == null || licenseKey.isBlank()) {
             return Collections.emptyMap();
         }
@@ -114,10 +118,10 @@ public class NewRelicConfigSource implements ConfigSource {
         values.put("quarkus.otel.enabled", "true");
         values.put("quarkus.otel.traces.enabled", "true");
         values.put("quarkus.otel.metrics.enabled", "true");
-        values.put("quarkus.otel.metric.export.interval", resolveMetricInterval());
+        values.put("quarkus.otel.metric.export.interval", resolveMetricInterval(env));
         values.put("quarkus.otel.traces.sampler", "parentbased_traceidratio");
         values.put("quarkus.otel.traces.sampler.arg", "0.001");
-        values.put("quarkus.otel.exporter.otlp.endpoint", resolveEndpoint());
+        values.put("quarkus.otel.exporter.otlp.endpoint", resolveEndpoint(env));
         values.put("quarkus.otel.exporter.otlp.protocol", "http/protobuf");
         values.put("quarkus.otel.exporter.otlp.compression", "gzip");
         values.put("quarkus.otel.exporter.otlp.metrics.temporality.preference", "delta");
@@ -135,16 +139,16 @@ public class NewRelicConfigSource implements ConfigSource {
      * @return {@code DEFAULT_ENDPOINT} if the environment variable is unset or blank, otherwise the
      *         endpoint string provided by the environment variable
      */
-    private String resolveEndpoint() {
-        String endpoint = System.getenv(ENDPOINT_ENV);
+    private String resolveEndpoint(Map<String, String> env) {
+        String endpoint = env.get(ENDPOINT_ENV);
         if (endpoint == null || endpoint.isBlank()) {
             return DEFAULT_ENDPOINT;
         }
         return endpoint;
     }
 
-    private String resolveMetricInterval() {
-        String interval = System.getenv(METRIC_INTERVAL_ENV);
+    private String resolveMetricInterval(Map<String, String> env) {
+        String interval = env.get(METRIC_INTERVAL_ENV);
         if (interval == null || interval.isBlank()) {
             return DEFAULT_METRIC_INTERVAL;
         }
