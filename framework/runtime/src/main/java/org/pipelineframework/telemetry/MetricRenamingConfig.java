@@ -72,8 +72,8 @@ public class MetricRenamingConfig {
      * @param name the original metric name
      * @return {@code rpc.server.duration} for {@code grpc.server.processing.duration},
      *         {@code rpc.server.duration.max} for {@code grpc.server.processing.duration.max},
-     *         {@code rpc.server.request.count} for {@code grpc.server.requests.received},
-     *         {@code rpc.server.response.count} for {@code grpc.server.responses.sent},
+     *         {@code rpc.server.requests} for {@code grpc.server.requests.received},
+     *         {@code rpc.server.responses} for {@code grpc.server.responses.sent},
      *         otherwise returns the original {@code name}
      */
     private static String mapGrpcName(String name) {
