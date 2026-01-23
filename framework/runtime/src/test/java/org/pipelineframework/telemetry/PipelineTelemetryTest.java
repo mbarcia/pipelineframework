@@ -225,6 +225,26 @@ class PipelineTelemetryTest {
         public Map<String, StepConfig> step() {
             return Map.of();
         }
+
+        @Override
+        public Map<String, ModuleConfig> module() {
+            return Map.of();
+        }
+
+        @Override
+        public ClientConfig client() {
+            return new ClientConfig() {
+                @Override
+                public Optional<Integer> basePort() {
+                    return Optional.empty();
+                }
+
+                @Override
+                public Optional<String> tlsConfigurationName() {
+                    return Optional.empty();
+                }
+            };
+        }
     }
 
     static final class TestTelemetryConfig implements PipelineStepConfig.TelemetryConfig {
