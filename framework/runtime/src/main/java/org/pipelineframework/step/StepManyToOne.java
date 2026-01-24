@@ -20,6 +20,7 @@ import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import org.jboss.logging.Logger;
 import org.pipelineframework.step.functional.ManyToOne;
+import org.pipelineframework.telemetry.BackpressureBufferMetrics;
 
 /**
  * N -> 1 (reactive)
@@ -51,15 +52,16 @@ public interface StepManyToOne<I, O> extends Configurable, ManyToOne<I, O>, Dead
         Multi<I> backpressuredInput = input;
         final String strategy = backpressureStrategy();
         if ("buffer".equalsIgnoreCase(strategy)) {
-            backpressuredInput = backpressuredInput.onOverflow().buffer(backpressureBufferCapacity());
+            backpressuredInput =
+                BackpressureBufferMetrics.buffer(backpressuredInput, this.getClass(), backpressureBufferCapacity());
         } else if ("drop".equalsIgnoreCase(strategy)) {
             backpressuredInput = backpressuredInput.onOverflow().drop();
         } else if (strategy == null || strategy.isBlank() || "default".equalsIgnoreCase(strategy)) {
             // default behavior - buffer with default capacity
-            backpressuredInput = backpressuredInput.onOverflow().buffer(128); // default buffer size
+            backpressuredInput = BackpressureBufferMetrics.buffer(backpressuredInput, this.getClass(), 128);
         } else {
             LOG.warnf("Unknown backpressure strategy '%s', defaulting to buffer(128)", strategy);
-            backpressuredInput = backpressuredInput.onOverflow().buffer(128); // default buffer size
+            backpressuredInput = BackpressureBufferMetrics.buffer(backpressuredInput, this.getClass(), 128);
         }
 
         final Multi<I> finalInput = backpressuredInput;

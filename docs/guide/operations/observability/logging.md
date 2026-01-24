@@ -11,6 +11,11 @@ MDC.put("pipelineId", pipelineId);
 MDC.put("stepName", stepName);
 ```
 
+## Trace Correlation
+
+When OpenTelemetry is enabled, prefer including trace/span IDs in log format so APM and logs
+link correctly.
+
 ## JSON Logging
 
 Prefer JSON logs in production to integrate with log aggregation.
@@ -32,3 +37,4 @@ quarkus.log.console.json.pretty-print=false
 1. Avoid logging full payloads
 2. Mask secrets and PII
 3. Keep messages consistent across steps
+4. Avoid per-item logs in high-cardinality flows

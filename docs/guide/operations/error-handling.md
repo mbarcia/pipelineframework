@@ -46,7 +46,7 @@ Control the maximum number of concurrent operations through backpressure and buf
 
 ```properties
 # application.properties
-pipeline.defaults.backpressure-buffer-capacity=1024
+pipeline.defaults.backpressure-buffer-capacity=128
 pipeline.defaults.backpressure-strategy=BUFFER
 ```
 

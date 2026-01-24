@@ -18,9 +18,9 @@ The project uses three independent workflows:
     - No tests (already validated in main)
 
 ## 📛 CI Status
-[![Build (PR)](https://github.com/mbarcia/pipelineframework/actions/workflows/build.yml/badge.svg)](https://github.com/mbarcia/pipelineframework/actions/workflows/build.yml)
-[![Full Tests (Main)](https://github.com/mbarcia/pipelineframework/actions/workflows/full-tests.yml/badge.svg)](https://github.com/mbarcia/pipelineframework/actions/workflows/full-tests.yml)
-[![Release](https://github.com/mbarcia/pipelineframework/actions/workflows/publish.yml/badge.svg)](https://github.com/mbarcia/pipelineframework/actions/workflows/publish.yml)
+[![Build (PR)](https://github.com/The-Pipeline-Framework/pipelineframework/actions/workflows/build.yml/badge.svg)](https://github.com/The-Pipeline-Framework/pipelineframework/actions/workflows/build.yml)
+[![Full Tests (Main)](https://github.com/The-Pipeline-Framework/pipelineframework/actions/workflows/full-tests.yml/badge.svg)](https://github.com/The-Pipeline-Framework/pipelineframework/actions/workflows/full-tests.yml)
+[![Release](https://github.com/The-Pipeline-Framework/pipelineframework/actions/workflows/publish.yml/badge.svg)](https://github.com/The-Pipeline-Framework/pipelineframework/actions/workflows/publish.yml)
 
 ## 🛠️ Build Flags Cheat Sheet
 

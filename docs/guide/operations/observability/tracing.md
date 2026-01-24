@@ -1,6 +1,6 @@
 # Tracing
 
-Distributed tracing connects a single request across multiple steps and services.
+Distributed tracing connects a single item across multiple steps and services.
 
 ## OpenTelemetry Integration
 
@@ -8,13 +8,19 @@ Enable tracing with standard Quarkus OpenTelemetry settings and export to your c
 
 ```properties
 quarkus.otel.enabled=true
-quarkus.otel.exporter.otlp.endpoint=http://otel-collector:4317
-quarkus.otel.exporter.otlp.protocol=grpc
+quarkus.otel.exporter.otlp.endpoint=http://otel-collector:4318
+quarkus.otel.exporter.otlp.protocol=http/protobuf
 ```
 
 ## Sampling
 
 For high-volume pipelines, use sampling to control overhead while keeping representative traces.
+Client spans can be forced for selected services via:
+
+```properties
+pipeline.telemetry.tracing.client-spans.force=true
+pipeline.telemetry.tracing.client-spans.allowlist=ProcessCsvPaymentsInputService,ProcessCsvPaymentsOutputFileService
+```
 
 ## Custom Spans
 
@@ -35,4 +41,5 @@ For streaming pipelines, ensure context is carried across async boundaries and e
 1. Use meaningful span names (step + action)
 2. Capture failures as span events
 3. Avoid logging sensitive payloads in span attributes
-4. Record the step name and pipeline ID as attributes
+4. Record step class and pipeline run attributes (`tpf.*`)
+5. Enable per-item spans only when needed (`pipeline.telemetry.tracing.per-item=true`)

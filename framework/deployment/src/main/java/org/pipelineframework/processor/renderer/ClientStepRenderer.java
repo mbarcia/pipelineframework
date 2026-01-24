@@ -164,6 +164,9 @@ public record ClientStepRenderer(GenerationTarget target) implements PipelineRen
 
         if (grpcClientType != null) {
             // Add the apply method implementation based on the streaming shape
+            ClassName grpcClientTracing = ClassName.get("org.pipelineframework.telemetry", "GrpcClientTracing");
+            String rpcServiceName = model.serviceName();
+            String rpcMethodName = "remoteProcess";
             switch (model.streamingShape()) {
                 case UNARY_STREAMING:
                     // For OneToMany: Input -> Multi<Output> (StepOneToMany interface has applyOneToMany(Input in) method)
@@ -173,7 +176,8 @@ public record ClientStepRenderer(GenerationTarget target) implements PipelineRen
                             .returns(ParameterizedTypeName.get(ClassName.get(Multi.class),
                                     outputGrpcType))
                             .addParameter(inputGrpcType, "input")
-                            .addStatement("return this.grpcClient.remoteProcess(input)")
+                            .addStatement("return $T.traceMulti($S, $S, this.grpcClient.remoteProcess(input))",
+                                grpcClientTracing, rpcServiceName, rpcMethodName)
                             .build();
                     clientStepBuilder.addMethod(applyOneToManyMethod);
                     break;
@@ -186,7 +190,8 @@ public record ClientStepRenderer(GenerationTarget target) implements PipelineRen
                                     outputGrpcType))
                             .addParameter(ParameterizedTypeName.get(ClassName.get(Multi.class),
                                     inputGrpcType), "inputs")
-                            .addStatement("return this.grpcClient.remoteProcess(inputs)")
+                            .addStatement("return $T.traceUnary($S, $S, this.grpcClient.remoteProcess(inputs))",
+                                grpcClientTracing, rpcServiceName, rpcMethodName)
                             .build();
                     clientStepBuilder.addMethod(applyBatchMultiMethod);
                     break;
@@ -199,7 +204,8 @@ public record ClientStepRenderer(GenerationTarget target) implements PipelineRen
                                     outputGrpcType))
                             .addParameter(ParameterizedTypeName.get(ClassName.get(Multi.class),
                                     inputGrpcType), "inputs")
-                            .addStatement("return this.grpcClient.remoteProcess(inputs)")
+                            .addStatement("return $T.traceMulti($S, $S, this.grpcClient.remoteProcess(inputs))",
+                                grpcClientTracing, rpcServiceName, rpcMethodName)
                             .build();
                     clientStepBuilder.addMethod(applyTransformMethod);
                     break;
@@ -212,7 +218,8 @@ public record ClientStepRenderer(GenerationTarget target) implements PipelineRen
                             .returns(ParameterizedTypeName.get(ClassName.get(Uni.class),
                                     outputGrpcType))
                             .addParameter(inputGrpcType, "input");
-                    applyOneToOneMethod.addStatement("return this.grpcClient.remoteProcess(input)");
+                    applyOneToOneMethod.addStatement("return $T.traceUnary($S, $S, this.grpcClient.remoteProcess(input))",
+                        grpcClientTracing, rpcServiceName, rpcMethodName);
                     clientStepBuilder.addMethod(applyOneToOneMethod.build());
                     break;
             }

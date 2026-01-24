@@ -25,6 +25,7 @@ import org.jboss.logging.Logger;
 import org.pipelineframework.step.Configurable;
 import org.pipelineframework.step.DeadLetterQueue;
 import org.pipelineframework.step.functional.ManyToOne;
+import org.pipelineframework.telemetry.BackpressureBufferMetrics;
 
 /**
  * N -> 1 (imperative)
@@ -100,7 +101,8 @@ public interface StepManyToOneBlocking<I, O> extends Configurable, ManyToOne<I, 
         // default behavior - buffer with default capacity (no explicit overflow strategy needed)
         Multi<I> backpressuredInput = input;
         if ("buffer".equalsIgnoreCase(backpressureStrategy())) {
-            backpressuredInput = backpressuredInput.onOverflow().buffer(backpressureBufferCapacity());
+            backpressuredInput =
+                BackpressureBufferMetrics.buffer(backpressuredInput, this.getClass(), backpressureBufferCapacity());
         } else if ("drop".equalsIgnoreCase(backpressureStrategy())) {
             backpressuredInput = backpressuredInput.onOverflow().drop();
         }

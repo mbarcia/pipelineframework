@@ -14,7 +14,7 @@ hero:
       link: /guide/getting-started/quick-start
     - theme: alt
       text: View on GitHub
-      link: https://github.com/mbarcia/pipelineframework
+      link: https://github.com/The-Pipeline-Framework/pipelineframework
     - theme: alt
       text: Design with Canvas
       link: https://app.pipelineframework.org

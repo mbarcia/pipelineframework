@@ -51,7 +51,7 @@ participating, you are expected to uphold this code. Please report unacceptable 
    ```
 3. Set up the upstream remote:
    ```bash
-   git remote add upstream https://github.com/mbarcia/pipelineframework.git
+   git remote add upstream https://github.com/The-Pipeline-Framework/pipelineframework.git
    ```
 4. Build the project:
    ```bash

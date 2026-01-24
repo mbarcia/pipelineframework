@@ -226,7 +226,7 @@ class StepConfigTest {
         assertFalse(config.recoverOnFailure());
         assertEquals(Duration.ofSeconds(30), config.maxBackoff());
         assertFalse(config.jitter());
-        assertEquals(1024, config.backpressureBufferCapacity());
+        assertEquals(128, config.backpressureBufferCapacity());
         assertEquals("BUFFER", config.backpressureStrategy());
     }
 
@@ -412,7 +412,7 @@ class StepConfigTest {
         StepConfig config = new StepConfig();
 
         // Then
-        assertEquals(1024, config.backpressureBufferCapacity());
+        assertEquals(128, config.backpressureBufferCapacity());
     }
 
     @Test
