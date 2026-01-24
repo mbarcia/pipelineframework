@@ -101,7 +101,7 @@ resource "newrelic_service_level" "orchestrator_availability" {
 
     good_events {
       from  = "Metric"
-      where = "service.name = '${local.services.orchestrator.name}' AND metricName = 'grpc.client.responses.received' AND (grpc.status = 'OK' OR grpc.status = '0')"
+      where = "service.name = '${local.services.orchestrator.name}' AND metricName = 'grpc.client.responses.received' AND rpc.grpc.status_code = 0"
     }
   }
 
@@ -131,7 +131,7 @@ resource "newrelic_service_level" "row_latency" {
 
     good_events {
       from  = "Metric"
-      where = "metricName = 'tpf.step.duration' AND ${local.core_step_name_filter} AND value < 2000"
+      where = "metricName = 'tpf.step.duration' AND ${local.core_step_name_filter} AND value < 1000"
     }
   }
 
@@ -161,7 +161,7 @@ resource "newrelic_service_level" "item_avg_latency" {
 
     good_events {
       from  = "Metric"
-      where = "service.name = '${local.services.orchestrator.name}' AND metricName = 'grpc.client.processing.duration' AND value < 2"
+      where = "service.name = '${local.services.orchestrator.name}' AND metricName = 'grpc.client.processing.duration' AND grpc.client.processing.duration < 2000"
     }
   }
 
@@ -191,7 +191,7 @@ resource "newrelic_service_level" "items_per_min" {
 
     good_events {
       from  = "Metric"
-      where = "service.name = '${local.services.orchestrator.name}' AND metricName = 'tpf.item.consumed' AND value >= 1000"
+      where = "service.name = '${local.services.orchestrator.name}' AND metricName = 'tpf.item.consumed' AND tpf.item.consumed >= 1000"
     }
   }
 
@@ -221,7 +221,7 @@ resource "newrelic_service_level" "item_success_rate" {
 
     good_events {
       from  = "Metric"
-      where = "metricName = 'rpc.server.responses' AND ${local.core_step_name_filter} AND rpc.grpc.status_code = '0'"
+      where = "metricName = 'rpc.server.responses' AND ${local.core_step_name_filter} AND rpc.grpc.status_code = 0"
     }
   }
 
@@ -252,7 +252,7 @@ resource "newrelic_service_level" "step_reliability" {
 
     good_events {
       from  = "Metric"
-      where = "service.name = '${each.value.name}' AND metricName = 'rpc.server.responses' AND rpc.grpc.status_code = '0'"
+      where = "service.name = '${each.value.name}' AND metricName = 'rpc.server.responses' AND rpc.grpc.status_code = 0"
     }
   }
 
@@ -271,7 +271,7 @@ resource "newrelic_service_level" "step_latency" {
   for_each    = local.core_step_services
   guid        = each.value.guid
   name        = "RPC latency"
-  description = "Share of gRPC requests under 2s for ${each.value.name}."
+  description = "Share of gRPC requests under 1s for ${each.value.name}."
 
   events {
     account_id = var.newrelic_account_id
@@ -283,7 +283,7 @@ resource "newrelic_service_level" "step_latency" {
 
     good_events {
       from  = "Metric"
-      where = "service.name = '${each.value.name}' AND metricName = 'rpc.server.duration' AND value < 2"
+      where = "service.name = '${each.value.name}' AND metricName = 'rpc.server.duration' AND rpc.server.duration < 1000"
     }
   }
 
