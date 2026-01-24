@@ -165,6 +165,14 @@ Prefix: `pipeline`
 | `pipeline.parallelism`     | string  | `AUTO`  | Parallelism policy: `SEQUENTIAL`, `AUTO`, or `PARALLEL`.    |
 | `pipeline.max-concurrency` | integer | `128`   | Per-step maximum in-flight items when parallel execution is enabled. |
 
+### Telemetry
+
+Prefix: `pipeline.telemetry`
+
+| Property                      | Type   | Default | Description                                                        |
+|-------------------------------|--------|---------|--------------------------------------------------------------------|
+| `pipeline.telemetry.item-type` | string | none    | Fully-qualified type used to define the canonical item boundary.   |
+
 ### Global Defaults
 
 Prefix: `pipeline.defaults`

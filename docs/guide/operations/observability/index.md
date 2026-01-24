@@ -28,6 +28,15 @@ Operationally, you use observability to validate both:
 - `tpf.step.buffer.queued` should spike during bursts but should not stay flat and high; sustained growth means the
   downstream is too slow or the buffer is too small.
 
+You can also define a canonical "item" type for telemetry:
+
+```properties
+pipeline.telemetry.item-type=com.example.domain.PaymentRecord
+```
+
+TPF infers the producer (first step emitting the type) and consumer (first step accepting it) from the compiled pipeline
+model and emits `tpf.item.produced` and `tpf.item.consumed` counters for that boundary.
+
 ### Retry amplification: what it looks like
 
 When an upstream step is not fully reactive (for example a CSV reader that uses a demand pacer) and a downstream step

@@ -41,6 +41,7 @@ import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import org.pipelineframework.config.ParallelismPolicy;
 import org.pipelineframework.config.PipelineStepConfig;
+import org.pipelineframework.config.pipeline.PipelineTelemetryResourceLoader;
 
 /**
  * Records pipeline-level spans and metrics for step execution.
@@ -51,6 +52,7 @@ public class PipelineTelemetry {
 
     private static final AttributeKey<String> INPUT_KIND = AttributeKey.stringKey("tpf.input");
     private static final AttributeKey<String> STEP_CLASS = AttributeKey.stringKey("tpf.step.class");
+    private static final AttributeKey<String> ITEM_TYPE = AttributeKey.stringKey("tpf.item.type");
     private static final AttributeKey<Long> ITEM_COUNT = AttributeKey.longKey("tpf.item.count");
     private static final AttributeKey<Double> ITEM_AVG_MS = AttributeKey.doubleKey("tpf.item.avg_ms");
     private static final AttributeKey<Double> ITEMS_PER_MIN = AttributeKey.doubleKey("tpf.items.per_min");
@@ -68,11 +70,14 @@ public class PipelineTelemetry {
     private final LongCounter pipelineRunCounter;
     private final LongCounter pipelineRunErrorCounter;
     private final LongCounter itemCounter;
+    private final LongCounter itemProducedCounter;
+    private final LongCounter itemConsumedCounter;
     private final LongCounter stepErrorCounter;
     private final DoubleHistogram pipelineRunDuration;
     private final DoubleHistogram stepDuration;
     private final ConcurrentMap<String, AtomicLong> inflightByStep;
     private final AtomicLong maxConcurrency;
+    private final PipelineTelemetryResourceLoader.ItemBoundary itemBoundary;
 
     /**
      * Create a telemetry helper from the configured pipeline settings.
@@ -90,6 +95,7 @@ public class PipelineTelemetry {
         this.meter = GlobalOpenTelemetry.getMeter("org.pipelineframework");
         this.inflightByStep = new ConcurrentHashMap<>();
         this.maxConcurrency = new AtomicLong();
+        this.itemBoundary = PipelineTelemetryResourceLoader.loadItemBoundary().orElse(null);
         if (metricsEnabled) {
             this.pipelineRunCounter = meter.counterBuilder("tpf.pipeline.run.count")
                 .setDescription("Pipeline runs")
@@ -102,6 +108,14 @@ public class PipelineTelemetry {
             this.itemCounter = meter.counterBuilder("tpf.pipeline.item.count")
                 .setDescription("Pipeline input items")
                 .setUnit("1")
+                .build();
+            this.itemProducedCounter = meter.counterBuilder("tpf.item.produced")
+                .setDescription("Items produced at the configured item boundary")
+                .setUnit("items")
+                .build();
+            this.itemConsumedCounter = meter.counterBuilder("tpf.item.consumed")
+                .setDescription("Items consumed at the configured item boundary")
+                .setUnit("items")
                 .build();
             this.stepErrorCounter = meter.counterBuilder("tpf.step.errors")
                 .setDescription("Pipeline step errors")
@@ -129,6 +143,8 @@ public class PipelineTelemetry {
             this.pipelineRunCounter = null;
             this.pipelineRunErrorCounter = null;
             this.itemCounter = null;
+            this.itemProducedCounter = null;
+            this.itemConsumedCounter = null;
             this.stepErrorCounter = null;
             this.pipelineRunDuration = null;
             this.stepDuration = null;
@@ -203,6 +219,66 @@ public class PipelineTelemetry {
             });
         }
         return input;
+    }
+
+    /**
+     * Instrument a consumer step to count items entering the configured item boundary.
+     *
+     * @param stepClass step class
+     * @param input step input
+     * @param <T> item type
+     * @return instrumented input
+     */
+    public <T> Multi<T> instrumentItemConsumed(Class<?> stepClass, Multi<T> input) {
+        if (!metricsEnabled || !isConsumer(stepClass)) {
+            return input;
+        }
+        return input.onItem().invoke(item -> itemConsumedCounter.add(1, boundaryAttributes(stepClass)));
+    }
+
+    /**
+     * Instrument a consumer step to count items entering the configured item boundary.
+     *
+     * @param stepClass step class
+     * @param input step input
+     * @param <T> item type
+     * @return instrumented input
+     */
+    public <T> Uni<T> instrumentItemConsumed(Class<?> stepClass, Uni<T> input) {
+        if (!metricsEnabled || !isConsumer(stepClass)) {
+            return input;
+        }
+        return input.onItem().invoke(item -> itemConsumedCounter.add(1, boundaryAttributes(stepClass)));
+    }
+
+    /**
+     * Instrument a producer step to count items emitted at the configured item boundary.
+     *
+     * @param stepClass step class
+     * @param output step output
+     * @param <T> item type
+     * @return instrumented output
+     */
+    public <T> Multi<T> instrumentItemProduced(Class<?> stepClass, Multi<T> output) {
+        if (!metricsEnabled || !isProducer(stepClass)) {
+            return output;
+        }
+        return output.onItem().invoke(item -> itemProducedCounter.add(1, boundaryAttributes(stepClass)));
+    }
+
+    /**
+     * Instrument a producer step to count items emitted at the configured item boundary.
+     *
+     * @param stepClass step class
+     * @param output step output
+     * @param <T> item type
+     * @return instrumented output
+     */
+    public <T> Uni<T> instrumentItemProduced(Class<?> stepClass, Uni<T> output) {
+        if (!metricsEnabled || !isProducer(stepClass)) {
+            return output;
+        }
+        return output.onItem().invoke(item -> itemProducedCounter.add(1, boundaryAttributes(stepClass)));
     }
 
     /**
@@ -376,6 +452,25 @@ public class PipelineTelemetry {
 
     private void recordMaxConcurrencyGauge(ObservableLongMeasurement measurement) {
         measurement.record(maxConcurrency.get());
+    }
+
+    private boolean isProducer(Class<?> stepClass) {
+        return itemBoundary != null
+            && stepClass != null
+            && stepClass.getName().equals(itemBoundary.producerStep());
+    }
+
+    private boolean isConsumer(Class<?> stepClass) {
+        return itemBoundary != null
+            && stepClass != null
+            && stepClass.getName().equals(itemBoundary.consumerStep());
+    }
+
+    private Attributes boundaryAttributes(Class<?> stepClass) {
+        if (itemBoundary == null) {
+            return Attributes.of(STEP_CLASS, stepClass.getName());
+        }
+        return Attributes.of(STEP_CLASS, stepClass.getName(), ITEM_TYPE, itemBoundary.itemType());
     }
 
     private void endSpan(Span span, Throwable failure) {

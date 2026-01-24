@@ -46,6 +46,8 @@ Metrics (OTel/Micrometer):
 - `tpf.step.buffer.queued` (gauge): queued items in the backpressure buffer (`tpf.step.class` attribute)
 - `tpf.step.buffer.capacity` (gauge): configured backpressure buffer capacity per step (`tpf.step.class` attribute)
 - `tpf.pipeline.max_concurrency` (gauge): configured max concurrency for the pipeline run
+- `tpf.item.produced` (counter): items produced at the configured item boundary
+- `tpf.item.consumed` (counter): items consumed at the configured item boundary
 
 Prometheus exports these as `*_items` because the unit is set to `items`.
 

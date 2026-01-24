@@ -251,6 +251,14 @@ public interface PipelineStepConfig {
         Boolean enabled();
 
         /**
+         * Fully-qualified item type used to define the canonical work unit for telemetry.
+         *
+         * @return configured item type, if any
+         */
+        @WithName("item-type")
+        Optional<String> itemType();
+
+        /**
          * Tracing configuration for pipeline spans.
          *
          * @return tracing configuration

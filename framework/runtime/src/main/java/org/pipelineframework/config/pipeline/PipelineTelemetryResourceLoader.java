@@ -1,0 +1,83 @@
+/*
+ * Copyright (c) 2023-2025 Mariano Barcia
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.pipelineframework.config.pipeline;
+
+import java.io.InputStream;
+import java.util.Map;
+import java.util.Optional;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+/**
+ * Loads item-boundary telemetry metadata from the generated resource.
+ */
+public final class PipelineTelemetryResourceLoader {
+
+    private static final String RESOURCE = "META-INF/pipeline/telemetry.json";
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+
+    private PipelineTelemetryResourceLoader() {
+    }
+
+    /**
+     * Loads the item-boundary metadata if available.
+     *
+     * @return telemetry metadata, if present
+     */
+    public static Optional<ItemBoundary> loadItemBoundary() {
+        ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+        if (classLoader == null) {
+            classLoader = PipelineTelemetryResourceLoader.class.getClassLoader();
+        }
+        InputStream stream = classLoader != null ? classLoader.getResourceAsStream(RESOURCE) : null;
+        if (stream == null) {
+            stream = PipelineTelemetryResourceLoader.class.getResourceAsStream("/" + RESOURCE);
+        }
+        if (stream == null) {
+            stream = ClassLoader.getSystemResourceAsStream(RESOURCE);
+        }
+        try (InputStream streamToRead = stream) {
+            if (streamToRead == null) {
+                return Optional.empty();
+            }
+            Map<?, ?> data = MAPPER.readValue(streamToRead, Map.class);
+            String itemType = valueAsString(data.get("itemType"));
+            String producerStep = valueAsString(data.get("producerStep"));
+            String consumerStep = valueAsString(data.get("consumerStep"));
+            if (itemType == null || itemType.isBlank()) {
+                return Optional.empty();
+            }
+            return Optional.of(new ItemBoundary(itemType, producerStep, consumerStep));
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to read pipeline telemetry resource.", e);
+        }
+    }
+
+    private static String valueAsString(Object value) {
+        return value == null ? null : value.toString();
+    }
+
+    /**
+     * Item-boundary metadata resolved at build time.
+     *
+     * @param itemType configured item type
+     * @param producerStep step class that produces the item type
+     * @param consumerStep step class that consumes the item type
+     */
+    public record ItemBoundary(String itemType, String producerStep, String consumerStep) {
+    }
+}
