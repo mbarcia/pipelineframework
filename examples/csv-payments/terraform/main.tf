@@ -161,7 +161,7 @@ resource "newrelic_service_level" "item_avg_latency" {
 
     good_events {
       from  = "Metric"
-      where = "service.name = '${local.services.orchestrator.name}' AND metricName = 'grpc.client.processing.duration' AND grpc.client.processing.duration < 2000"
+      where = "service.name = '${local.services.orchestrator.name}' AND metricName = 'grpc.client.processing.duration' AND value < 2000"
     }
   }
 
@@ -191,7 +191,7 @@ resource "newrelic_service_level" "items_per_min" {
 
     good_events {
       from  = "Metric"
-      where = "service.name = '${local.services.orchestrator.name}' AND metricName = 'tpf.item.consumed' AND tpf.item.consumed >= 1000"
+      where = "service.name = '${local.services.orchestrator.name}' AND metricName = 'tpf.item.consumed' AND value >= 1000"
     }
   }
 
@@ -283,7 +283,7 @@ resource "newrelic_service_level" "step_latency" {
 
     good_events {
       from  = "Metric"
-      where = "service.name = '${each.value.name}' AND metricName = 'rpc.server.duration' AND rpc.server.duration < 1000"
+      where = "service.name = '${each.value.name}' AND metricName = 'rpc.server.duration' AND value < 1000"
     }
   }
 
