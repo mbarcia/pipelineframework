@@ -32,7 +32,7 @@
       },
       "id": 1,
       "panels": [],
-      "title": "Throughput Metrics",
+      "title": "Step Execution Metrics",
       "type": "row"
     },
     {
@@ -91,7 +91,7 @@
               }
             ]
           },
-          "unit": "items/s"
+          "unit": "ops/s"
         },
         "overrides": []
       },
@@ -128,9 +128,9 @@
           "refId": "A"
         }
       ],
-      "title": "Pipeline Steps Throughput",
+      "title": "Step Execution Throughput",
       "type": "timeseries",
-      "description": "Items processed per second per step (from tpf.step.duration count).",
+      "description": "Step executions per second per step (from tpf.step.duration count).",
       "minInterval": "10s"
     },
     {
@@ -226,9 +226,9 @@
           "refId": "A"
         }
       ],
-      "title": "Step Average Latency",
+      "title": "Step Execution Average Latency",
       "type": "timeseries",
-      "description": "Average step latency derived from tpf.step.duration histogram.",
+      "description": "Average step execution latency derived from tpf.step.duration histogram.",
       "minInterval": "10s"
     },
     {
@@ -324,8 +324,131 @@
           "refId": "A"
         }
       ],
-      "title": "Pipeline Steps Success Rate",
+      "title": "Step Execution Success Rate",
       "type": "timeseries",
+      "minInterval": "10s"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 17
+      },
+      "id": 15,
+      "panels": [],
+      "title": "Domain Item Metrics",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "items/s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 18
+      },
+      "id": 16,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "label_replace(sum by (tpf_step_class, tpf_item_type) (rate(tpf_item_produced_total{tpf_step_class=~\".*\\\\.${step}$\"}[$__rate_interval])), \"step\", \"$1\", \"tpf_step_class\", \".*[.]([^.]*)$\")",
+          "instant": false,
+          "legendFormat": "produced {{step}}",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "label_replace(sum by (tpf_step_class, tpf_item_type) (rate(tpf_item_consumed_total{tpf_step_class=~\".*\\\\.${step}$\"}[$__rate_interval])), \"step\", \"$1\", \"tpf_step_class\", \".*[.]([^.]*)$\")",
+          "instant": false,
+          "legendFormat": "consumed {{step}}",
+          "range": true,
+          "refId": "B"
+        }
+      ],
+      "title": "Domain Item Throughput (boundary)",
+      "type": "timeseries",
+      "description": "Items per second at the configured item boundary (producer vs consumer).",
       "minInterval": "10s"
     },
     {
@@ -338,7 +461,7 @@
       },
       "id": 9,
       "panels": [],
-      "title": "Parallelism and Backpressure",
+      "title": "Step Parallelism and Backpressure",
       "type": "row"
     },
     {
@@ -435,9 +558,9 @@
           "interval": "10s"
         }
       ],
-      "title": "In-flight Items",
+      "title": "Step In-flight Items",
       "type": "timeseries",
-      "description": "Peak in-flight items observed per step.",
+      "description": "Peak in-flight step items observed per step.",
       "minInterval": "10s"
     },
     {
@@ -534,9 +657,9 @@
           "interval": "10s"
         }
       ],
-      "title": "Buffer Utilization (ratio)",
+      "title": "Step Buffer Utilization (ratio)",
       "type": "timeseries",
-      "description": "Ratio of queued buffer items to configured capacity per step.",
+      "description": "Ratio of queued buffer step items to configured capacity per step.",
       "minInterval": "10s"
     },
     {
@@ -633,9 +756,9 @@
           "interval": "10s"
         }
       ],
-      "title": "Buffer Depth (items)",
+      "title": "Step Buffer Depth (items)",
       "type": "timeseries",
-      "description": "Peak number of queued items sitting in the backpressure buffer per step.",
+      "description": "Peak number of queued step items sitting in the backpressure buffer per step.",
       "minInterval": "10s"
     },
     {
@@ -784,9 +907,9 @@
           "interval": "10s"
         }
       ],
-      "title": "Buffer Depth vs Capacity",
+      "title": "Step Buffer Depth vs Capacity",
       "type": "timeseries",
-      "description": "Queued buffer items vs configured capacity per step.",
+      "description": "Queued buffer step items vs configured capacity per step.",
       "minInterval": "10s"
     },
     {
@@ -935,9 +1058,9 @@
           "interval": "10s"
         }
       ],
-      "title": "In-flight vs Max Concurrency",
+      "title": "Step In-flight vs Max Concurrency",
       "type": "timeseries",
-      "description": "Peak in-flight items per step vs configured max concurrency.",
+      "description": "Peak in-flight step items per step vs configured max concurrency.",
       "minInterval": "10s"
     },
     {
