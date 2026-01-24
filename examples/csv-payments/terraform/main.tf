@@ -88,20 +88,20 @@ locals {
 
 resource "newrelic_service_level" "orchestrator_availability" {
   guid        = local.services.orchestrator.guid
-  name        = "Orchestrator availability"
-  description = "Pipeline runs that complete without errors for orchestrator-svc."
+  name        = "Orchestrator RPC availability"
+  description = "Share of orchestrator client RPC spans without errors."
 
   events {
     account_id = var.newrelic_account_id
 
     valid_events {
       from  = "Span"
-      where = "service.name = '${local.services.orchestrator.name}' AND name = 'tpf.pipeline.run'"
+      where = "service.name = '${local.services.orchestrator.name}' AND span.kind = 'client' AND rpc.system = 'grpc'"
     }
 
     good_events {
       from  = "Span"
-      where = "service.name = '${local.services.orchestrator.name}' AND name = 'tpf.pipeline.run' AND (status.code IS NULL OR status.code != 'ERROR')"
+      where = "service.name = '${local.services.orchestrator.name}' AND span.kind = 'client' AND rpc.system = 'grpc' AND (status.code IS NULL OR status.code != 'ERROR')"
     }
   }
 
@@ -119,19 +119,19 @@ resource "newrelic_service_level" "orchestrator_availability" {
 resource "newrelic_service_level" "row_latency" {
   guid        = local.services.orchestrator.guid
   name        = "Item latency (core steps)"
-  description = "Approx per-item latency from core step gRPC spans."
+  description = "Approx per-item latency from core step duration metrics."
 
   events {
     account_id = var.newrelic_account_id
 
     valid_events {
-      from  = "Span"
-      where = "span.kind = 'server' AND rpc.system = 'grpc' AND ${local.core_step_name_filter}"
+      from  = "Metric"
+      where = "metricName = 'tpf.step.duration' AND ${local.core_step_name_filter}"
     }
 
     good_events {
-      from  = "Span"
-      where = "span.kind = 'server' AND rpc.system = 'grpc' AND ${local.core_step_name_filter} AND duration < 0.25"
+      from  = "Metric"
+      where = "metricName = 'tpf.step.duration' AND ${local.core_step_name_filter} AND value < 1000"
     }
   }
 
@@ -148,20 +148,20 @@ resource "newrelic_service_level" "row_latency" {
 
 resource "newrelic_service_level" "item_avg_latency" {
   guid        = local.services.orchestrator.guid
-  name        = "Item avg latency (run)"
-  description = "Average per-item latency across a run (computed from run duration and item count)."
+  name        = "Item latency (orchestrator client spans)"
+  description = "Pipeline run duration metric under the latency threshold."
 
   events {
     account_id = var.newrelic_account_id
 
     valid_events {
-      from  = "Span"
-      where = "service.name = '${local.services.orchestrator.name}' AND name = 'tpf.pipeline.run' AND tpf.item.count > 0"
+      from  = "Metric"
+      where = "service.name = '${local.services.orchestrator.name}' AND metricName = 'tpf.pipeline.run.duration'"
     }
 
     good_events {
-      from  = "Span"
-      where = "service.name = '${local.services.orchestrator.name}' AND name = 'tpf.pipeline.run' AND tpf.item.count > 0 AND tpf.item.avg_ms < 300"
+      from  = "Metric"
+      where = "service.name = '${local.services.orchestrator.name}' AND metricName = 'tpf.pipeline.run.duration' AND value < 90000"
     }
   }
 
@@ -178,20 +178,20 @@ resource "newrelic_service_level" "item_avg_latency" {
 
 resource "newrelic_service_level" "items_per_min" {
   guid        = local.services.orchestrator.guid
-  name        = "Items per minute (run)"
-  description = "Run throughput measured as items per minute while the pipeline is running."
+  name        = "Domain item throughput (boundary)"
+  description = "Item boundary throughput metric above the threshold."
 
   events {
     account_id = var.newrelic_account_id
 
     valid_events {
-      from  = "Span"
-      where = "service.name = '${local.services.orchestrator.name}' AND name = 'tpf.pipeline.run' AND tpf.item.count > 0"
+      from  = "Metric"
+      where = "service.name = '${local.services.orchestrator.name}' AND metricName = 'tpf.item.consumed'"
     }
 
     good_events {
-      from  = "Span"
-      where = "service.name = '${local.services.orchestrator.name}' AND name = 'tpf.pipeline.run' AND tpf.item.count > 0 AND tpf.items.per_min >= 6000"
+      from  = "Metric"
+      where = "service.name = '${local.services.orchestrator.name}' AND metricName = 'tpf.item.consumed' AND value >= 3000"
     }
   }
 
@@ -283,7 +283,7 @@ resource "newrelic_service_level" "step_latency" {
 
     good_events {
       from  = "Span"
-      where = "service.name = '${each.value.name}' AND span.kind = 'server' AND rpc.system = 'grpc' AND duration < 0.5"
+      where = "service.name = '${each.value.name}' AND span.kind = 'server' AND rpc.system = 'grpc' AND duration < 1"
     }
   }
 

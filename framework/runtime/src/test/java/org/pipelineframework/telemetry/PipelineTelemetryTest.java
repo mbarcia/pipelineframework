@@ -80,13 +80,9 @@ class PipelineTelemetryTest {
                 .orElseThrow();
             Attributes attributes = runSpan.getAttributes();
 
-            assertNotNull(attributes.get(AttributeKey.longKey("tpf.item.count")));
-            assertNotNull(attributes.get(AttributeKey.doubleKey("tpf.item.avg_ms")));
-            assertNotNull(attributes.get(AttributeKey.doubleKey("tpf.items.per_min")));
             assertNotNull(attributes.get(AttributeKey.longKey("tpf.parallel.max_in_flight")));
             assertNotNull(attributes.get(AttributeKey.doubleKey("tpf.parallel.avg_in_flight")));
 
-            assertTrue(attributes.get(AttributeKey.longKey("tpf.item.count")) >= 3L);
             assertTrue(attributes.get(AttributeKey.longKey("tpf.parallel.max_in_flight")) >= 1L);
         } finally {
             tracerProvider.shutdown();

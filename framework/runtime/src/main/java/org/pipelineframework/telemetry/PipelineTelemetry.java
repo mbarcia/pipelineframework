@@ -53,9 +53,6 @@ public class PipelineTelemetry {
     private static final AttributeKey<String> INPUT_KIND = AttributeKey.stringKey("tpf.input");
     private static final AttributeKey<String> STEP_CLASS = AttributeKey.stringKey("tpf.step.class");
     private static final AttributeKey<String> ITEM_TYPE = AttributeKey.stringKey("tpf.item.type");
-    private static final AttributeKey<Long> ITEM_COUNT = AttributeKey.longKey("tpf.item.count");
-    private static final AttributeKey<Double> ITEM_AVG_MS = AttributeKey.doubleKey("tpf.item.avg_ms");
-    private static final AttributeKey<Double> ITEMS_PER_MIN = AttributeKey.doubleKey("tpf.items.per_min");
     private static final AttributeKey<Long> PARALLEL_MAX_IN_FLIGHT =
         AttributeKey.longKey("tpf.parallel.max_in_flight");
     private static final AttributeKey<Double> PARALLEL_AVG_IN_FLIGHT =
@@ -69,7 +66,6 @@ public class PipelineTelemetry {
     private final Meter meter;
     private final LongCounter pipelineRunCounter;
     private final LongCounter pipelineRunErrorCounter;
-    private final LongCounter itemCounter;
     private final LongCounter itemProducedCounter;
     private final LongCounter itemConsumedCounter;
     private final LongCounter stepErrorCounter;
@@ -105,10 +101,6 @@ public class PipelineTelemetry {
                 .setDescription("Pipeline run errors")
                 .setUnit("1")
                 .build();
-            this.itemCounter = meter.counterBuilder("tpf.pipeline.item.count")
-                .setDescription("Pipeline input items")
-                .setUnit("1")
-                .build();
             this.itemProducedCounter = meter.counterBuilder("tpf.item.produced")
                 .setDescription("Items produced at the configured item boundary")
                 .setUnit("items")
@@ -142,7 +134,6 @@ public class PipelineTelemetry {
         } else {
             this.pipelineRunCounter = null;
             this.pipelineRunErrorCounter = null;
-            this.itemCounter = null;
             this.itemProducedCounter = null;
             this.itemConsumedCounter = null;
             this.stepErrorCounter = null;
@@ -190,34 +181,18 @@ public class PipelineTelemetry {
             enabled,
             new AtomicLong(),
             new AtomicLong(),
-            new AtomicLong(),
             new LongAdder(),
             new LongAdder());
     }
 
     /**
-     * Instrument pipeline input to count items.
+     * Instrument pipeline input.
      *
      * @param input input Uni or Multi
      * @param runContext telemetry context
      * @return instrumented input
      */
     public Object instrumentInput(Object input, RunContext runContext) {
-        if (!metricsEnabled || runContext == null || !runContext.enabled()) {
-            return input;
-        }
-        if (input instanceof Uni<?> uni) {
-            return uni.onItem().invoke(item -> {
-                itemCounter.add(1, runContext.attributes());
-                runContext.itemCount().incrementAndGet();
-            });
-        }
-        if (input instanceof Multi<?> multi) {
-            return multi.onItem().invoke(item -> {
-                itemCounter.add(1, runContext.attributes());
-                runContext.itemCount().incrementAndGet();
-            });
-        }
         return input;
     }
 
@@ -399,13 +374,6 @@ public class PipelineTelemetry {
             }
         }
         if (tracingEnabled && runContext.span() != null) {
-            long items = runContext.itemCount().get();
-            double durationMs = nanosToMillis(runContext.startNanos());
-            double avgMs = items > 0 ? durationMs / items : 0.0;
-            double perMin = durationMs > 0 ? (items * 60_000d) / durationMs : 0.0;
-            runContext.span().setAttribute(ITEM_COUNT, items);
-            runContext.span().setAttribute(ITEM_AVG_MS, avgMs);
-            runContext.span().setAttribute(ITEMS_PER_MIN, perMin);
             long samples = runContext.inflightSamples().sum();
             double inflightAvg = samples > 0 ? runContext.inflightSum().sum() / (double) samples : 0.0;
             runContext.span().setAttribute(PARALLEL_MAX_IN_FLIGHT, runContext.inflightMax().get());
@@ -496,7 +464,6 @@ public class PipelineTelemetry {
      * @param startNanos start time
      * @param attributes run attributes
      * @param enabled whether telemetry is enabled
-     * @param itemCount items observed during the run
      * @param inflightCurrent current in-flight item count
      * @param inflightMax max in-flight item count
      * @param inflightSamples number of in-flight samples taken
@@ -508,7 +475,6 @@ public class PipelineTelemetry {
         long startNanos,
         Attributes attributes,
         boolean enabled,
-        AtomicLong itemCount,
         AtomicLong inflightCurrent,
         AtomicLong inflightMax,
         LongAdder inflightSamples,
@@ -521,7 +487,6 @@ public class PipelineTelemetry {
                 0L,
                 Attributes.empty(),
                 false,
-                new AtomicLong(),
                 new AtomicLong(),
                 new AtomicLong(),
                 new LongAdder(),

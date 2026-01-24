@@ -51,14 +51,14 @@ Metrics (OTel/Micrometer):
 
 Prometheus exports these as `*_items` because the unit is set to `items`.
 
+Note: `tpf.step.*` metrics represent step executions (not domain items). Use the
+`tpf.item.*` counters when you want throughput for a specific domain type.
+
 Run-level span attributes (on `tpf.pipeline.run`):
 - `tpf.parallel.max_in_flight`
 - `tpf.parallel.avg_in_flight`
-- `tpf.item.count`
-- `tpf.item.avg_ms`
-- `tpf.items.per_min`
 
-These are designed for batch-style pipelines where throughput should be measured while the pipeline is running.
+These are designed for batch-style pipelines where parallelism should be inspected while the pipeline is running.
 
 Tip: gauges report the instantaneous value, so after a run finishes they will return to 0.
 When querying, use a max over time window to surface the peak:
