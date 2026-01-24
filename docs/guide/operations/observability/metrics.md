@@ -45,9 +45,9 @@ Metrics (OTel/Micrometer):
 - `tpf.step.inflight` (gauge): in-flight items per step (`tpf.step.class` attribute)
 - `tpf.step.buffer.queued` (gauge): queued items in the backpressure buffer (`tpf.step.class` attribute)
 - `tpf.step.buffer.capacity` (gauge): configured backpressure buffer capacity per step (`tpf.step.class` attribute)
+- `tpf.pipeline.max_concurrency` (gauge): configured max concurrency for the pipeline run
 
-Note: when Prometheus consumes these gauges via the OTLP bridge, dimensionless units (`1`)
-are exported with a `_ratio` suffix (for example `tpf_step_inflight_ratio`).
+Prometheus exports these as `*_items` because the unit is set to `items`.
 
 Run-level span attributes (on `tpf.pipeline.run`):
 - `tpf.parallel.max_in_flight`
@@ -62,8 +62,8 @@ Tip: gauges report the instantaneous value, so after a run finishes they will re
 When querying, use a max over time window to surface the peak:
 
 ```text
-max(tpf_step_inflight) by (tpf_step_class)
-max(tpf_step_buffer_queued) by (tpf_step_class)
+max(tpf_step_inflight_items) by (tpf_step_class)
+max(tpf_step_buffer_queued_items) by (tpf_step_class)
 ```
 
 ## Custom Metrics

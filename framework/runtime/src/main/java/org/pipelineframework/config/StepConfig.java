@@ -37,7 +37,7 @@ public class StepConfig {
     // Default values for configuration
     private static final int DEFAULT_RETRY_LIMIT = 3;
     private static final Duration DEFAULT_RETRY_WAIT = Duration.ofMillis(2000);
-    private static final int DEFAULT_BACKPRESSURE_BUFFER_CAPACITY = 1024;
+    private static final int DEFAULT_BACKPRESSURE_BUFFER_CAPACITY = 128;
     private static final Duration DEFAULT_MAX_BACKOFF = Duration.ofSeconds(30);
     private static final String DEFAULT_BACKPRESSURE_STRATEGY = "BUFFER";
 

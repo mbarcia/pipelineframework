@@ -131,12 +131,21 @@ class PipelineTelemetryTest {
                 .filter(metric -> "tpf.step.inflight".equals(metric.getName()))
                 .findFirst()
                 .orElseThrow();
+            MetricData maxConcurrency = metrics.stream()
+                .filter(metric -> "tpf.pipeline.max_concurrency".equals(metric.getName()))
+                .findFirst()
+                .orElseThrow();
 
             String stepClass = DummyStep.class.getName();
             assertEquals(1, inflight.getLongGaugeData().getPoints().stream()
                 .filter(point -> stepClass.equals(point.getAttributes()
                     .get(AttributeKey.stringKey("tpf.step.class"))))
                 .count());
+            long maxValue = maxConcurrency.getLongGaugeData().getPoints().stream()
+                .findFirst()
+                .orElseThrow()
+                .getValue();
+            assertEquals(4L, maxValue);
         } finally {
             tracerProvider.shutdown();
             meterProvider.shutdown();
@@ -299,7 +308,7 @@ class PipelineTelemetryTest {
 
         @Override
         public Integer backpressureBufferCapacity() {
-            return 1024;
+            return 128;
         }
 
         @Override

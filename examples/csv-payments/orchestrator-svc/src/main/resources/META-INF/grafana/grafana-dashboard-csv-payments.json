@@ -121,9 +121,9 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum by (tpf_step_class) (rate(tpf_step_duration_milliseconds_count[$__rate_interval]))",
+          "expr": "label_replace(sum by (tpf_step_class) (rate(tpf_step_duration_milliseconds_count{tpf_step_class=~\".*\\\\.${step}$\"}[$__rate_interval])), \"step\", \"$1\", \"tpf_step_class\", \".*[.]([^.]*)$\")",
           "instant": false,
-          "legendFormat": "{{tpf_step_class}}",
+          "legendFormat": "{{step}}",
           "range": true,
           "refId": "A"
         }
@@ -219,9 +219,9 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum by (tpf_step_class) (rate(tpf_step_duration_milliseconds_sum[$__rate_interval])) / sum by (tpf_step_class) (rate(tpf_step_duration_milliseconds_count[$__rate_interval]))",
+          "expr": "label_replace(sum by (tpf_step_class) (rate(tpf_step_duration_milliseconds_sum{tpf_step_class=~\".*\\\\.${step}$\"}[$__rate_interval])) / sum by (tpf_step_class) (rate(tpf_step_duration_milliseconds_count{tpf_step_class=~\".*\\\\.${step}$\"}[$__rate_interval])), \"step\", \"$1\", \"tpf_step_class\", \".*[.]([^.]*)$\")",
           "instant": false,
-          "legendFormat": "{{tpf_step_class}}",
+          "legendFormat": "{{step}}",
           "range": true,
           "refId": "A"
         }
@@ -287,7 +287,7 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "percent"
         },
         "overrides": []
       },
@@ -317,221 +317,14 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "100 * (1 - ((sum by (tpf_step_class) (rate(tpf_step_errors_total[$__rate_interval])) or on(tpf_step_class) (sum by (tpf_step_class) (rate(tpf_step_duration_milliseconds_count[$__rate_interval])) * 0)) / sum by (tpf_step_class) (rate(tpf_step_duration_milliseconds_count[$__rate_interval]))))",
+          "expr": "label_replace(100 * (1 - ((sum by (tpf_step_class) (rate(tpf_step_errors_total{tpf_step_class=~\".*\\\\.${step}$\"}[$__rate_interval])) or on(tpf_step_class) (sum by (tpf_step_class) (rate(tpf_step_duration_milliseconds_count{tpf_step_class=~\".*\\\\.${step}$\"}[$__rate_interval])) * 0)) / sum by (tpf_step_class) (rate(tpf_step_duration_milliseconds_count{tpf_step_class=~\".*\\\\.${step}$\"}[$__rate_interval])))), \"step\", \"$1\", \"tpf_step_class\", \".*[.]([^.]*)$\")",
           "instant": false,
-          "legendFormat": "{{tpf_step_class}}",
+          "legendFormat": "{{step}}",
           "range": true,
           "refId": "A"
         }
       ],
       "title": "Pipeline Steps Success Rate",
-      "type": "timeseries",
-      "minInterval": "10s"
-    },
-    {
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 17
-      },
-      "id": 4,
-      "panels": [],
-      "title": "JVM Metrics",
-      "type": "row"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "bytes"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 18
-      },
-      "id": 5,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "jvm_memory_used_bytes{area=\"heap\"}",
-          "instant": false,
-          "legendFormat": "{{job}}",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "JVM Heap Memory Usage",
-      "type": "timeseries",
-      "minInterval": "10s"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 50
-              }
-            ]
-          },
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 18
-      },
-      "id": 6,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "jvm_gc_pause_milliseconds_sum / jvm_gc_pause_milliseconds_count * 100",
-          "instant": false,
-          "legendFormat": "{{job}}",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "JVM GC Time Percentage",
       "type": "timeseries",
       "minInterval": "10s"
     },
@@ -634,9 +427,9 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "max_over_time(tpf_step_inflight_ratio[$__range])",
+          "expr": "label_replace(max_over_time(tpf_step_inflight_items{tpf_step_class=~\".*\\\\.${step}$\"}[$__range]), \"step\", \"$1\", \"tpf_step_class\", \".*[.]([^.]*)$\")",
           "instant": false,
-          "legendFormat": "{{tpf_step_class}}",
+          "legendFormat": "{{step}}",
           "range": true,
           "refId": "A",
           "interval": "10s"
@@ -703,7 +496,7 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "percent"
         },
         "overrides": []
       },
@@ -711,7 +504,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 35
+        "y": 27
       },
       "id": 11,
       "options": {
@@ -733,9 +526,9 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "max_over_time(tpf_step_buffer_queued_ratio[$__range]) / max_over_time(tpf_step_buffer_capacity_ratio[$__range]) * 100",
+          "expr": "label_replace(max_over_time(tpf_step_buffer_queued_items{tpf_step_class=~\".*\\\\.${step}$\"}[$__range]) / max_over_time(tpf_step_buffer_capacity_items{tpf_step_class=~\".*\\\\.${step}$\"}[$__range]) * 100, \"step\", \"$1\", \"tpf_step_class\", \".*[.]([^.]*)$\")",
           "instant": false,
-          "legendFormat": "{{tpf_step_class}}",
+          "legendFormat": "{{step}}",
           "range": true,
           "refId": "A",
           "interval": "10s"
@@ -802,7 +595,7 @@
               }
             ]
           },
-          "unit": "percent"
+          "unit": "short"
         },
         "overrides": []
       },
@@ -832,9 +625,9 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "max_over_time(tpf_step_buffer_queued_ratio[$__range])",
+          "expr": "label_replace(max_over_time(tpf_step_buffer_queued_items{tpf_step_class=~\".*\\\\.${step}$\"}[$__range]), \"step\", \"$1\", \"tpf_step_class\", \".*[.]([^.]*)$\")",
           "instant": false,
-          "legendFormat": "{{tpf_step_class}}",
+          "legendFormat": "{{step}}",
           "range": true,
           "refId": "A",
           "interval": "10s"
@@ -844,13 +637,546 @@
       "type": "timeseries",
       "description": "Peak number of queued items sitting in the backpressure buffer per step.",
       "minInterval": "10s"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^80% capacity"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "orange"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "dash": [
+                    6,
+                    4
+                  ],
+                  "fill": "dash"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 35
+      },
+      "id": 13,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "label_replace(max_over_time(tpf_step_buffer_queued_items{tpf_step_class=~\".*\\\\.${step}$\"}[$__range]), \"step\", \"$1\", \"tpf_step_class\", \".*[.]([^.]*)$\")",
+          "instant": false,
+          "legendFormat": "queued {{step}}",
+          "range": true,
+          "refId": "A",
+          "interval": "10s"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "label_replace(max_over_time(tpf_step_buffer_capacity_items{tpf_step_class=~\".*\\\\.${step}$\"}[$__range]), \"step\", \"$1\", \"tpf_step_class\", \".*[.]([^.]*)$\")",
+          "instant": false,
+          "legendFormat": "capacity {{step}}",
+          "range": true,
+          "refId": "B",
+          "interval": "10s"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "label_replace(max_over_time(tpf_step_buffer_capacity_items{tpf_step_class=~\".*\\\\.${step}$\"}[$__range]) * 0.8, \"step\", \"$1\", \"tpf_step_class\", \".*[.]([^.]*)$\")",
+          "instant": false,
+          "legendFormat": "80% capacity {{step}}",
+          "range": true,
+          "refId": "C",
+          "interval": "10s"
+        }
+      ],
+      "title": "Buffer Depth vs Capacity",
+      "type": "timeseries",
+      "description": "Queued buffer items vs configured capacity per step.",
+      "minInterval": "10s"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "80% max concurrency"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "orange"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "dash": [
+                    6,
+                    4
+                  ],
+                  "fill": "dash"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 43
+      },
+      "id": 14,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "label_replace(max_over_time(tpf_step_inflight_items{tpf_step_class=~\".*\\\\.${step}$\"}[$__range]), \"step\", \"$1\", \"tpf_step_class\", \".*[.]([^.]*)$\")",
+          "instant": false,
+          "legendFormat": "inflight {{step}}",
+          "range": true,
+          "refId": "A",
+          "interval": "10s"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max_over_time(tpf_pipeline_max_concurrency_items[$__range])",
+          "instant": false,
+          "legendFormat": "max concurrency",
+          "range": true,
+          "refId": "B",
+          "interval": "10s"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max_over_time(tpf_pipeline_max_concurrency_items[$__range]) * 0.8",
+          "instant": false,
+          "legendFormat": "80% max concurrency",
+          "range": true,
+          "refId": "C",
+          "interval": "10s"
+        }
+      ],
+      "title": "In-flight vs Max Concurrency",
+      "type": "timeseries",
+      "description": "Peak in-flight items per step vs configured max concurrency.",
+      "minInterval": "10s"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 51
+      },
+      "id": 4,
+      "panels": [],
+      "title": "JVM Metrics",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 52
+      },
+      "id": 5,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "jvm_memory_used_bytes{area=\"heap\"}",
+          "instant": false,
+          "legendFormat": "{{job}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "JVM Heap Memory Usage",
+      "type": "timeseries",
+      "minInterval": "10s"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 50
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 52
+      },
+      "id": 6,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "jvm_gc_pause_milliseconds_sum / jvm_gc_pause_milliseconds_count * 100",
+          "instant": false,
+          "legendFormat": "{{job}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "JVM GC Time Percentage",
+      "type": "timeseries",
+      "minInterval": "10s"
     }
   ],
   "refresh": "30s",
   "schemaVersion": 39,
   "tags": [],
   "templating": {
-    "list": []
+    "list": [
+      {
+        "name": "step",
+        "type": "query",
+        "label": "Step",
+        "hide": 0,
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "query": {
+          "query": "label_values(tpf_step_duration_milliseconds_count, tpf_step_class)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 1,
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": false,
+        "current": {
+          "text": "All",
+          "value": ".*"
+        },
+        "regex": "/.+\\.([^.]*)$/"
+      }
+    ]
   },
   "time": {
     "from": "now-15m",

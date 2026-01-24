@@ -97,12 +97,12 @@ public final class BackpressureBufferMetrics {
         }
         METER.gaugeBuilder("tpf.step.buffer.queued")
             .setDescription("Queued items in the backpressure buffer per step")
-            .setUnit("1")
+            .setUnit("items")
             .ofLongs()
             .buildWithCallback(BackpressureBufferMetrics::recordQueuedGauge);
         METER.gaugeBuilder("tpf.step.buffer.capacity")
             .setDescription("Configured backpressure buffer capacity per step")
-            .setUnit("1")
+            .setUnit("items")
             .ofLongs()
             .buildWithCallback(BackpressureBufferMetrics::recordCapacityGauge);
     }

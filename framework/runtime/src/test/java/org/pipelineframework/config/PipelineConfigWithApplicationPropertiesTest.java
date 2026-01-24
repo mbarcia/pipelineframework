@@ -48,7 +48,7 @@ class PipelineConfigWithApplicationPropertiesTest {
         // recoverOnFailure default: false
         // maxBackoff default: 30000ms (which becomes PT30S duration)
         // jitter default: false
-        // backpressureBufferCapacity default: 1024
+        // backpressureBufferCapacity default: 128
         // backpressureStrategy default: "BUFFER"
 
         assertEquals(3, defaults.retryLimit(), "Default retryLimit should be 3");
@@ -63,9 +63,9 @@ class PipelineConfigWithApplicationPropertiesTest {
                 "Default maxBackoff should be 30 seconds");
         assertFalse(defaults.jitter(), "Default jitter should be false");
         assertEquals(
-                1024,
+                128,
                 defaults.backpressureBufferCapacity(),
-                "Default backpressureBufferCapacity should be 1024");
+                "Default backpressureBufferCapacity should be 128");
         assertEquals(
                 "BUFFER",
                 defaults.backpressureStrategy(),

@@ -72,6 +72,7 @@ public class PipelineTelemetry {
     private final DoubleHistogram pipelineRunDuration;
     private final DoubleHistogram stepDuration;
     private final ConcurrentMap<String, AtomicLong> inflightByStep;
+    private final AtomicLong maxConcurrency;
 
     /**
      * Create a telemetry helper from the configured pipeline settings.
@@ -88,6 +89,7 @@ public class PipelineTelemetry {
         this.tracer = GlobalOpenTelemetry.getTracer("org.pipelineframework");
         this.meter = GlobalOpenTelemetry.getMeter("org.pipelineframework");
         this.inflightByStep = new ConcurrentHashMap<>();
+        this.maxConcurrency = new AtomicLong();
         if (metricsEnabled) {
             this.pipelineRunCounter = meter.counterBuilder("tpf.pipeline.run.count")
                 .setDescription("Pipeline runs")
@@ -115,9 +117,14 @@ public class PipelineTelemetry {
                 .build();
             meter.gaugeBuilder("tpf.step.inflight")
                 .setDescription("In-flight items per step")
-                .setUnit("1")
+                .setUnit("items")
                 .ofLongs()
                 .buildWithCallback(this::recordInflightGauge);
+            meter.gaugeBuilder("tpf.pipeline.max_concurrency")
+                .setDescription("Configured max concurrency for the pipeline run")
+                .setUnit("items")
+                .ofLongs()
+                .buildWithCallback(this::recordMaxConcurrencyGauge);
         } else {
             this.pipelineRunCounter = null;
             this.pipelineRunErrorCounter = null;
@@ -145,6 +152,7 @@ public class PipelineTelemetry {
         Attributes attributes = Attributes.of(INPUT_KIND, multiInput ? "multi" : "uni");
         if (metricsEnabled) {
             pipelineRunCounter.add(1, attributes);
+            this.maxConcurrency.set(Math.max(1, maxConcurrency));
         }
         Span span = null;
         Context context = Context.current();
@@ -364,6 +372,10 @@ public class PipelineTelemetry {
         inflightByStep.forEach((step, count) -> {
             measurement.record(count.get(), Attributes.of(STEP_CLASS, step));
         });
+    }
+
+    private void recordMaxConcurrencyGauge(ObservableLongMeasurement measurement) {
+        measurement.record(maxConcurrency.get());
     }
 
     private void endSpan(Span span, Throwable failure) {

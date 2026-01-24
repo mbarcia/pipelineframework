@@ -57,9 +57,9 @@ class PipelineStepConfigTest {
         assertEquals(30000L, defaults.maxBackoff(), "Default maxBackoff should be 30000");
         assertFalse(defaults.jitter(), "Default jitter should be false");
         assertEquals(
-                1024,
+                128,
                 defaults.backpressureBufferCapacity(),
-                "Default backpressureBufferCapacity should be 1024");
+                "Default backpressureBufferCapacity should be 128");
         assertEquals(
                 "BUFFER",
                 defaults.backpressureStrategy(),

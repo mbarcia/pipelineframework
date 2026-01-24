@@ -163,7 +163,7 @@ Prefix: `pipeline`
 | Property                   | Type    | Default | Description                                                 |
 |----------------------------|---------|---------|-------------------------------------------------------------|
 | `pipeline.parallelism`     | string  | `AUTO`  | Parallelism policy: `SEQUENTIAL`, `AUTO`, or `PARALLEL`.    |
-| `pipeline.max-concurrency` | integer | `128`   | Maximum in-flight items when parallel execution is enabled. |
+| `pipeline.max-concurrency` | integer | `128`   | Per-step maximum in-flight items when parallel execution is enabled. |
 
 ### Global Defaults
 
@@ -176,8 +176,10 @@ Prefix: `pipeline.defaults`
 | `pipeline.defaults.recover-on-failure`           | boolean | `false`  | Enables recovery behavior on failure.       |
 | `pipeline.defaults.max-backoff`                  | long    | `30000`  | Maximum backoff delay (ms).                 |
 | `pipeline.defaults.jitter`                       | boolean | `false`  | Adds jitter to retry delays.                |
-| `pipeline.defaults.backpressure-buffer-capacity` | integer | `1024`   | Backpressure buffer capacity.               |
+| `pipeline.defaults.backpressure-buffer-capacity` | integer | `128`   | Per-step backpressure buffer capacity (in items). |
 | `pipeline.defaults.backpressure-strategy`        | string  | `BUFFER` | Backpressure strategy (`BUFFER` or `DROP`). |
+
+These defaults apply to every step unless a step-level override is present.
 
 ### Build-Time Validation (Annotation Processor)
 
@@ -196,6 +198,8 @@ All properties listed under `pipeline.defaults.*` can be overridden per step:
 ```properties
 pipeline.step."com.example.MyStep".retry-limit=7
 pipeline.step."com.example.MyStep".recover-on-failure=true
+pipeline.step."com.example.MyStep".backpressure-buffer-capacity=4096
+pipeline.step."com.example.MyStep".backpressure-strategy=BUFFER
 ```
 
 ### Startup Health Checks
