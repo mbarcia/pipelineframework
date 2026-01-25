@@ -262,7 +262,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "label_replace(sum by (tpf_step_class) (increase(tpf_step_duration_milliseconds_sum{tpf_step_parent=~\".*\\.Process${step}GrpcClientStep\"}[$__range])) / sum by (tpf_step_class) (increase(tpf_step_duration_milliseconds_count{tpf_step_parent=~\".*\\.Process${step}GrpcClientStep\"}[$__range])), \"step\", \"$1\", \"tpf_step_class\", \".*[.]([^.]*)$\")",
+          "expr": "label_replace(sum by (tpf_step_class) (rate(tpf_step_duration_milliseconds_sum{tpf_step_parent=~\".*\\.Process${step}GrpcClientStep\"}[$__rate_interval])) / sum by (tpf_step_class) (rate(tpf_step_duration_milliseconds_count{tpf_step_parent=~\".*\\.Process${step}GrpcClientStep\"}[$__rate_interval])), \"step\", \"$1\", \"tpf_step_class\", \".*[.]([^.]*)$\")",
           "instant": false,
           "legendFormat": "{{step}}",
           "range": true,
@@ -543,7 +543,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "label_replace(sum by (rpc_service) (increase(rpc_server_duration_milliseconds_sum{rpc_service=~\"Process${step}Service|.*(Observe|Persistence|Cache|Metrics|Trace).*Service\"}[$__range])) / sum by (rpc_service) (increase(rpc_server_duration_milliseconds_count{rpc_service=~\"Process${step}Service|.*(Observe|Persistence|Cache|Metrics|Trace).*Service\"}[$__range])), \"step\", \"$1\", \"rpc_service\", \"(.*)\")",
+          "expr": "label_replace(sum by (rpc_service) (rate(rpc_server_duration_milliseconds_sum{rpc_service=~\"Process${step}Service|.*(Observe|Persistence|Cache|Metrics|Trace).*Service\"}[$__rate_interval])) / sum by (rpc_service) (rate(rpc_server_duration_milliseconds_count{rpc_service=~\"Process${step}Service|.*(Observe|Persistence|Cache|Metrics|Trace).*Service\"}[$__rate_interval])), \"step\", \"$1\", \"rpc_service\", \"(.*)\")",
           "instant": false,
           "legendFormat": "{{step}}",
           "range": true,
