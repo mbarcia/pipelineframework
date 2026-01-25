@@ -55,6 +55,11 @@ Prometheus exports these as `*_items` because the unit is set to `items`.
 Note: `tpf.step.*` metrics represent step executions (not domain items). Use the
 `tpf.item.*` counters when you want throughput for a specific domain type.
 
+Aspect position note: AFTER_STEP plugins observe the output of a step, which is effectively
+the BEFORE_STEP of the next step. A single aspect position captures every boundary except
+one cap. AFTER_STEP misses the very first input boundary; BEFORE_STEP misses the final
+output boundary. Use two aspects if you need both caps.
+
 Run-level span attributes (on `tpf.pipeline.run`):
 - `tpf.parallel.max_in_flight`
 - `tpf.parallel.avg_in_flight`

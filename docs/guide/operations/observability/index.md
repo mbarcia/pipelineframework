@@ -37,6 +37,10 @@ pipeline.telemetry.item-type=com.example.domain.PaymentRecord
 TPF infers the producer (first step emitting the type) and consumer (first step accepting it) from the compiled pipeline
 model and emits `tpf.item.produced` and `tpf.item.consumed` counters for that boundary.
 
+Aspect position note: AFTER_STEP plugins observe step outputs (the next step's BEFORE_STEP).
+This means a single aspect position captures every boundary except one cap. AFTER_STEP misses
+the first input boundary; BEFORE_STEP misses the final output boundary.
+
 ### Retry amplification: what it looks like
 
 When an upstream step is not fully reactive (for example a CSV reader that uses a demand pacer) and a downstream step
