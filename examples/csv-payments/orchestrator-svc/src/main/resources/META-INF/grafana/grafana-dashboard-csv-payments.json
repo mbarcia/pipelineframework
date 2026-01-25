@@ -403,7 +403,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "label_replace(100 * (1 - ((max by (tpf_step_class) (max_over_time(tpf_step_errors_total{tpf_step_parent=~\".*\\\\.Process${step}GrpcClientStep\"}[$__range])) or on(tpf_step_class) (max by (tpf_step_class) (max_over_time(tpf_step_duration_milliseconds_count{tpf_step_parent=~\".*\\\\.Process${step}GrpcClientStep\"}[$__range])) * 0)) / max by (tpf_step_class) (max_over_time(tpf_step_duration_milliseconds_count{tpf_step_parent=~\".*\\\\.Process${step}GrpcClientStep\"}[$__range])))), \"step\", \"$1\", \"tpf_step_class\", \".*[.]([^.]*)$\")",
+          "expr": "label_replace(100 * (1 - (sum(rate(tpf_step_errors_total{tpf_step_parent=~\".*\\.Process${step}GrpcClientStep\"}[$__rate_interval])) by (tpf_step_class) / sum(rate(tpf_step_duration_milliseconds_count{tpf_step_parent=~\".*\\.Process${step}GrpcClientStep\"}[$__rate_interval])) by (tpf_step_class))), \"step\", \"$1\", \"tpf_step_class\", \".*[.]([^.]*)$\")",
           "instant": false,
           "legendFormat": "{{step}}",
           "range": true,
