@@ -237,9 +237,9 @@ public class PipelineTelemetryMetadataGenerator {
         int bestLength = -1;
         for (PipelineStepModel candidate : candidates) {
             String normalized = normalizeStepToken(resolveClientStepClassName(candidate, grpcTransport));
-            if (normalized.contains(token) && token.length() > bestLength) {
+            if (normalized.contains(token) && normalized.length() > bestLength) {
                 best = candidate;
-                bestLength = token.length();
+                bestLength = normalized.length();
             }
         }
         return best;

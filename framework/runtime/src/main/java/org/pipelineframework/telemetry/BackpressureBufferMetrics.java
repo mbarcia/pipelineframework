@@ -16,6 +16,7 @@
 
 package org.pipelineframework.telemetry;
 
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -42,6 +43,7 @@ public final class BackpressureBufferMetrics {
     private static final ConcurrentMap<String, AtomicLong> QUEUED_BY_STEP = new ConcurrentHashMap<>();
     private static final ConcurrentMap<String, AtomicLong> CAPACITY_BY_STEP = new ConcurrentHashMap<>();
     private static final AtomicBoolean GAUGES_REGISTERED = new AtomicBoolean(false);
+    private static volatile Map<String, String> STEP_PARENTS;
 
     private BackpressureBufferMetrics() {
     }
@@ -126,9 +128,18 @@ public final class BackpressureBufferMetrics {
     }
 
     private static String resolveStepParent(String stepClassName) {
-        return PipelineTelemetryResourceLoader.loadItemBoundary()
-            .map(boundary -> boundary.stepParents().getOrDefault(stepClassName, stepClassName))
-            .orElse(stepClassName);
+        Map<String, String> parents = STEP_PARENTS;
+        if (parents == null) {
+            synchronized (BackpressureBufferMetrics.class) {
+                if (STEP_PARENTS == null) {
+                    STEP_PARENTS = PipelineTelemetryResourceLoader.loadItemBoundary()
+                        .map(PipelineTelemetryResourceLoader.ItemBoundary::stepParents)
+                        .orElse(Map.of());
+                }
+                parents = STEP_PARENTS;
+            }
+        }
+        return parents.getOrDefault(stepClassName, stepClassName);
     }
 
     private static boolean metricsEnabled() {

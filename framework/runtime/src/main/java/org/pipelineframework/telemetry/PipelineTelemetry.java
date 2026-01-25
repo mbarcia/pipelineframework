@@ -529,12 +529,17 @@ public class PipelineTelemetry {
         if (sloItemThroughputTotal == null || sloItemThroughputGood == null || itemBoundary == null) {
             return;
         }
+        String consumerStep = itemBoundary.consumerStep();
+        String itemType = itemBoundary.itemInputType();
+        if (consumerStep == null || consumerStep.isBlank() || itemType == null || itemType.isBlank()) {
+            return;
+        }
         if (durationMs <= 0) {
             return;
         }
         long consumed = runContext.itemsConsumed().sum();
         double itemsPerMinute = consumed / (durationMs / 60_000d);
-        Attributes attributes = boundaryAttributes(itemBoundary.consumerStep(), itemBoundary.itemInputType());
+        Attributes attributes = boundaryAttributes(consumerStep, itemType);
         sloItemThroughputTotal.add(1, attributes);
         if (itemsPerMinute >= TelemetrySloConfig.itemThroughputPerMinute()) {
             sloItemThroughputGood.add(1, attributes);

@@ -262,7 +262,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "label_replace(max by (tpf_step_class) (max_over_time(tpf_step_duration_milliseconds_sum{tpf_step_parent=~\".*\\\\.Process${step}GrpcClientStep\"}[$__range])) / max by (tpf_step_class) (max_over_time(tpf_step_duration_milliseconds_count{tpf_step_parent=~\".*\\\\.Process${step}GrpcClientStep\"}[$__range])), \"step\", \"$1\", \"tpf_step_class\", \".*[.]([^.]*)$\")",
+          "expr": "label_replace(sum by (tpf_step_class) (increase(tpf_step_duration_milliseconds_sum{tpf_step_parent=~\".*\\.Process${step}GrpcClientStep\"}[$__range])) / sum by (tpf_step_class) (increase(tpf_step_duration_milliseconds_count{tpf_step_parent=~\".*\\.Process${step}GrpcClientStep\"}[$__range])), \"step\", \"$1\", \"tpf_step_class\", \".*[.]([^.]*)$\")",
           "instant": false,
           "legendFormat": "{{step}}",
           "range": true,
@@ -543,7 +543,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "label_replace(max by (rpc_service) (max_over_time(rpc_server_duration_milliseconds_sum{rpc_service=~\"Process${step}Service|.*(Observe|Persistence|Cache|Metrics|Trace).*Service\"}[$__range])) / max by (rpc_service) (max_over_time(rpc_server_duration_milliseconds_count{rpc_service=~\"Process${step}Service|.*(Observe|Persistence|Cache|Metrics|Trace).*Service\"}[$__range])), \"step\", \"$1\", \"rpc_service\", \"(.*)\")",
+          "expr": "label_replace(sum by (rpc_service) (increase(rpc_server_duration_milliseconds_sum{rpc_service=~\"Process${step}Service|.*(Observe|Persistence|Cache|Metrics|Trace).*Service\"}[$__range])) / sum by (rpc_service) (increase(rpc_server_duration_milliseconds_count{rpc_service=~\"Process${step}Service|.*(Observe|Persistence|Cache|Metrics|Trace).*Service\"}[$__range])), \"step\", \"$1\", \"rpc_service\", \"(.*)\")",
           "instant": false,
           "legendFormat": "{{step}}",
           "range": true,
@@ -656,7 +656,7 @@
           "editorMode": "code",
           "expr": "label_replace((sum by (tpf_step_class, tpf_item_type) (rate(tpf_item_produced_items_total{tpf_step_parent=~\".*\\\\.Process${step}GrpcClientStep\"}[$__rate_interval])) or sum by (tpf_step_class, tpf_item_type) (rate(tpf_item_produced_total{tpf_step_parent=~\".*\\\\.Process${step}GrpcClientStep\"}[$__rate_interval]))), \"step\", \"$1\", \"tpf_step_class\", \".*[.]([^.]*)$\")",
           "instant": false,
-          "legendFormat": "produced {{step}}",
+          "legendFormat": "{{step}} {{tpf_item_type}}",
           "range": true,
           "refId": "A"
         },
@@ -668,7 +668,7 @@
           "editorMode": "code",
           "expr": "label_replace((sum by (tpf_step_class, tpf_item_type) (rate(tpf_item_consumed_items_total{tpf_step_parent=~\".*\\\\.Process${step}GrpcClientStep\"}[$__rate_interval])) or sum by (tpf_step_class, tpf_item_type) (rate(tpf_item_consumed_total{tpf_step_parent=~\".*\\\\.Process${step}GrpcClientStep\"}[$__rate_interval]))), \"step\", \"$1\", \"tpf_step_class\", \".*[.]([^.]*)$\")",
           "instant": false,
-          "legendFormat": "consumed {{step}}",
+          "legendFormat": "{{step}} {{tpf_item_type}}",
           "range": true,
           "refId": "B"
         }

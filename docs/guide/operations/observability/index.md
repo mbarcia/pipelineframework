@@ -41,9 +41,10 @@ pipeline.telemetry.item-output-type=com.example.domain.PaymentOutput
 TPF maps the input type to the first step that consumes it and the output type to the last step that produces it, then
 emits `tpf.item.consumed` and `tpf.item.produced` counters for that boundary.
 
-Aspect position note: AFTER_STEP plugins observe step outputs (the next step's BEFORE_STEP).
-This means a single aspect position captures every boundary except one cap. AFTER_STEP misses
-the first input boundary; BEFORE_STEP misses the final output boundary.
+Aspect position note: AFTER_STEP observes the output of each step. This captures every boundary
+except the very first input boundary (before the pipeline starts). Conversely, BEFORE_STEP captures
+every boundary except the final output boundary (after the pipeline completes). Use two aspects if
+you need complete boundary coverage.
 
 TPF also emits SLO-ready counters (under `tpf.slo.*`) using the thresholds configured via:
 `pipeline.telemetry.slo.rpc-latency-ms` and `pipeline.telemetry.slo.item-throughput-per-min`.
