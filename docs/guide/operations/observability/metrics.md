@@ -49,8 +49,8 @@ Metrics (OTel/Micrometer):
 - `tpf.pipeline.max_concurrency` (gauge): configured max concurrency for the pipeline run
 - `tpf.item.produced` (counter): items produced at the configured item boundary
 - `tpf.item.consumed` (counter): items consumed at the configured item boundary
-- `tpf.slo.rpc.server.*` (counters): SLO-ready totals for gRPC server reliability and latency
-- `tpf.slo.rpc.client.*` (counters): SLO-ready totals for gRPC client reliability and latency
+- `tpf.slo.rpc.server.*` (counters): SLO-ready totals for RPC server reliability and latency (gRPC + REST)
+- `tpf.slo.rpc.client.*` (counters): SLO-ready totals for RPC client reliability and latency (gRPC + REST)
 - `tpf.slo.item.throughput.*` (counters): SLO-ready totals for item throughput per run
 
 Prometheus exports these as `*_items` because the unit is set to `items`.

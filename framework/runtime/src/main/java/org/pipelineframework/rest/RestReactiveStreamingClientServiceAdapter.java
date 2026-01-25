@@ -44,6 +44,20 @@ public abstract class RestReactiveStreamingClientServiceAdapter<DtoIn, DtoOut, D
     protected abstract ReactiveStreamingClientService<DomainIn, DomainOut> getService();
 
     /**
+     * Resolve the service name used for telemetry attributes.
+     *
+     * @return the service name
+     */
+    protected String getServiceName() {
+        Class<?> serviceClass = getService().getClass();
+        String name = serviceClass.getSimpleName();
+        if (name.contains("_Subclass") && serviceClass.getSuperclass() != null) {
+            name = serviceClass.getSuperclass().getSimpleName();
+        }
+        return name;
+    }
+
+    /**
      * Convert a REST DTO input into the corresponding domain object.
      *
      * @param dtoIn the REST input DTO to convert
@@ -69,8 +83,14 @@ public abstract class RestReactiveStreamingClientServiceAdapter<DtoIn, DtoOut, D
      * @return the REST DTO response corresponding to the processed domain output
      */
     public Uni<DtoOut> remoteProcess(Multi<DtoIn> dtoRequests) {
+        long startNanos = System.nanoTime();
+        String serviceName = getServiceName();
         Multi<DomainIn> domainStream = dtoRequests.onItem().transform(this::fromDto);
         Uni<DomainOut> processedResult = getService().process(domainStream);
-        return processedResult.onItem().transform(this::toDto);
+        return processedResult
+            .onItem().transform(this::toDto)
+            .onItemOrFailure().invoke((item, failure) ->
+                org.pipelineframework.telemetry.HttpMetrics.recordHttpServer(
+                    serviceName, "process", failure, startNanos));
     }
 }

@@ -43,6 +43,20 @@ public abstract class RestReactiveBidirectionalStreamingServiceAdapter<DtoIn, Dt
     protected abstract ReactiveBidirectionalStreamingService<DomainIn, DomainOut> getService();
 
     /**
+     * Resolve the service name used for telemetry attributes.
+     *
+     * @return the service name
+     */
+    protected String getServiceName() {
+        Class<?> serviceClass = getService().getClass();
+        String name = serviceClass.getSimpleName();
+        if (name.contains("_Subclass") && serviceClass.getSuperclass() != null) {
+            name = serviceClass.getSuperclass().getSimpleName();
+        }
+        return name;
+    }
+
+    /**
      * Convert a REST DTO input into the corresponding domain object.
      *
      * @param dtoIn the REST input DTO to convert
@@ -68,8 +82,16 @@ public abstract class RestReactiveBidirectionalStreamingServiceAdapter<DtoIn, Dt
      * @return the stream of REST DTO responses corresponding to processed domain outputs
      */
     public Multi<DtoOut> remoteProcess(Multi<DtoIn> dtoRequests) {
+        long startNanos = System.nanoTime();
+        String serviceName = getServiceName();
         Multi<DomainIn> domainStream = dtoRequests.onItem().transform(this::fromDto);
         Multi<DomainOut> processedResult = getService().process(domainStream);
-        return processedResult.onItem().transform(this::toDto);
+        java.util.concurrent.atomic.AtomicReference<Throwable> failureRef = new java.util.concurrent.atomic.AtomicReference<>();
+        return processedResult
+            .onFailure().invoke(failureRef::set)
+            .onItem().transform(this::toDto)
+            .onTermination().invoke(() ->
+                org.pipelineframework.telemetry.HttpMetrics.recordHttpServer(
+                    serviceName, "process", failureRef.get(), startNanos));
     }
 }
