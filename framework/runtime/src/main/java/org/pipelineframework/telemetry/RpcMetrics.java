@@ -29,29 +29,18 @@ import io.opentelemetry.api.metrics.Meter;
  */
 public final class RpcMetrics {
 
-    private static final Meter METER = GlobalOpenTelemetry.getMeter("org.pipelineframework.rpc");
-    private static final LongCounter SERVER_REQUESTS =
-        METER.counterBuilder("rpc.server.requests").build();
-    private static final LongCounter SERVER_RESPONSES =
-        METER.counterBuilder("rpc.server.responses").build();
-    private static final DoubleHistogram SERVER_DURATION =
-        METER.histogramBuilder("rpc.server.duration").setUnit("ms").build();
-    private static final LongCounter SLO_SERVER_TOTAL =
-        METER.counterBuilder("tpf.slo.rpc.server.total").build();
-    private static final LongCounter SLO_SERVER_GOOD =
-        METER.counterBuilder("tpf.slo.rpc.server.good").build();
-    private static final LongCounter SLO_SERVER_LATENCY_TOTAL =
-        METER.counterBuilder("tpf.slo.rpc.server.latency.total").build();
-    private static final LongCounter SLO_SERVER_LATENCY_GOOD =
-        METER.counterBuilder("tpf.slo.rpc.server.latency.good").build();
-    private static final LongCounter SLO_CLIENT_TOTAL =
-        METER.counterBuilder("tpf.slo.rpc.client.total").build();
-    private static final LongCounter SLO_CLIENT_GOOD =
-        METER.counterBuilder("tpf.slo.rpc.client.good").build();
-    private static final LongCounter SLO_CLIENT_LATENCY_TOTAL =
-        METER.counterBuilder("tpf.slo.rpc.client.latency.total").build();
-    private static final LongCounter SLO_CLIENT_LATENCY_GOOD =
-        METER.counterBuilder("tpf.slo.rpc.client.latency.good").build();
+    private static volatile Meter meter;
+    private static volatile LongCounter serverRequests;
+    private static volatile LongCounter serverResponses;
+    private static volatile DoubleHistogram serverDuration;
+    private static volatile LongCounter sloServerTotal;
+    private static volatile LongCounter sloServerGood;
+    private static volatile LongCounter sloServerLatencyTotal;
+    private static volatile LongCounter sloServerLatencyGood;
+    private static volatile LongCounter sloClientTotal;
+    private static volatile LongCounter sloClientGood;
+    private static volatile LongCounter sloClientLatencyTotal;
+    private static volatile LongCounter sloClientLatencyGood;
 
     private static final AttributeKey<String> RPC_SYSTEM = AttributeKey.stringKey("rpc.system");
     private static final AttributeKey<String> RPC_SERVICE = AttributeKey.stringKey("rpc.service");
@@ -73,6 +62,7 @@ public final class RpcMetrics {
         if (service == null || method == null) {
             return;
         }
+        ensureInitialized();
         Status.Code resolved = code == null ? Status.Code.UNKNOWN : code;
         double durationMs = durationNanos / 1_000_000.0;
         double thresholdMs = TelemetrySloConfig.rpcLatencyMs();
@@ -82,16 +72,16 @@ public final class RpcMetrics {
             .put(RPC_METHOD, method)
             .put(RPC_GRPC_STATUS, (long) resolved.value())
             .build();
-        SERVER_REQUESTS.add(1, attributes);
-        SERVER_RESPONSES.add(1, attributes);
-        SERVER_DURATION.record(durationMs, attributes);
-        SLO_SERVER_TOTAL.add(1, attributes);
+        serverRequests.add(1, attributes);
+        serverResponses.add(1, attributes);
+        serverDuration.record(durationMs, attributes);
+        sloServerTotal.add(1, attributes);
         if (resolved == Status.Code.OK) {
-            SLO_SERVER_GOOD.add(1, attributes);
+            sloServerGood.add(1, attributes);
         }
-        SLO_SERVER_LATENCY_TOTAL.add(1, attributes);
+        sloServerLatencyTotal.add(1, attributes);
         if (resolved == Status.Code.OK && durationMs <= thresholdMs) {
-            SLO_SERVER_LATENCY_GOOD.add(1, attributes);
+            sloServerLatencyGood.add(1, attributes);
         }
     }
 
@@ -120,6 +110,7 @@ public final class RpcMetrics {
         if (service == null || method == null) {
             return;
         }
+        ensureInitialized();
         Status.Code resolved = code == null ? Status.Code.UNKNOWN : code;
         double durationMs = durationNanos / 1_000_000.0;
         double thresholdMs = TelemetrySloConfig.rpcLatencyMs();
@@ -129,13 +120,13 @@ public final class RpcMetrics {
             .put(RPC_METHOD, method)
             .put(RPC_GRPC_STATUS, (long) resolved.value())
             .build();
-        SLO_CLIENT_TOTAL.add(1, attributes);
+        sloClientTotal.add(1, attributes);
         if (resolved == Status.Code.OK) {
-            SLO_CLIENT_GOOD.add(1, attributes);
+            sloClientGood.add(1, attributes);
         }
-        SLO_CLIENT_LATENCY_TOTAL.add(1, attributes);
+        sloClientLatencyTotal.add(1, attributes);
         if (resolved == Status.Code.OK && durationMs <= thresholdMs) {
-            SLO_CLIENT_LATENCY_GOOD.add(1, attributes);
+            sloClientLatencyGood.add(1, attributes);
         }
     }
 
@@ -150,5 +141,43 @@ public final class RpcMetrics {
     public static void recordGrpcClient(String service, String method, Status status, long durationNanos) {
         Status.Code code = status == null ? Status.Code.UNKNOWN : status.getCode();
         recordGrpcClient(service, method, code, durationNanos);
+    }
+
+    static void resetForTest() {
+        meter = null;
+        serverRequests = null;
+        serverResponses = null;
+        serverDuration = null;
+        sloServerTotal = null;
+        sloServerGood = null;
+        sloServerLatencyTotal = null;
+        sloServerLatencyGood = null;
+        sloClientTotal = null;
+        sloClientGood = null;
+        sloClientLatencyTotal = null;
+        sloClientLatencyGood = null;
+    }
+
+    private static void ensureInitialized() {
+        if (meter != null) {
+            return;
+        }
+        synchronized (RpcMetrics.class) {
+            if (meter != null) {
+                return;
+            }
+            meter = GlobalOpenTelemetry.getMeter("org.pipelineframework.rpc");
+            serverRequests = meter.counterBuilder("rpc.server.requests").build();
+            serverResponses = meter.counterBuilder("rpc.server.responses").build();
+            serverDuration = meter.histogramBuilder("rpc.server.duration").setUnit("ms").build();
+            sloServerTotal = meter.counterBuilder("tpf.slo.rpc.server.total").build();
+            sloServerGood = meter.counterBuilder("tpf.slo.rpc.server.good").build();
+            sloServerLatencyTotal = meter.counterBuilder("tpf.slo.rpc.server.latency.total").build();
+            sloServerLatencyGood = meter.counterBuilder("tpf.slo.rpc.server.latency.good").build();
+            sloClientTotal = meter.counterBuilder("tpf.slo.rpc.client.total").build();
+            sloClientGood = meter.counterBuilder("tpf.slo.rpc.client.good").build();
+            sloClientLatencyTotal = meter.counterBuilder("tpf.slo.rpc.client.latency.total").build();
+            sloClientLatencyGood = meter.counterBuilder("tpf.slo.rpc.client.latency.good").build();
+        }
     }
 }

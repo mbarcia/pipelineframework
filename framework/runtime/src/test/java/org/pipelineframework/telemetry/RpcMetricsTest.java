@@ -42,6 +42,7 @@ class RpcMetricsTest {
             .build();
         GlobalOpenTelemetry.resetForTest();
         GlobalOpenTelemetry.set(sdk);
+        RpcMetrics.resetForTest();
 
         try {
             RpcMetrics.recordGrpcServer("ProcessPaymentStatusService", "remoteProcess", Status.Code.OK, 1_000_000);
