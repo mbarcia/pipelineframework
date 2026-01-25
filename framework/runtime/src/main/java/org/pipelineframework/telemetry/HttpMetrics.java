@@ -188,18 +188,19 @@ public final class HttpMetrics {
             if (meter != null) {
                 return;
             }
-            meter = GlobalOpenTelemetry.getMeter("org.pipelineframework.http");
-            serverRequests = meter.counterBuilder("rpc.server.requests").build();
-            serverResponses = meter.counterBuilder("rpc.server.responses").build();
-            serverDuration = meter.histogramBuilder("rpc.server.duration").setUnit("ms").build();
-            sloServerTotal = meter.counterBuilder("tpf.slo.rpc.server.total").build();
-            sloServerGood = meter.counterBuilder("tpf.slo.rpc.server.good").build();
-            sloServerLatencyTotal = meter.counterBuilder("tpf.slo.rpc.server.latency.total").build();
-            sloServerLatencyGood = meter.counterBuilder("tpf.slo.rpc.server.latency.good").build();
-            sloClientTotal = meter.counterBuilder("tpf.slo.rpc.client.total").build();
-            sloClientGood = meter.counterBuilder("tpf.slo.rpc.client.good").build();
-            sloClientLatencyTotal = meter.counterBuilder("tpf.slo.rpc.client.latency.total").build();
-            sloClientLatencyGood = meter.counterBuilder("tpf.slo.rpc.client.latency.good").build();
+            Meter localMeter = GlobalOpenTelemetry.getMeter("org.pipelineframework.http");
+            serverRequests = localMeter.counterBuilder("rpc.server.requests").build();
+            serverResponses = localMeter.counterBuilder("rpc.server.responses").build();
+            serverDuration = localMeter.histogramBuilder("rpc.server.duration").setUnit("ms").build();
+            sloServerTotal = localMeter.counterBuilder("tpf.slo.rpc.server.total").build();
+            sloServerGood = localMeter.counterBuilder("tpf.slo.rpc.server.good").build();
+            sloServerLatencyTotal = localMeter.counterBuilder("tpf.slo.rpc.server.latency.total").build();
+            sloServerLatencyGood = localMeter.counterBuilder("tpf.slo.rpc.server.latency.good").build();
+            sloClientTotal = localMeter.counterBuilder("tpf.slo.rpc.client.total").build();
+            sloClientGood = localMeter.counterBuilder("tpf.slo.rpc.client.good").build();
+            sloClientLatencyTotal = localMeter.counterBuilder("tpf.slo.rpc.client.latency.total").build();
+            sloClientLatencyGood = localMeter.counterBuilder("tpf.slo.rpc.client.latency.good").build();
+            meter = localMeter;
         }
     }
 
