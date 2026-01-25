@@ -259,7 +259,7 @@ public class PipelineTelemetryMetadataGenerator {
         if (name == null) {
             return "";
         }
-        return name.replaceAll("[^A-Za-z0-9]", "");
+        return name.replaceAll("[^A-Za-z0-9]", "").toLowerCase();
     }
 
     private String findProducerStep(List<PipelineStepModel> ordered, String itemType, boolean grpcTransport) {
