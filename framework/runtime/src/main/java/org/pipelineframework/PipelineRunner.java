@@ -525,15 +525,23 @@ public class PipelineRunner implements AutoCloseable {
         PipelineTelemetry telemetry,
         PipelineTelemetry.RunContext telemetryContext) {
         if (current instanceof Uni<?>) {
-            Multi<O> result = step.apply((Uni<I>) current);
+            Uni<I> input = (Uni<I>) current;
+            if (telemetry != null) {
+                input = telemetry.instrumentItemConsumed(step.getClass(), input);
+            }
+            Multi<O> result = step.apply(input);
             if (telemetry == null) {
                 return result;
             }
+            result = telemetry.instrumentItemProduced(step.getClass(), result);
             return telemetry.instrumentStepMulti(step.getClass(), result, telemetryContext, false);
         } else if (current instanceof Multi<?>) {
             if (parallel) {
                 logger.debugf("Applying step %s (merge)", step.getClass());
                 Multi<I> multi = (Multi<I>) current;
+                if (telemetry != null) {
+                    multi = telemetry.instrumentItemConsumed(step.getClass(), multi);
+                }
                 return multi
                     .onItem()
                     .transformToMulti(item -> {
@@ -541,12 +549,16 @@ public class PipelineRunner implements AutoCloseable {
                         if (telemetry == null) {
                             return result;
                         }
+                        result = telemetry.instrumentItemProduced(step.getClass(), result);
                         return telemetry.instrumentStepMulti(step.getClass(), result, telemetryContext, true);
                     })
                     .merge(maxConcurrency);
             } else {
                 logger.debugf("Applying step %s (concatenate)", step.getClass());
                 Multi<I> multi = (Multi<I>) current;
+                if (telemetry != null) {
+                    multi = telemetry.instrumentItemConsumed(step.getClass(), multi);
+                }
                 return multi
                     .onItem()
                     .transformToMulti(item -> {
@@ -554,6 +566,7 @@ public class PipelineRunner implements AutoCloseable {
                         if (telemetry == null) {
                             return result;
                         }
+                        result = telemetry.instrumentItemProduced(step.getClass(), result);
                         return telemetry.instrumentStepMulti(step.getClass(), result, telemetryContext, true);
                     })
                     .concatenate();

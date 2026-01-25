@@ -59,14 +59,21 @@ public class PipelineTelemetryMetadataGenerator {
         if (models.isEmpty()) {
             return;
         }
-        List<PipelineStepModel> ordered = orderBaseSteps(ctx, models);
+        List<PipelineStepModel> baseModels = models.stream()
+            .filter(model -> !model.sideEffect())
+            .toList();
+        if (baseModels.isEmpty()) {
+            return;
+        }
+        List<PipelineStepModel> ordered = orderBaseSteps(ctx, baseModels);
         String producer = findProducerStep(ordered, itemType, ctx.isTransportModeGrpc());
-        String consumer = findConsumerStep(ordered, itemType, ctx.isTransportModeGrpc());
+        String consumer = findConsumerStep(ordered, itemType, ctx.isTransportModeGrpc(), producer);
+        Map<String, String> stepParents = resolveStepParents(ctx, ordered);
         if (producer == null && consumer == null) {
             return;
         }
 
-        TelemetryMetadata metadata = new TelemetryMetadata(itemType, producer, consumer);
+        TelemetryMetadata metadata = new TelemetryMetadata(itemType, producer, consumer, stepParents);
         StringWriter writer = new StringWriter();
         writer.write(gson.toJson(metadata));
 
@@ -85,7 +92,6 @@ public class PipelineTelemetryMetadataGenerator {
         GenerationTarget target = ctx.isTransportModeGrpc() ? GenerationTarget.CLIENT_STEP : GenerationTarget.REST_CLIENT_STEP;
         return models.stream()
             .filter(model -> model.enabledTargets().contains(target))
-            .filter(model -> !model.sideEffect())
             .toList();
     }
 
@@ -217,13 +223,94 @@ public class PipelineTelemetryMetadataGenerator {
         return null;
     }
 
-    private String findConsumerStep(List<PipelineStepModel> ordered, String itemType, boolean grpcTransport) {
-        for (PipelineStepModel model : ordered) {
-            if (matchesType(model.inputMapping(), itemType)) {
-                return resolveClientStepClassName(model, grpcTransport);
+    private Map<String, String> resolveStepParents(PipelineCompilationContext ctx, List<PipelineStepModel> orderedBase) {
+        List<PipelineStepModel> models = ctx.getStepModels();
+        if (models == null || models.isEmpty()) {
+            return Map.of();
+        }
+        GenerationTarget target = ctx.isTransportModeGrpc() ? GenerationTarget.CLIENT_STEP : GenerationTarget.REST_CLIENT_STEP;
+        List<PipelineStepModel> pluginSteps = models.stream()
+            .filter(model -> model.enabledTargets().contains(target))
+            .filter(PipelineStepModel::sideEffect)
+            .toList();
+        if (pluginSteps.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, String> parents = new LinkedHashMap<>();
+        for (PipelineStepModel plugin : pluginSteps) {
+            PipelineStepModel parent = resolveParentForPlugin(plugin, orderedBase);
+            if (parent == null) {
+                continue;
+            }
+            parents.put(
+                resolveClientStepClassName(plugin, ctx.isTransportModeGrpc()),
+                resolveClientStepClassName(parent, ctx.isTransportModeGrpc()));
+        }
+        return parents;
+    }
+
+    private PipelineStepModel resolveParentForPlugin(PipelineStepModel plugin, List<PipelineStepModel> orderedBase) {
+        if (plugin == null || orderedBase == null || orderedBase.isEmpty()) {
+            return null;
+        }
+        String typeName = mappingType(plugin.inputMapping());
+        if (typeName == null) {
+            return null;
+        }
+        PipelineStepModel outputMatch = null;
+        for (PipelineStepModel base : orderedBase) {
+            if (matchesType(base.outputMapping(), typeName)) {
+                outputMatch = base;
             }
         }
-        return null;
+        if (outputMatch != null) {
+            return outputMatch;
+        }
+        PipelineStepModel inputMatch = null;
+        for (PipelineStepModel base : orderedBase) {
+            if (matchesType(base.inputMapping(), typeName)) {
+                inputMatch = base;
+            }
+        }
+        return inputMatch;
+    }
+
+    private String mappingType(TypeMapping mapping) {
+        if (mapping == null || mapping.domainType() == null) {
+            return null;
+        }
+        return mapping.domainType().toString();
+    }
+
+    private String findConsumerStep(
+        List<PipelineStepModel> ordered,
+        String itemType,
+        boolean grpcTransport,
+        String producerStep) {
+        if (producerStep != null) {
+            boolean afterProducer = false;
+            String lastAfterProducer = null;
+            for (PipelineStepModel model : ordered) {
+                String stepClass = resolveClientStepClassName(model, grpcTransport);
+                if (stepClass.equals(producerStep)) {
+                    afterProducer = true;
+                    continue;
+                }
+                if (afterProducer) {
+                    lastAfterProducer = stepClass;
+                }
+            }
+            if (lastAfterProducer != null) {
+                return lastAfterProducer;
+            }
+        }
+        String lastMatch = null;
+        for (PipelineStepModel model : ordered) {
+            if (matchesType(model.inputMapping(), itemType)) {
+                lastMatch = resolveClientStepClassName(model, grpcTransport);
+            }
+        }
+        return lastMatch;
     }
 
     private boolean matchesType(TypeMapping mapping, String itemType) {
@@ -239,6 +326,10 @@ public class PipelineTelemetryMetadataGenerator {
             model.generatedName().replace("Service", "") + suffix;
     }
 
-    private record TelemetryMetadata(String itemType, String producerStep, String consumerStep) {
+    private record TelemetryMetadata(
+        String itemType,
+        String producerStep,
+        String consumerStep,
+        Map<String, String> stepParents) {
     }
 }

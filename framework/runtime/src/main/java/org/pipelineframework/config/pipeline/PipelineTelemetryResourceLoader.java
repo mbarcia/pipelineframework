@@ -58,10 +58,11 @@ public final class PipelineTelemetryResourceLoader {
             String itemType = valueAsString(data.get("itemType"));
             String producerStep = valueAsString(data.get("producerStep"));
             String consumerStep = valueAsString(data.get("consumerStep"));
+            Map<String, String> stepParents = mapOf(data.get("stepParents"));
             if (itemType == null || itemType.isBlank()) {
                 return Optional.empty();
             }
-            return Optional.of(new ItemBoundary(itemType, producerStep, consumerStep));
+            return Optional.of(new ItemBoundary(itemType, producerStep, consumerStep, stepParents));
         } catch (Exception e) {
             throw new IllegalStateException("Failed to read pipeline telemetry resource.", e);
         }
@@ -71,6 +72,17 @@ public final class PipelineTelemetryResourceLoader {
         return value == null ? null : value.toString();
     }
 
+    private static Map<String, String> mapOf(Object value) {
+        if (!(value instanceof Map<?, ?> raw)) {
+            return Map.of();
+        }
+        return raw.entrySet().stream()
+            .filter(entry -> entry.getKey() != null && entry.getValue() != null)
+            .collect(java.util.stream.Collectors.toMap(
+                entry -> entry.getKey().toString(),
+                entry -> entry.getValue().toString()));
+    }
+
     /**
      * Item-boundary metadata resolved at build time.
      *
@@ -78,6 +90,10 @@ public final class PipelineTelemetryResourceLoader {
      * @param producerStep step class that produces the item type
      * @param consumerStep step class that consumes the item type
      */
-    public record ItemBoundary(String itemType, String producerStep, String consumerStep) {
+    public record ItemBoundary(
+        String itemType,
+        String producerStep,
+        String consumerStep,
+        Map<String, String> stepParents) {
     }
 }

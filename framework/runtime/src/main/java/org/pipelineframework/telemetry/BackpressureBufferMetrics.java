@@ -28,6 +28,7 @@ import io.opentelemetry.api.metrics.Meter;
 import io.opentelemetry.api.metrics.ObservableLongMeasurement;
 import io.smallrye.mutiny.Multi;
 import org.eclipse.microprofile.config.ConfigProvider;
+import org.pipelineframework.config.pipeline.PipelineTelemetryResourceLoader;
 
 /**
  * Emits backpressure buffer depth metrics around Mutiny overflow buffers.
@@ -35,6 +36,7 @@ import org.eclipse.microprofile.config.ConfigProvider;
 public final class BackpressureBufferMetrics {
 
     private static final AttributeKey<String> STEP_CLASS = AttributeKey.stringKey("tpf.step.class");
+    private static final AttributeKey<String> STEP_PARENT = AttributeKey.stringKey("tpf.step.parent");
     private static final String TELEMETRY_ENABLED_KEY = "pipeline.telemetry.enabled";
     private static final String METRICS_ENABLED_KEY = "pipeline.telemetry.metrics.enabled";
     private static final ConcurrentMap<String, AtomicLong> QUEUED_BY_STEP = new ConcurrentHashMap<>();
@@ -109,14 +111,24 @@ public final class BackpressureBufferMetrics {
 
     private static void recordQueuedGauge(ObservableLongMeasurement measurement) {
         QUEUED_BY_STEP.forEach((step, count) -> {
-            measurement.record(count.get(), Attributes.of(STEP_CLASS, step));
+            measurement.record(count.get(), Attributes.of(
+                STEP_CLASS, step,
+                STEP_PARENT, resolveStepParent(step)));
         });
     }
 
     private static void recordCapacityGauge(ObservableLongMeasurement measurement) {
         CAPACITY_BY_STEP.forEach((step, count) -> {
-            measurement.record(count.get(), Attributes.of(STEP_CLASS, step));
+            measurement.record(count.get(), Attributes.of(
+                STEP_CLASS, step,
+                STEP_PARENT, resolveStepParent(step)));
         });
+    }
+
+    private static String resolveStepParent(String stepClassName) {
+        return PipelineTelemetryResourceLoader.loadItemBoundary()
+            .map(boundary -> boundary.stepParents().getOrDefault(stepClassName, stepClassName))
+            .orElse(stepClassName);
     }
 
     private static boolean metricsEnabled() {

@@ -16,6 +16,7 @@
 
 package org.pipelineframework.telemetry;
 
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLong;
@@ -52,6 +53,7 @@ public class PipelineTelemetry {
 
     private static final AttributeKey<String> INPUT_KIND = AttributeKey.stringKey("tpf.input");
     private static final AttributeKey<String> STEP_CLASS = AttributeKey.stringKey("tpf.step.class");
+    private static final AttributeKey<String> STEP_PARENT = AttributeKey.stringKey("tpf.step.parent");
     private static final AttributeKey<String> ITEM_TYPE = AttributeKey.stringKey("tpf.item.type");
     private static final AttributeKey<Long> PARALLEL_MAX_IN_FLIGHT =
         AttributeKey.longKey("tpf.parallel.max_in_flight");
@@ -74,6 +76,7 @@ public class PipelineTelemetry {
     private final ConcurrentMap<String, AtomicLong> inflightByStep;
     private final AtomicLong maxConcurrency;
     private final PipelineTelemetryResourceLoader.ItemBoundary itemBoundary;
+    private final Map<String, String> stepParents;
 
     /**
      * Create a telemetry helper from the configured pipeline settings.
@@ -92,6 +95,7 @@ public class PipelineTelemetry {
         this.inflightByStep = new ConcurrentHashMap<>();
         this.maxConcurrency = new AtomicLong();
         this.itemBoundary = PipelineTelemetryResourceLoader.loadItemBoundary().orElse(null);
+        this.stepParents = itemBoundary != null ? itemBoundary.stepParents() : Map.of();
         if (metricsEnabled) {
             this.pipelineRunCounter = meter.counterBuilder("tpf.pipeline.run.count")
                 .setDescription("Pipeline runs")
@@ -355,7 +359,7 @@ public class PipelineTelemetry {
             return;
         }
         double durationMs = nanosToMillis(startNanos);
-        Attributes attributes = Attributes.of(STEP_CLASS, stepClass.getName());
+        Attributes attributes = stepAttributes(stepClass);
         stepDuration.record(durationMs, attributes);
         if (failure != null) {
             stepErrorCounter.add(1, attributes);
@@ -414,7 +418,7 @@ public class PipelineTelemetry {
 
     private void recordInflightGauge(ObservableLongMeasurement measurement) {
         inflightByStep.forEach((step, count) -> {
-            measurement.record(count.get(), Attributes.of(STEP_CLASS, step));
+            measurement.record(count.get(), stepAttributes(step));
         });
     }
 
@@ -436,9 +440,30 @@ public class PipelineTelemetry {
 
     private Attributes boundaryAttributes(Class<?> stepClass) {
         if (itemBoundary == null) {
-            return Attributes.of(STEP_CLASS, stepClass.getName());
+            return stepAttributes(stepClass);
         }
-        return Attributes.of(STEP_CLASS, stepClass.getName(), ITEM_TYPE, itemBoundary.itemType());
+        return Attributes.of(
+            STEP_CLASS, stepClass.getName(),
+            STEP_PARENT, resolveStepParent(stepClass.getName()),
+            ITEM_TYPE, itemBoundary.itemType());
+    }
+
+    private Attributes stepAttributes(Class<?> stepClass) {
+        return stepClass == null
+            ? Attributes.empty()
+            : Attributes.of(
+                STEP_CLASS, stepClass.getName(),
+                STEP_PARENT, resolveStepParent(stepClass.getName()));
+    }
+
+    private Attributes stepAttributes(String stepClassName) {
+        return Attributes.of(
+            STEP_CLASS, stepClassName,
+            STEP_PARENT, resolveStepParent(stepClassName));
+    }
+
+    private String resolveStepParent(String stepClassName) {
+        return stepParents.getOrDefault(stepClassName, stepClassName);
     }
 
     private void endSpan(Span span, Throwable failure) {

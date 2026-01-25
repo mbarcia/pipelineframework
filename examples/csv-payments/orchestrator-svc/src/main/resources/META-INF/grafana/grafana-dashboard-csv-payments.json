@@ -93,7 +93,50 @@
           },
           "unit": "ops/s"
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^Process.*"
+            },
+            "properties": [
+              {
+                "id": "custom.lineWidth",
+                "value": 2
+              },
+              {
+                "id": "custom.showPoints",
+                "value": "always"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^(Observe|Persistence|Cache|Metrics|Trace).*$"
+            },
+            "properties": [
+              {
+                "id": "custom.lineWidth",
+                "value": 1
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 10
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "dash": [
+                    6,
+                    4
+                  ],
+                  "fill": "dash"
+                }
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 8,
@@ -121,14 +164,14 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "label_replace(sum by (tpf_step_class) (rate(tpf_step_duration_milliseconds_count{tpf_step_class=~\".*\\\\.${step}$\"}[$__rate_interval])), \"step\", \"$1\", \"tpf_step_class\", \".*[.]([^.]*)$\")",
+          "expr": "label_replace(sum by (tpf_step_class) (rate(tpf_step_duration_milliseconds_count{tpf_step_parent=~\".*\\\\.Process${step}GrpcClientStep\"}[$__rate_interval])), \"step\", \"$1\", \"tpf_step_class\", \".*[.]([^.]*)$\")",
           "instant": false,
           "legendFormat": "{{step}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Step Execution Throughput",
+      "title": "Per-step Throughput",
       "type": "timeseries",
       "description": "Step executions per second per step (from tpf.step.duration count).",
       "minInterval": "10s"
@@ -219,16 +262,16 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "label_replace(sum by (tpf_step_class) (rate(tpf_step_duration_milliseconds_sum{tpf_step_class=~\".*\\\\.${step}$\"}[$__rate_interval])) / sum by (tpf_step_class) (rate(tpf_step_duration_milliseconds_count{tpf_step_class=~\".*\\\\.${step}$\"}[$__rate_interval])), \"step\", \"$1\", \"tpf_step_class\", \".*[.]([^.]*)$\")",
+          "expr": "label_replace(max by (tpf_step_class) (max_over_time(tpf_step_duration_milliseconds_sum{tpf_step_parent=~\".*\\\\.Process${step}GrpcClientStep\"}[$__range])) / max by (tpf_step_class) (max_over_time(tpf_step_duration_milliseconds_count{tpf_step_parent=~\".*\\\\.Process${step}GrpcClientStep\"}[$__range])), \"step\", \"$1\", \"tpf_step_class\", \".*[.]([^.]*)$\")",
           "instant": false,
           "legendFormat": "{{step}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Step Execution Average Latency",
+      "title": "Per-step Latency (avg)",
       "type": "timeseries",
-      "description": "Average step execution latency derived from tpf.step.duration histogram.",
+      "description": "Average per-step execution latency derived from tpf.step.duration histogram.",
       "minInterval": "10s"
     },
     {
@@ -289,7 +332,50 @@
           },
           "unit": "percent"
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^Process.*"
+            },
+            "properties": [
+              {
+                "id": "custom.lineWidth",
+                "value": 2
+              },
+              {
+                "id": "custom.showPoints",
+                "value": "always"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^(Observe|Persistence|Cache|Metrics|Trace).*$"
+            },
+            "properties": [
+              {
+                "id": "custom.lineWidth",
+                "value": 1
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 10
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "dash": [
+                    6,
+                    4
+                  ],
+                  "fill": "dash"
+                }
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 8,
@@ -317,15 +403,156 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "label_replace(100 * (1 - ((sum by (tpf_step_class) (rate(tpf_step_errors_total{tpf_step_class=~\".*\\\\.${step}$\"}[$__rate_interval])) or on(tpf_step_class) (sum by (tpf_step_class) (rate(tpf_step_duration_milliseconds_count{tpf_step_class=~\".*\\\\.${step}$\"}[$__rate_interval])) * 0)) / sum by (tpf_step_class) (rate(tpf_step_duration_milliseconds_count{tpf_step_class=~\".*\\\\.${step}$\"}[$__rate_interval])))), \"step\", \"$1\", \"tpf_step_class\", \".*[.]([^.]*)$\")",
+          "expr": "label_replace(100 * (1 - ((max by (tpf_step_class) (max_over_time(tpf_step_errors_total{tpf_step_parent=~\".*\\\\.Process${step}GrpcClientStep\"}[$__range])) or on(tpf_step_class) (max by (tpf_step_class) (max_over_time(tpf_step_duration_milliseconds_count{tpf_step_parent=~\".*\\\\.Process${step}GrpcClientStep\"}[$__range])) * 0)) / max by (tpf_step_class) (max_over_time(tpf_step_duration_milliseconds_count{tpf_step_parent=~\".*\\\\.Process${step}GrpcClientStep\"}[$__range])))), \"step\", \"$1\", \"tpf_step_class\", \".*[.]([^.]*)$\")",
           "instant": false,
           "legendFormat": "{{step}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Step Execution Success Rate",
+      "title": "Per-step Success Rate",
       "type": "timeseries",
+      "minInterval": "10s"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "ms"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^Process.*"
+            },
+            "properties": [
+              {
+                "id": "custom.lineWidth",
+                "value": 2
+              },
+              {
+                "id": "custom.showPoints",
+                "value": "always"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^(Observe|Persistence|Cache|Metrics|Trace).*$"
+            },
+            "properties": [
+              {
+                "id": "custom.lineWidth",
+                "value": 1
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 10
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "dash": [
+                    6,
+                    4
+                  ],
+                  "fill": "dash"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 9
+      },
+      "id": 17,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "label_replace(max by (rpc_service) (max_over_time(rpc_server_duration_milliseconds_sum{rpc_service=~\"Process${step}Service|.*(Observe|Persistence|Cache|Metrics|Trace).*Service\"}[$__range])) / max by (rpc_service) (max_over_time(rpc_server_duration_milliseconds_count{rpc_service=~\"Process${step}Service|.*(Observe|Persistence|Cache|Metrics|Trace).*Service\"}[$__range])), \"step\", \"$1\", \"rpc_service\", \"(.*)\")",
+          "instant": false,
+          "legendFormat": "{{step}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Per-step Service Time",
+      "type": "timeseries",
+      "description": "Average server-side processing time per RPC service.",
       "minInterval": "10s"
     },
     {
@@ -427,7 +654,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "label_replace(sum by (tpf_step_class, tpf_item_type) (rate(tpf_item_produced_total{tpf_step_class=~\".*\\\\.${step}$\"}[$__rate_interval])), \"step\", \"$1\", \"tpf_step_class\", \".*[.]([^.]*)$\")",
+          "expr": "label_replace((sum by (tpf_step_class, tpf_item_type) (rate(tpf_item_produced_items_total{tpf_step_parent=~\".*\\\\.Process${step}GrpcClientStep\"}[$__rate_interval])) or sum by (tpf_step_class, tpf_item_type) (rate(tpf_item_produced_total{tpf_step_parent=~\".*\\\\.Process${step}GrpcClientStep\"}[$__rate_interval]))), \"step\", \"$1\", \"tpf_step_class\", \".*[.]([^.]*)$\")",
           "instant": false,
           "legendFormat": "produced {{step}}",
           "range": true,
@@ -439,16 +666,16 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "label_replace(sum by (tpf_step_class, tpf_item_type) (rate(tpf_item_consumed_total{tpf_step_class=~\".*\\\\.${step}$\"}[$__rate_interval])), \"step\", \"$1\", \"tpf_step_class\", \".*[.]([^.]*)$\")",
+          "expr": "label_replace((sum by (tpf_step_class, tpf_item_type) (rate(tpf_item_consumed_items_total{tpf_step_parent=~\".*\\\\.Process${step}GrpcClientStep\"}[$__rate_interval])) or sum by (tpf_step_class, tpf_item_type) (rate(tpf_item_consumed_total{tpf_step_parent=~\".*\\\\.Process${step}GrpcClientStep\"}[$__rate_interval]))), \"step\", \"$1\", \"tpf_step_class\", \".*[.]([^.]*)$\")",
           "instant": false,
           "legendFormat": "consumed {{step}}",
           "range": true,
           "refId": "B"
         }
       ],
-      "title": "Domain Item Throughput (boundary)",
+      "title": "Domain Item Throughput",
       "type": "timeseries",
-      "description": "Items per second at the configured item boundary (producer vs consumer).",
+      "description": "Items per second at the configured item boundary (producer vs consumer). It will ONLY display data if a boundary step is selected (see pipeline.telemetry.item-type).",
       "minInterval": "10s"
     },
     {
@@ -550,7 +777,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "label_replace(max_over_time(tpf_step_inflight_items{tpf_step_class=~\".*\\\\.${step}$\"}[$__range]), \"step\", \"$1\", \"tpf_step_class\", \".*[.]([^.]*)$\")",
+          "expr": "label_replace(max_over_time(tpf_step_inflight_items{tpf_step_parent=~\".*\\\\.Process${step}GrpcClientStep\"}[$__range]), \"step\", \"$1\", \"tpf_step_class\", \".*[.]([^.]*)$\")",
           "instant": false,
           "legendFormat": "{{step}}",
           "range": true,
@@ -558,9 +785,9 @@
           "interval": "10s"
         }
       ],
-      "title": "Step In-flight Items",
+      "title": "Per-step In-flight Items",
       "type": "timeseries",
-      "description": "Peak in-flight step items observed per step.",
+      "description": "Peak in-flight items observed per step.",
       "minInterval": "10s"
     },
     {
@@ -649,7 +876,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "label_replace(max_over_time(tpf_step_buffer_queued_items{tpf_step_class=~\".*\\\\.${step}$\"}[$__range]) / max_over_time(tpf_step_buffer_capacity_items{tpf_step_class=~\".*\\\\.${step}$\"}[$__range]) * 100, \"step\", \"$1\", \"tpf_step_class\", \".*[.]([^.]*)$\")",
+          "expr": "label_replace(max_over_time(tpf_step_buffer_queued_items{tpf_step_parent=~\".*\\\\.Process${step}GrpcClientStep\"}[$__range]) / max_over_time(tpf_step_buffer_capacity_items{tpf_step_parent=~\".*\\\\.Process${step}GrpcClientStep\"}[$__range]) * 100, \"step\", \"$1\", \"tpf_step_class\", \".*[.]([^.]*)$\")",
           "instant": false,
           "legendFormat": "{{step}}",
           "range": true,
@@ -657,9 +884,9 @@
           "interval": "10s"
         }
       ],
-      "title": "Step Buffer Utilization (ratio)",
+      "title": "Step Buffer Utilization",
       "type": "timeseries",
-      "description": "Ratio of queued buffer step items to configured capacity per step.",
+      "description": "Percentage of queued buffer step items to configured capacity per step.",
       "minInterval": "10s"
     },
     {
@@ -748,7 +975,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "label_replace(max_over_time(tpf_step_buffer_queued_items{tpf_step_class=~\".*\\\\.${step}$\"}[$__range]), \"step\", \"$1\", \"tpf_step_class\", \".*[.]([^.]*)$\")",
+          "expr": "label_replace(max_over_time(tpf_step_buffer_queued_items{tpf_step_parent=~\".*\\\\.Process${step}GrpcClientStep\"}[$__range]), \"step\", \"$1\", \"tpf_step_class\", \".*[.]([^.]*)$\")",
           "instant": false,
           "legendFormat": "{{step}}",
           "range": true,
@@ -756,9 +983,9 @@
           "interval": "10s"
         }
       ],
-      "title": "Step Buffer Depth (items)",
+      "title": "Per-step Buffer Depth (items)",
       "type": "timeseries",
-      "description": "Peak number of queued step items sitting in the backpressure buffer per step.",
+      "description": "Peak number of queued items sitting in the backpressure buffer per step.",
       "minInterval": "10s"
     },
     {
@@ -844,6 +1071,48 @@
                 }
               }
             ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^Process.*"
+            },
+            "properties": [
+              {
+                "id": "custom.lineWidth",
+                "value": 2
+              },
+              {
+                "id": "custom.showPoints",
+                "value": "always"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^(Observe|Persistence|Cache|Metrics|Trace).*$"
+            },
+            "properties": [
+              {
+                "id": "custom.lineWidth",
+                "value": 1
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 10
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "dash": [
+                    6,
+                    4
+                  ],
+                  "fill": "dash"
+                }
+              }
+            ]
           }
         ]
       },
@@ -873,7 +1142,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "label_replace(max_over_time(tpf_step_buffer_queued_items{tpf_step_class=~\".*\\\\.${step}$\"}[$__range]), \"step\", \"$1\", \"tpf_step_class\", \".*[.]([^.]*)$\")",
+          "expr": "label_replace(max_over_time(tpf_step_buffer_queued_items{tpf_step_parent=~\".*\\\\.Process${step}GrpcClientStep\"}[$__range]), \"step\", \"$1\", \"tpf_step_class\", \".*[.]([^.]*)$\")",
           "instant": false,
           "legendFormat": "queued {{step}}",
           "range": true,
@@ -886,7 +1155,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "label_replace(max_over_time(tpf_step_buffer_capacity_items{tpf_step_class=~\".*\\\\.${step}$\"}[$__range]), \"step\", \"$1\", \"tpf_step_class\", \".*[.]([^.]*)$\")",
+          "expr": "label_replace(max_over_time(tpf_step_buffer_capacity_items{tpf_step_parent=~\".*\\\\.Process${step}GrpcClientStep\"}[$__range]), \"step\", \"$1\", \"tpf_step_class\", \".*[.]([^.]*)$\")",
           "instant": false,
           "legendFormat": "capacity {{step}}",
           "range": true,
@@ -899,7 +1168,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "label_replace(max_over_time(tpf_step_buffer_capacity_items{tpf_step_class=~\".*\\\\.${step}$\"}[$__range]) * 0.8, \"step\", \"$1\", \"tpf_step_class\", \".*[.]([^.]*)$\")",
+          "expr": "label_replace(max_over_time(tpf_step_buffer_capacity_items{tpf_step_parent=~\".*\\\\.Process${step}GrpcClientStep\"}[$__range]) * 0.8, \"step\", \"$1\", \"tpf_step_class\", \".*[.]([^.]*)$\")",
           "instant": false,
           "legendFormat": "80% capacity {{step}}",
           "range": true,
@@ -995,6 +1264,48 @@
                 }
               }
             ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^Process.*"
+            },
+            "properties": [
+              {
+                "id": "custom.lineWidth",
+                "value": 2
+              },
+              {
+                "id": "custom.showPoints",
+                "value": "always"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^(Observe|Persistence|Cache|Metrics|Trace).*$"
+            },
+            "properties": [
+              {
+                "id": "custom.lineWidth",
+                "value": 1
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 10
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "dash": [
+                    6,
+                    4
+                  ],
+                  "fill": "dash"
+                }
+              }
+            ]
           }
         ]
       },
@@ -1024,7 +1335,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "label_replace(max_over_time(tpf_step_inflight_items{tpf_step_class=~\".*\\\\.${step}$\"}[$__range]), \"step\", \"$1\", \"tpf_step_class\", \".*[.]([^.]*)$\")",
+          "expr": "label_replace(max_over_time(tpf_step_inflight_items{tpf_step_parent=~\".*\\\\.Process${step}GrpcClientStep\"}[$__range]), \"step\", \"$1\", \"tpf_step_class\", \".*[.]([^.]*)$\")",
           "instant": false,
           "legendFormat": "inflight {{step}}",
           "range": true,
@@ -1259,14 +1570,14 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "jvm_gc_pause_milliseconds_sum / jvm_gc_pause_milliseconds_count * 100",
+          "expr": "rate(jvm_gc_pause_milliseconds_sum[$__rate_interval]) / rate(jvm_gc_pause_milliseconds_count[$__rate_interval])",
           "instant": false,
           "legendFormat": "{{job}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "JVM GC Time Percentage",
+      "title": "JVM GC Pause (avg ms)",
       "type": "timeseries",
       "minInterval": "10s"
     }
@@ -1286,10 +1597,10 @@
           "uid": "prometheus"
         },
         "query": {
-          "query": "label_values(tpf_step_duration_milliseconds_count, tpf_step_class)",
+          "query": "label_values({__name__=~\"tpf_step_duration_milliseconds_count|tpf_step_inflight_items|tpf_step_buffer_queued_items|tpf_step_buffer_capacity_items\"}, tpf_step_class)",
           "refId": "StandardVariableQuery"
         },
-        "refresh": 1,
+        "refresh": 2,
         "includeAll": true,
         "allValue": ".*",
         "multi": false,
@@ -1297,7 +1608,7 @@
           "text": "All",
           "value": ".*"
         },
-        "regex": "/.+\\.([^.]*)$/"
+        "regex": "/.*Process([^.]*)GrpcClientStep.*/"
       }
     ]
   },
