@@ -21,6 +21,7 @@ import io.smallrye.mutiny.Uni;
 import org.jboss.logging.Logger;
 import org.pipelineframework.step.functional.ManyToOne;
 import org.pipelineframework.telemetry.BackpressureBufferMetrics;
+import org.pipelineframework.telemetry.PipelineTelemetry;
 
 /**
  * N -> 1 (reactive)
@@ -74,6 +75,7 @@ public interface StepManyToOne<I, O> extends Configurable, ManyToOne<I, O>, Dead
                 }
             })
             .onFailure(this::shouldRetry)
+            .invoke(t -> PipelineTelemetry.recordRetry(this.getClass()))
             .retry()
             .withBackOff(retryWait(), maxBackoff())
             .withJitter(jitter() ? 0.5 : 0.0)

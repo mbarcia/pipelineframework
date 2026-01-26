@@ -82,6 +82,14 @@ public interface PipelineStepConfig {
      * @return telemetry configuration
      */
     TelemetryConfig telemetry();
+
+    /**
+     * Kill switch configuration for pipeline safety guards.
+     *
+     * @return kill switch configuration
+     */
+    @WithName("kill-switch")
+    KillSwitchConfig killSwitch();
     
     /**
      * Per-step configuration overrides keyed by each step's fully qualified class name.
@@ -263,6 +271,66 @@ public interface PipelineStepConfig {
          * @return metrics configuration
          */
         MetricsConfig metrics();
+    }
+
+    /**
+     * Kill switch configuration for pipeline execution guards.
+     */
+    interface KillSwitchConfig {
+        /**
+         * Retry amplification guard configuration.
+         *
+         * @return retry amplification guard configuration
+         */
+        @WithName("retry-amplification")
+        RetryAmplificationGuardConfig retryAmplification();
+    }
+
+    /**
+     * Retry amplification guard configuration.
+     */
+    interface RetryAmplificationGuardConfig {
+        /**
+         * Enables retry amplification detection.
+         *
+         * @return true to enable the guard
+         */
+        @WithDefault("false")
+        Boolean enabled();
+
+        /**
+         * Window used to evaluate sustained growth.
+         *
+         * @return evaluation window duration
+         */
+        @WithDefault("PT30S")
+        Duration window();
+
+        /**
+         * Threshold for in-flight slope (items per second).
+         *
+         * @return in-flight slope threshold
+         */
+        @WithName("inflight-slope-threshold")
+        @WithDefault("10")
+        Double inflightSlopeThreshold();
+
+        /**
+         * Threshold for retry rate (retries per second).
+         *
+         * @return retry rate threshold
+         */
+        @WithName("retry-rate-threshold")
+        @WithDefault("5")
+        Double retryRateThreshold();
+
+        /**
+         * Guard behavior when triggered.
+         *
+         * @return mode ("fail-fast" or "log-only")
+         */
+        @WithDefault("fail-fast")
+        String mode();
     }
 
     /**

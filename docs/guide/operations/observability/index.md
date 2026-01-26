@@ -40,6 +40,17 @@ talks to a slow third-party, misconfigured pacing can create retry amplification
 This is a signal to reduce concurrency on the third-party step, increase retry backoff, and align the pacer with the
 true downstream throughput.
 
+### Retry amplification guard
+
+TPF can detect sustained retry amplification and abort a run when configured. The guard evaluates per-step inflight
+growth alongside retry rate over a rolling window. When it triggers, the run span records an event with
+`tpf.kill_switch.triggered=true` and `tpf.kill_switch.reason=retry_amplification`, and the metric
+`tpf.pipeline.kill_switch.triggered` increments.
+
+Use the following metrics to observe the signal:
+- `tpf.step.inflight` (in-flight growth)
+- `tpf.step.retry.count` (retry attempts per step)
+
 ## Sections
 
 - [Metrics](/guide/operations/observability/metrics)

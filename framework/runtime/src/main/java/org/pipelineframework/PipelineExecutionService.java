@@ -23,10 +23,15 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
@@ -34,12 +39,16 @@ import io.grpc.Status;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import io.smallrye.mutiny.infrastructure.Infrastructure;
+import io.smallrye.mutiny.subscription.Cancellable;
 import lombok.Getter;
 import org.apache.commons.lang3.time.StopWatch;
 import org.jboss.logging.Logger;
 import org.pipelineframework.config.PipelineConfig;
 import org.pipelineframework.config.pipeline.PipelineOrderResourceLoader;
 import org.pipelineframework.telemetry.ApmCompatibilityMetrics;
+import org.pipelineframework.telemetry.PipelineTelemetry;
+import org.pipelineframework.telemetry.RetryAmplificationGuard;
+import org.pipelineframework.telemetry.RetryAmplificationGuardMode;
 import org.pipelineframework.telemetry.RpcMetrics;
 
 /**
@@ -65,6 +74,17 @@ public class PipelineExecutionService {
   /** Health check service to verify dependent services. */
   @Inject
   protected HealthCheckService healthCheckService;
+
+  /** Telemetry helper for guard evaluation. */
+  @Inject
+  protected PipelineTelemetry telemetry;
+
+  private final ScheduledExecutorService killSwitchExecutor = Executors.newSingleThreadScheduledExecutor(
+      runnable -> {
+        Thread thread = new Thread(runnable, "tpf-kill-switch");
+        thread.setDaemon(true);
+        return thread;
+      });
 
   private final AtomicReference<StartupHealthState> startupHealthState =
       new AtomicReference<>(StartupHealthState.PENDING);
@@ -136,6 +156,11 @@ public class PipelineExecutionService {
         startupHealthState.set(StartupHealthState.UNHEALTHY);
       }
     });
+  }
+
+  @PreDestroy
+  void shutdownKillSwitchExecutor() {
+    killSwitchExecutor.shutdownNow();
   }
 
   /**
@@ -313,9 +338,100 @@ public class PipelineExecutionService {
         input == null ? "null" : input.getClass().getName()));
   }
 
+  private <T> Multi<T> attachRetryAmplificationGuard(Multi<T> multi) {
+    if (telemetry == null || !telemetry.retryAmplificationGuardEnabled()) {
+      return multi;
+    }
+    Duration interval = telemetry.retryAmplificationCheckInterval();
+    RetryAmplificationGuardMode mode = telemetry.retryAmplificationMode();
+    AtomicBoolean logged = new AtomicBoolean(false);
+    return Multi.createFrom().emitter(emitter -> {
+      AtomicReference<Cancellable> cancellableRef = new AtomicReference<>();
+      ScheduledFuture<?> future = killSwitchExecutor.scheduleAtFixedRate(() -> {
+        telemetry.retryAmplificationTrigger().ifPresent(trigger -> {
+          if (!logged.compareAndSet(false, true)) {
+            return;
+          }
+          logRetryAmplificationTrigger(trigger, mode);
+          if (mode == RetryAmplificationGuardMode.FAIL_FAST) {
+            emitter.fail(PipelineKillSwitchException.retryAmplification(trigger));
+            Cancellable cancellable = cancellableRef.get();
+            if (cancellable != null) {
+              cancellable.cancel();
+            }
+          } else {
+            future.cancel(false);
+          }
+        });
+      }, interval.toMillis(), interval.toMillis(), TimeUnit.MILLISECONDS);
+      Cancellable cancellable = multi.subscribe().with(
+          emitter::emit,
+          emitter::fail,
+          emitter::complete);
+      cancellableRef.set(cancellable);
+      emitter.onTermination(() -> future.cancel(false));
+    });
+  }
+
+  private <T> Uni<T> attachRetryAmplificationGuard(Uni<T> uni) {
+    if (telemetry == null || !telemetry.retryAmplificationGuardEnabled()) {
+      return uni;
+    }
+    Duration interval = telemetry.retryAmplificationCheckInterval();
+    RetryAmplificationGuardMode mode = telemetry.retryAmplificationMode();
+    AtomicBoolean logged = new AtomicBoolean(false);
+    return Uni.createFrom().emitter(emitter -> {
+      AtomicReference<Cancellable> cancellableRef = new AtomicReference<>();
+      ScheduledFuture<?> future = killSwitchExecutor.scheduleAtFixedRate(() -> {
+        telemetry.retryAmplificationTrigger().ifPresent(trigger -> {
+          if (!logged.compareAndSet(false, true)) {
+            return;
+          }
+          logRetryAmplificationTrigger(trigger, mode);
+          if (mode == RetryAmplificationGuardMode.FAIL_FAST) {
+            emitter.fail(PipelineKillSwitchException.retryAmplification(trigger));
+            Cancellable cancellable = cancellableRef.get();
+            if (cancellable != null) {
+              cancellable.cancel();
+            }
+          } else {
+            future.cancel(false);
+          }
+        });
+      }, interval.toMillis(), interval.toMillis(), TimeUnit.MILLISECONDS);
+      Cancellable cancellable = uni.subscribe().with(
+          item -> {
+            future.cancel(false);
+            emitter.complete(item);
+          },
+          failure -> {
+            future.cancel(false);
+            emitter.fail(failure);
+          });
+      cancellableRef.set(cancellable);
+      emitter.onTermination(() -> future.cancel(false));
+    });
+  }
+
+  private void logRetryAmplificationTrigger(
+      RetryAmplificationGuard.Trigger trigger,
+      RetryAmplificationGuardMode mode) {
+    String action = mode == RetryAmplificationGuardMode.FAIL_FAST ? "aborting" : "logging";
+    LOG.errorf(
+        "Retry amplification guard triggered for step %s (inflight slope %.2f > %.2f, retry rate %.2f > %.2f) over %s; %s pipeline run.",
+        trigger.step(),
+        trigger.inflightSlope(),
+        trigger.inflightSlopeThreshold(),
+        trigger.retryRate(),
+        trigger.retryRateThreshold(),
+        trigger.window(),
+        action);
+  }
+
   private <T> Multi<T> attachMultiHooks(Multi<T> multi, StopWatch watch) {
+    Multi<T> guarded = attachRetryAmplificationGuard(multi);
     long[] startTime = new long[1];
-    return multi
+    return guarded
         .onSubscription().invoke(ignored -> {
           LOG.info("PIPELINE BEGINS processing");
           startTime[0] = System.nanoTime();
@@ -339,8 +455,9 @@ public class PipelineExecutionService {
   }
 
   private <T> Uni<T> attachUniHooks(Uni<T> uni, StopWatch watch) {
+    Uni<T> guarded = attachRetryAmplificationGuard(uni);
     long[] startTime = new long[1];
-    return uni
+    return guarded
         .onSubscription().invoke(ignored -> {
           LOG.info("PIPELINE BEGINS processing");
           startTime[0] = System.nanoTime();
