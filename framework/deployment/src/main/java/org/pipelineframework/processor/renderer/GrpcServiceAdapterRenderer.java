@@ -190,7 +190,7 @@ public record GrpcServiceAdapterRenderer(GenerationTarget target) implements Pip
                 .addStatement("long startTime = System.nanoTime()")
                 .addCode("""
                     return adapter.remoteProcess($N)
-                        .onTermination().invoke((failure, cancelled) -> {
+                        .onTermination().invoke((item, failure, cancelled) -> {
                             $T status = cancelled ? $T.CANCELLED
                                 : failure != null ? $T.fromThrowable(failure)
                                 : $T.OK;
@@ -198,6 +198,7 @@ public record GrpcServiceAdapterRenderer(GenerationTarget target) implements Pip
                         });
                     """,
                     "request",
+                    ClassName.get("io.grpc", "Status"),
                     ClassName.get("io.grpc", "Status"),
                     ClassName.get("io.grpc", "Status"),
                     ClassName.get("io.grpc", "Status"),
@@ -279,6 +280,7 @@ public record GrpcServiceAdapterRenderer(GenerationTarget target) implements Pip
                     ClassName.get("io.grpc", "Status"),
                     ClassName.get("io.grpc", "Status"),
                     ClassName.get("io.grpc", "Status"),
+                    ClassName.get("io.grpc", "Status"),
                     ClassName.get("org.pipelineframework.telemetry", "RpcMetrics"),
                     model.serviceName(),
                     "remoteProcess");
@@ -348,7 +350,7 @@ public record GrpcServiceAdapterRenderer(GenerationTarget target) implements Pip
                 .addStatement("long startTime = System.nanoTime()")
                 .addCode("""
                     return adapter.remoteProcess($N)
-                        .onTermination().invoke((failure, cancelled) -> {
+                        .onTermination().invoke((item, failure, cancelled) -> {
                             $T status = cancelled ? $T.CANCELLED
                                 : failure != null ? $T.fromThrowable(failure)
                                 : $T.OK;
