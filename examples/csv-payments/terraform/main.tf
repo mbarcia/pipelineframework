@@ -211,7 +211,8 @@ resource "newrelic_service_level" "items_per_min" {
     valid_events {
       from  = "Metric"
       select {
-        function = "COUNT"
+        function  = "COUNT"
+        attribute = "tpf.slo.item.throughput.total"
       }
       where = "service.name = '${local.services.orchestrator.name}' AND metricName = 'tpf.slo.item.throughput.total'"
     }
@@ -219,7 +220,8 @@ resource "newrelic_service_level" "items_per_min" {
     good_events {
       from  = "Metric"
       select {
-        function = "COUNT"
+        function  = "COUNT"
+        attribute = "tpf.slo.item.throughput.good"
       }
       where = "service.name = '${local.services.orchestrator.name}' AND metricName = 'tpf.slo.item.throughput.good'"
     }
