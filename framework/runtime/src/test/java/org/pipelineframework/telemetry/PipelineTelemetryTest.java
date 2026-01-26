@@ -176,7 +176,7 @@ class PipelineTelemetryTest {
             consumed.collect().asList().await().indefinitely();
 
             Multi<Integer> produced = telemetry.instrumentItemProduced(
-                DummyStep$$Proxy.class, runContext, Multi.createFrom().items(3, 4));
+                DummyStep_ClientProxy.class, runContext, Multi.createFrom().items(3, 4));
             produced.collect().asList().await().indefinitely();
 
             Collection<MetricData> metrics = metricReader.collectAllMetrics();
@@ -209,6 +209,9 @@ class PipelineTelemetryTest {
     }
 
     static final class DummyStep$$Proxy extends DummyStep {
+    }
+
+    static final class DummyStep_ClientProxy extends DummyStep {
     }
 
     static final class TestPipelineStepConfig implements PipelineStepConfig {

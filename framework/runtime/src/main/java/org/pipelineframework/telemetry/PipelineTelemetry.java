@@ -582,7 +582,8 @@ public class PipelineTelemetry {
             return null;
         }
         String name = stepClass.getName();
-        if ((name.contains("_Subclass") || name.contains("$$")) && stepClass.getSuperclass() != null) {
+        if ((name.contains("_Subclass") || name.contains("$$") || name.contains("_ClientProxy"))
+            && stepClass.getSuperclass() != null) {
             return stepClass.getSuperclass().getName();
         }
         return name;
