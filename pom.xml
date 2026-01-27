@@ -43,13 +43,12 @@
 
     <scm>
         <connection>scm:git:https://github.com/mbarcia/pipelineframework.git</connection>
-        <developerConnection>scm:git:git@github.com:mbarcia/pipelineframework.git</developerConnection>
+        <developerConnection>scm:git:git@github.com:The-Pipeline-Framework/pipelineframework.git</developerConnection>
         <url>https://github.com/mbarcia/pipelineframework</url>
         <tag>v0.9.2</tag>
     </scm>
 
     <properties>
-        <version.pipeline>26.1-SNAPSHOT</version.pipeline> <!-- Needs to match the version of this POM declared above -->
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>

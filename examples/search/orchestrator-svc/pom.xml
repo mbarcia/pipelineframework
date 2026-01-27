@@ -24,7 +24,7 @@
         <dependency>
             <groupId>org.pipelineframework.search</groupId>
             <artifactId>common</artifactId>
-            <version>${version.pipeline}</version>
+            <version></version>
         </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>

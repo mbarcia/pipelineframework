@@ -80,7 +80,7 @@
             <dependency>
                 <groupId>org.pipelineframework</groupId>
                 <artifactId>framework-parent</artifactId>
-                <version>${version.pipeline}</version>
+                <version></version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -302,7 +302,7 @@
                             <path>
                                 <groupId>org.pipelineframework</groupId>
                                 <artifactId>pipelineframework-deployment</artifactId>
-                                <version>${version.pipeline}</version>
+                                <version></version>
                             </path>
                         </annotationProcessorPaths>
                     </configuration>

@@ -39,14 +39,14 @@
         <dependency>
             <groupId>org.pipelineframework.search</groupId>
             <artifactId>common</artifactId>
-            <version>${version.pipeline}</version>
+            <version></version>
         </dependency>
 
         <!-- Plugin module -->
         <dependency>
             <groupId>org.pipelineframework</groupId>
             <artifactId>cache-plugin</artifactId>
-            <version>${version.pipeline}</version>
+            <version></version>
         </dependency>
 
         <!-- Quarkus dependencies -->
