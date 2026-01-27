@@ -267,6 +267,55 @@ class PipelineTelemetryTest {
         }
     }
 
+    @Test
+    void normalizesStepAttributesForProxyClasses() {
+        InMemorySpanExporter exporter = InMemorySpanExporter.create();
+        SdkTracerProvider tracerProvider = SdkTracerProvider.builder()
+            .addSpanProcessor(SimpleSpanProcessor.create(exporter))
+            .build();
+        InMemoryMetricReader metricReader = InMemoryMetricReader.create();
+        SdkMeterProvider meterProvider = SdkMeterProvider.builder()
+            .registerMetricReader(metricReader)
+            .build();
+        OpenTelemetrySdk sdk = OpenTelemetrySdk.builder()
+            .setTracerProvider(tracerProvider)
+            .setMeterProvider(meterProvider)
+            .build();
+        GlobalOpenTelemetry.resetForTest();
+        GlobalOpenTelemetry.set(sdk);
+
+        try {
+            PipelineTelemetry telemetry = new PipelineTelemetry(new TestPipelineStepConfig());
+            Multi<Integer> input = Multi.createFrom().items(1, 2);
+            PipelineTelemetry.RunContext runContext =
+                telemetry.startRun(input, 1, ParallelismPolicy.AUTO, 4);
+
+            Multi<Integer> instrumented = (Multi<Integer>) telemetry.instrumentInput(input, runContext);
+            Multi<Integer> stepped =
+                telemetry.instrumentStepMulti(DummyStep$$Proxy.class, instrumented, runContext, true);
+            Multi<Integer> completed =
+                (Multi<Integer>) telemetry.instrumentRunCompletion(stepped, runContext);
+
+            completed.collect().asList().await().indefinitely();
+
+            Collection<MetricData> metrics = metricReader.collectAllMetrics();
+            MetricData stepDurationMetric = metrics.stream()
+                .filter(metric -> "tpf.step.duration".equals(metric.getName()))
+                .findFirst()
+                .orElseThrow();
+
+            String resolved = DummyStep.class.getName();
+            AttributeKey<String> stepKey = AttributeKey.stringKey("tpf.step.class");
+            assertTrue(stepDurationMetric.getHistogramData().getPoints().stream()
+                .anyMatch(point -> resolved.equals(point.getAttributes().get(stepKey))),
+                "Expected step duration metric to use normalized step class");
+        } finally {
+            tracerProvider.shutdown();
+            meterProvider.shutdown();
+            GlobalOpenTelemetry.resetForTest();
+        }
+    }
+
     static class DummyStep {
     }
 
