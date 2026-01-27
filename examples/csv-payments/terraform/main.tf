@@ -126,7 +126,7 @@ resource "newrelic_service_level" "orchestrator_availability" {
 
 resource "newrelic_service_level" "row_latency" {
   guid        = local.services.orchestrator.guid
-  name        = "Item latency (core steps)"
+  name        = "Item latency <= 1000ms (core steps)"
   description = "Share of core-step RPC calls within the configured latency threshold."
 
   events {
@@ -164,7 +164,7 @@ resource "newrelic_service_level" "row_latency" {
 
 resource "newrelic_service_level" "item_avg_latency" {
   guid        = local.services.orchestrator.guid
-  name        = "Downstream RPC latency (orchestrator)"
+  name        = "Downstream RPC latency <= 1000ms (orchestrator)"
   description = "Share of orchestrator downstream RPC calls within the configured latency threshold."
 
   events {
@@ -202,7 +202,7 @@ resource "newrelic_service_level" "item_avg_latency" {
 
 resource "newrelic_service_level" "items_per_min" {
   guid        = local.services.orchestrator.guid
-  name        = "Domain item throughput (boundary)"
+  name        = "Item throughput >= 1000/min (boundary)"
   description = "Share of pipeline runs that meet the configured throughput threshold."
 
   events {
@@ -240,8 +240,8 @@ resource "newrelic_service_level" "items_per_min" {
 
 resource "newrelic_service_level" "item_success_rate" {
   guid        = local.services.orchestrator.guid
-  name        = "Item success rate (core steps)"
-  description = "Share of core-step RPC calls without errors."
+  name        = "Item success ratio"
+  description = "Produced to consumed item ratio for the item stream."
 
   events {
     account_id = var.newrelic_account_id
@@ -250,18 +250,18 @@ resource "newrelic_service_level" "item_success_rate" {
       from  = "Metric"
       select {
         function  = "SUM"
-        attribute = "tpf.slo.rpc.server.total"
+        attribute = "tpf.slo.item.success.total"
       }
-      where = "metricName = 'tpf.slo.rpc.server.total' AND ${local.core_step_name_filter}"
+      where = "service.name = '${local.services.orchestrator.name}' AND metricName = 'tpf.slo.item.success.total'"
     }
 
     good_events {
       from  = "Metric"
       select {
         function  = "SUM"
-        attribute = "tpf.slo.rpc.server.good"
+        attribute = "tpf.slo.item.success.good"
       }
-      where = "metricName = 'tpf.slo.rpc.server.good' AND ${local.core_step_name_filter}"
+      where = "service.name = '${local.services.orchestrator.name}' AND metricName = 'tpf.slo.item.success.good'"
     }
   }
 
@@ -318,7 +318,7 @@ resource "newrelic_service_level" "step_reliability" {
 resource "newrelic_service_level" "step_latency" {
   for_each    = local.core_step_services
   guid        = each.value.guid
-  name        = "RPC latency"
+  name        = "RPC latency <= 1000ms"
   description = "Share of RPC calls within the configured latency threshold for ${each.value.name}."
 
   events {

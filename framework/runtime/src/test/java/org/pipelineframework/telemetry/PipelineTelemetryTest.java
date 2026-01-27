@@ -205,6 +205,68 @@ class PipelineTelemetryTest {
         }
     }
 
+    @Test
+    void recordsItemSuccessSloFromConsumedAndProducedCounts() {
+        InMemorySpanExporter exporter = InMemorySpanExporter.create();
+        SdkTracerProvider tracerProvider = SdkTracerProvider.builder()
+            .addSpanProcessor(SimpleSpanProcessor.create(exporter))
+            .build();
+        InMemoryMetricReader metricReader = InMemoryMetricReader.create();
+        SdkMeterProvider meterProvider = SdkMeterProvider.builder()
+            .registerMetricReader(metricReader)
+            .build();
+        OpenTelemetrySdk sdk = OpenTelemetrySdk.builder()
+            .setTracerProvider(tracerProvider)
+            .setMeterProvider(meterProvider)
+            .build();
+        GlobalOpenTelemetry.resetForTest();
+        GlobalOpenTelemetry.set(sdk);
+
+        try {
+            PipelineTelemetry telemetry = new PipelineTelemetry(new TestPipelineStepConfig());
+            PipelineTelemetry.RunContext runContext =
+                telemetry.startRun(Multi.createFrom().items(1, 2, 3), 1, ParallelismPolicy.AUTO, 4);
+
+            Multi<Integer> consumed = telemetry.instrumentItemConsumed(
+                DummyStep.class, runContext, Multi.createFrom().items(1, 2, 3));
+            consumed.collect().asList().await().indefinitely();
+
+            Multi<Integer> produced = telemetry.instrumentItemProduced(
+                DummyStep.class, runContext, Multi.createFrom().items(1, 2));
+            produced.collect().asList().await().indefinitely();
+
+            Multi<Integer> completed = (Multi<Integer>) telemetry.instrumentRunCompletion(
+                Multi.createFrom().item(1), runContext);
+            completed.collect().asList().await().indefinitely();
+
+            Collection<MetricData> metrics = metricReader.collectAllMetrics();
+            MetricData total = metrics.stream()
+                .filter(metric -> "tpf.slo.item.success.total".equals(metric.getName()))
+                .findFirst()
+                .orElseThrow();
+            MetricData good = metrics.stream()
+                .filter(metric -> "tpf.slo.item.success.good".equals(metric.getName()))
+                .findFirst()
+                .orElseThrow();
+
+            long totalValue = total.getLongSumData().getPoints().stream()
+                .findFirst()
+                .orElseThrow()
+                .getValue();
+            long goodValue = good.getLongSumData().getPoints().stream()
+                .findFirst()
+                .orElseThrow()
+                .getValue();
+
+            assertEquals(3L, totalValue, "Expected total items to match consumed count");
+            assertEquals(2L, goodValue, "Expected good items to match produced count");
+        } finally {
+            tracerProvider.shutdown();
+            meterProvider.shutdown();
+            GlobalOpenTelemetry.resetForTest();
+        }
+    }
+
     static class DummyStep {
     }
 

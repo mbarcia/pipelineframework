@@ -72,6 +72,8 @@ public class PipelineTelemetry {
     private final LongCounter itemConsumedCounter;
     private final LongCounter sloItemThroughputTotal;
     private final LongCounter sloItemThroughputGood;
+    private final LongCounter sloItemSuccessTotal;
+    private final LongCounter sloItemSuccessGood;
     private final LongCounter stepErrorCounter;
     private final DoubleHistogram pipelineRunDuration;
     private final DoubleHistogram stepDuration;
@@ -123,6 +125,14 @@ public class PipelineTelemetry {
                 .setDescription("Item throughput evaluations meeting the threshold")
                 .setUnit("1")
                 .build();
+            this.sloItemSuccessTotal = meter.counterBuilder("tpf.slo.item.success.total")
+                .setDescription("Items evaluated for success at the configured boundary")
+                .setUnit("items")
+                .build();
+            this.sloItemSuccessGood = meter.counterBuilder("tpf.slo.item.success.good")
+                .setDescription("Items successfully produced at the configured boundary")
+                .setUnit("items")
+                .build();
             this.stepErrorCounter = meter.counterBuilder("tpf.step.errors")
                 .setDescription("Pipeline step errors")
                 .setUnit("1")
@@ -152,6 +162,8 @@ public class PipelineTelemetry {
             this.itemConsumedCounter = null;
             this.sloItemThroughputTotal = null;
             this.sloItemThroughputGood = null;
+            this.sloItemSuccessTotal = null;
+            this.sloItemSuccessGood = null;
             this.stepErrorCounter = null;
             this.pipelineRunDuration = null;
             this.stepDuration = null;
@@ -475,6 +487,7 @@ public class PipelineTelemetry {
                 pipelineRunErrorCounter.add(1, runContext.attributes());
             }
             recordThroughputSlo(runContext, durationMs);
+            recordItemSuccessSlo(runContext);
         }
         if (tracingEnabled && runContext.span() != null) {
             long samples = runContext.inflightSamples().sum();
@@ -543,6 +556,28 @@ public class PipelineTelemetry {
         sloItemThroughputTotal.add(1, attributes);
         if (itemsPerMinute >= TelemetrySloConfig.itemThroughputPerMinute()) {
             sloItemThroughputGood.add(1, attributes);
+        }
+    }
+
+    private void recordItemSuccessSlo(RunContext runContext) {
+        if (sloItemSuccessTotal == null || sloItemSuccessGood == null || itemBoundary == null) {
+            return;
+        }
+        String consumerStep = itemBoundary.consumerStep();
+        String itemType = itemBoundary.itemInputType();
+        if (consumerStep == null || consumerStep.isBlank() || itemType == null || itemType.isBlank()) {
+            return;
+        }
+        long consumed = runContext.itemsConsumed().sum();
+        if (consumed <= 0) {
+            return;
+        }
+        long produced = runContext.itemsProduced().sum();
+        long goodCount = Math.min(consumed, produced);
+        Attributes attributes = boundaryAttributes(consumerStep, itemType);
+        sloItemSuccessTotal.add(consumed, attributes);
+        if (goodCount > 0) {
+            sloItemSuccessGood.add(goodCount, attributes);
         }
     }
 
