@@ -46,10 +46,7 @@ jobs:
           -DskipNative=true \
           -Dquarkus.package.type=fast-jar \
           -Dquarkus.container-image.build=true \
-          -Dquarkus.container-image.push=false \
-          -Dquarkus.container-image.registry=localhost \
-          -Dquarkus.container-image.group=csv-payments \
-          -Dquarkus.container-image.tag=latest
+          -Dquarkus.container-image.push=false
 
       - name: Dump integration test reports on failure
         if: failure()
