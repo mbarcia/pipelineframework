@@ -65,6 +65,7 @@
         <junit.jupiter.version>5.13.4</junit.jupiter.version>
         <compile.testing.version>0.23.0</compile.testing.version>
         <mockito.version>5.21.0</mockito.version>
+        <maven.deploy.skip>true</maven.deploy.skip>
         <surefireArgLine />
         <pipeline.parallelism>AUTO</pipeline.parallelism>
     </properties>

@@ -66,6 +66,7 @@
         <quarkus.platform.artifact-id>quarkus-bom</quarkus.platform.artifact-id>
         <version.jandex>3.5.0</version.jandex>
         <grpc.version>1.75.0</grpc.version>
+        <maven.deploy.skip>false</maven.deploy.skip>
         <surefireArgLine />
     </properties>
 
