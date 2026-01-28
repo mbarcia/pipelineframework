@@ -47,7 +47,7 @@ jobs:
           -Dquarkus.package.type=fast-jar \
           -Dquarkus.container-image.build=true \
           -Dquarkus.container-image.push=false \
-          -Dquarkus.container-image.registry= \
+          -Dquarkus.container-image.registry=localhost \
           -Dquarkus.container-image.group=csv-payments \
           -Dquarkus.container-image.tag=latest
 
