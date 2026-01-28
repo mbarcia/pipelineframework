@@ -353,19 +353,17 @@ public Uni<PaymentStatus> process(PaymentRecord paymentRecord) {
     MDC.put("paymentId", paymentRecord.getId().toString());
     MDC.put("customerId", paymentRecord.getCustomerId());
     
-    try {
-        return processPayment(paymentRecord)
-            .onItem().invoke(result -> {
-                LOG.info("Payment processed successfully: {}", result.getStatus());
-                MDC.clear();
-            })
-            .onFailure().invoke(error -> {
-                LOG.error("Payment processing failed", error);
-                MDC.clear();
-            });
-    } finally {
-        MDC.clear();
-    }
+    return processPayment(paymentRecord)
+        .onItem().invoke(result -> {
+            LOG.info("Payment processed successfully: {}", result.getStatus());
+        })
+        .onFailure().invoke(error -> {
+            LOG.error("Payment processing failed", error);
+        })
+        .eventually(() -> {
+            MDC.clear();
+            return Uni.createFrom().voidItem();
+        });
 }
 ```
 
