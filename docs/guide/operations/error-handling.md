@@ -227,7 +227,7 @@ The DLQ mechanism captures failed items for later inspection and reprocessing.
 
 ### DLQ Configuration
 
-DLQ/recovery is configured at runtime, not via @PipelineStep. Use StepConfig or application.properties (see Configuration Reference and Runtime Configuration below) for the exact settings.
+DLQ/recovery is configured at runtime, not via @PipelineStep. Use StepConfig or application.properties (see Configuration Reference below) for the exact settings.
 
 ### Persistence Dependencies
 
@@ -249,6 +249,8 @@ If you do not need persistence functionality, you can omit these dependencies.
 ### Custom DLQ Implementation
 
 Implement custom DLQ handling:
+
+> **Note:** The following example references `DeadLetterEntry`, `DeadLetterRepository`, and persistence helpers as placeholders. Define these types in your application (or swap in your persistence layer) to match your storage choice.
 
 ```java
 @Override
@@ -349,19 +351,17 @@ public Uni<PaymentStatus> process(PaymentRecord paymentRecord) {
     MDC.put("paymentId", paymentRecord.getId().toString());
     MDC.put("customerId", paymentRecord.getCustomerId());
     
-    try {
-        return processPayment(paymentRecord)
-            .onItem().invoke(result -> {
-                LOG.info("Payment processed successfully: {}", result.getStatus());
-                MDC.clear();
-            })
-            .onFailure().invoke(error -> {
-                LOG.error("Payment processing failed", error);
-                MDC.clear();
-            });
-    } finally {
-        MDC.clear();
-    }
+    return processPayment(paymentRecord)
+        .onItem().invoke(result -> {
+            LOG.info("Payment processed successfully: {}", result.getStatus());
+        })
+        .onFailure().invoke(error -> {
+            LOG.error("Payment processing failed", error);
+        })
+        .eventually(() -> {
+            MDC.clear();
+            return Uni.createFrom().voidItem();
+        });
 }
 ```
 
@@ -441,6 +441,8 @@ pipeline.step."com.example.ProcessPaymentService".retry-limit=10
 pipeline.step."com.example.ProcessPaymentService".retry-wait-ms=2000
 ```
 
+Note: DLQ configuration is not exposed via built-in `pipeline.*` properties. Configure DLQ behavior in your `deadLetter(...)` implementation or via application-specific configuration wiring.
+
 ## Best Practices
 
 ### Concurrency
@@ -462,7 +464,7 @@ pipeline.step."com.example.ProcessPaymentService".retry-wait-ms=2000
 1. **Regular Monitoring**: Check DLQ for failed items regularly
 2. **Automated Retries**: Implement automated retry mechanisms
 3. **Alerting**: Notify on DLQ accumulation
-4. **Root Cause Analysis**: Investigate and fix recurring issues
+4. **Root Cause Analysis**: Investigate and resolve recurring issues
 
 ### Performance
 
