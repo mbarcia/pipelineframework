@@ -161,3 +161,20 @@ Available Java types with protobuf mappings:
 Existing YAML configurations will continue to work with the new system. The framework maintains backward compatibility while providing access to the expanded type system for new configurations.
 
 To take advantage of the new types, simply use the updated type names when creating new pipeline configurations either through the interactive mode or by writing YAML files directly.
+
+Example YAML:
+
+```yaml
+steps:
+  - name: "ProcessPayment"
+    inputTypeName: "PaymentInput"
+    inputFields:
+      - name: "paymentId"
+        type: "UUID"
+      - name: "amount"
+        type: "BigDecimal"
+      - name: "processedAt"
+        type: "LocalDateTime"
+      - name: "labels"
+        type: "List<String>"
+```
