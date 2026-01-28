@@ -68,9 +68,9 @@ class SearchPipelineEndToEndIT {
     private static final String ORCHESTRATOR_IMAGE = System.getProperty(
         "search.image.orchestrator", "localhost/search-pipeline/orchestrator-svc:latest");
     private static final String PERSISTENCE_IMAGE = System.getProperty(
-        "search.image.persistence", "localhost/search/persistence-svc:latest");
+        "search.image.persistence", "localhost/search-pipeline/persistence-svc:latest");
     private static final String CACHE_INVALIDATION_IMAGE = System.getProperty(
-        "search.image.cache-invalidation", "localhost/search/cache-invalidation-svc:latest");
+        "search.image.cache-invalidation", "localhost/search-pipeline/cache-invalidation-svc:latest");
 
     private static final PostgreSQLContainer<?> postgres =
         new PostgreSQLContainer<>("postgres:17")
