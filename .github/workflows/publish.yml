@@ -23,20 +23,19 @@ jobs:
           server-username: CENTRAL_USERNAME
           server-password: CENTRAL_PASSWORD
           gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
-          gpg-passphrase: ${{ secrets.GPG_PASSPHRASE }}
+          gpg-passphrase: GPG_PASSPHRASE
+
+      - name: Build framework for release
+        run: ./mvnw -B -f framework/pom.xml clean install -Pcentral-publishing -DskipTests
+        env:
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+
+      - name: Deploy to Maven Central
+        run: ./mvnw -B -f framework/pom.xml deploy -Pcentral-publishing -DskipTests -U
         env:
           CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
           CENTRAL_PASSWORD: ${{ secrets.CENTRAL_PASSWORD }}
-
-      - name: Build framework for release
-        env:
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-        run: ./mvnw -B -f framework/pom.xml clean install -Pcentral-publishing -DskipTests -Dgpg.passphrase="$GPG_PASSPHRASE"
-
-      - name: Deploy to Maven Central
-        env:
-          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-        run: ./mvnw -B -f framework/pom.xml deploy -Pcentral-publishing -DskipTests -U -Dgpg.passphrase="$GPG_PASSPHRASE"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
