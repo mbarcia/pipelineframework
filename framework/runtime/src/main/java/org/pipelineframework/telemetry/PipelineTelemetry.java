@@ -21,6 +21,7 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executors;
@@ -51,6 +52,7 @@ import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import org.pipelineframework.config.ParallelismPolicy;
 import org.pipelineframework.config.PipelineStepConfig;
+import org.pipelineframework.config.pipeline.PipelineTelemetryResourceLoader;
 
 /**
  * Records pipeline-level spans and metrics for step execution.
@@ -61,9 +63,8 @@ public class PipelineTelemetry {
 
     private static final AttributeKey<String> INPUT_KIND = AttributeKey.stringKey("tpf.input");
     private static final AttributeKey<String> STEP_CLASS = AttributeKey.stringKey("tpf.step.class");
-    private static final AttributeKey<Long> ITEM_COUNT = AttributeKey.longKey("tpf.item.count");
-    private static final AttributeKey<Double> ITEM_AVG_MS = AttributeKey.doubleKey("tpf.item.avg_ms");
-    private static final AttributeKey<Double> ITEMS_PER_MIN = AttributeKey.doubleKey("tpf.items.per_min");
+    private static final AttributeKey<String> STEP_PARENT = AttributeKey.stringKey("tpf.step.parent");
+    private static final AttributeKey<String> ITEM_TYPE = AttributeKey.stringKey("tpf.item.type");
     private static final AttributeKey<Long> PARALLEL_MAX_IN_FLIGHT =
         AttributeKey.longKey("tpf.parallel.max_in_flight");
     private static final AttributeKey<Double> PARALLEL_AVG_IN_FLIGHT =
@@ -99,7 +100,12 @@ public class PipelineTelemetry {
     private final Meter meter;
     private final LongCounter pipelineRunCounter;
     private final LongCounter pipelineRunErrorCounter;
-    private final LongCounter itemCounter;
+    private final LongCounter itemProducedCounter;
+    private final LongCounter itemConsumedCounter;
+    private final LongCounter sloItemThroughputTotal;
+    private final LongCounter sloItemThroughputGood;
+    private final LongCounter sloItemSuccessTotal;
+    private final LongCounter sloItemSuccessGood;
     private final LongCounter stepErrorCounter;
     private final LongCounter stepRetryCounter;
     private final LongCounter killSwitchCounter;
@@ -108,6 +114,8 @@ public class PipelineTelemetry {
     private final ConcurrentMap<String, AtomicLong> inflightByStep;
     private final ConcurrentMap<String, LongAdder> retryByStep;
     private final AtomicLong maxConcurrency;
+    private final PipelineTelemetryResourceLoader.ItemBoundary itemBoundary;
+    private final Map<String, String> stepParents;
     private final RetryAmplificationGuard retryAmplificationGuard;
     private final AtomicReference<RetryAmplificationMonitor> activeRetryAmplificationMonitor;
     private static final AtomicReference<PipelineTelemetry> ACTIVE = new AtomicReference<>();
@@ -154,6 +162,8 @@ public class PipelineTelemetry {
         this.inflightByStep = new ConcurrentHashMap<>();
         this.retryByStep = new ConcurrentHashMap<>();
         this.maxConcurrency = new AtomicLong();
+        this.itemBoundary = PipelineTelemetryResourceLoader.loadItemBoundary().orElse(null);
+        this.stepParents = itemBoundary != null ? itemBoundary.stepParents() : Map.of();
         this.retryAmplificationGuard = new RetryAmplificationGuard();
         this.activeRetryAmplificationMonitor = new AtomicReference<>();
         ACTIVE.set(this);
@@ -166,9 +176,29 @@ public class PipelineTelemetry {
                 .setDescription("Pipeline run errors")
                 .setUnit("1")
                 .build();
-            this.itemCounter = meter.counterBuilder("tpf.pipeline.item.count")
-                .setDescription("Pipeline input items")
+            this.itemProducedCounter = meter.counterBuilder("tpf.item.produced")
+                .setDescription("Items produced at the configured item boundary")
+                .setUnit("items")
+                .build();
+            this.itemConsumedCounter = meter.counterBuilder("tpf.item.consumed")
+                .setDescription("Items consumed at the configured item boundary")
+                .setUnit("items")
+                .build();
+            this.sloItemThroughputTotal = meter.counterBuilder("tpf.slo.item.throughput.total")
+                .setDescription("Total item throughput evaluations")
                 .setUnit("1")
+                .build();
+            this.sloItemThroughputGood = meter.counterBuilder("tpf.slo.item.throughput.good")
+                .setDescription("Item throughput evaluations meeting the threshold")
+                .setUnit("1")
+                .build();
+            this.sloItemSuccessTotal = meter.counterBuilder("tpf.slo.item.success.total")
+                .setDescription("Items evaluated for success at the configured boundary")
+                .setUnit("items")
+                .build();
+            this.sloItemSuccessGood = meter.counterBuilder("tpf.slo.item.success.good")
+                .setDescription("Items successfully produced at the configured boundary")
+                .setUnit("items")
                 .build();
             this.stepErrorCounter = meter.counterBuilder("tpf.step.errors")
                 .setDescription("Pipeline step errors")
@@ -203,7 +233,12 @@ public class PipelineTelemetry {
         } else {
             this.pipelineRunCounter = null;
             this.pipelineRunErrorCounter = null;
-            this.itemCounter = null;
+            this.itemProducedCounter = null;
+            this.itemConsumedCounter = null;
+            this.sloItemThroughputTotal = null;
+            this.sloItemThroughputGood = null;
+            this.sloItemSuccessTotal = null;
+            this.sloItemSuccessGood = null;
             this.stepErrorCounter = null;
             this.stepRetryCounter = null;
             this.killSwitchCounter = null;
@@ -251,7 +286,8 @@ public class PipelineTelemetry {
             enabled || retryAmplificationEnabled,
             new AtomicLong(),
             new AtomicLong(),
-            new AtomicLong(),
+            new LongAdder(),
+            new LongAdder(),
             new LongAdder(),
             new LongAdder());
         startRetryAmplificationMonitor(runContext);
@@ -259,29 +295,158 @@ public class PipelineTelemetry {
     }
 
     /**
-     * Instrument pipeline input to count items.
+     * Instrument pipeline input.
      *
      * @param input input Uni or Multi
      * @param runContext telemetry context
      * @return instrumented input
      */
     public Object instrumentInput(Object input, RunContext runContext) {
-        if (!metricsEnabled || runContext == null || !runContext.enabled()) {
+        return input;
+    }
+
+    /**
+     * Instrument a consumer step to count items entering the configured item boundary.
+     *
+     * @param stepClass step class
+     * @param input step input
+     * @param <T> item type
+     * @return instrumented input
+     */
+    public <T> Multi<T> instrumentItemConsumed(Class<?> stepClass, Multi<T> input) {
+        return instrumentItemConsumed(stepClass, null, input);
+    }
+
+    /**
+     * Instrument a consumer step to count items consumed at the configured item boundary.
+     *
+     * @param stepClass step class
+     * @param runContext run context
+     * @param input step input
+     * @param <T> item type
+     * @return instrumented input
+     */
+    public <T> Multi<T> instrumentItemConsumed(
+        Class<?> stepClass,
+        RunContext runContext,
+        Multi<T> input) {
+        if (!metricsEnabled || !isConsumer(stepClass)) {
             return input;
         }
-        if (input instanceof Uni<?> uni) {
-            return uni.onItem().invoke(item -> {
-                itemCounter.add(1, runContext.attributes());
-                runContext.itemCount().incrementAndGet();
-            });
+        return input.onItem().invoke(item -> {
+            itemConsumedCounter.add(1, boundaryAttributes(stepClass, true));
+            if (runContext != null && runContext.enabled()) {
+                runContext.itemsConsumed().add(1);
+            }
+        });
+    }
+
+    /**
+     * Instrument a consumer step to count items entering the configured item boundary.
+     *
+     * @param stepClass step class
+     * @param input step input
+     * @param <T> item type
+     * @return instrumented input
+     */
+    public <T> Uni<T> instrumentItemConsumed(Class<?> stepClass, Uni<T> input) {
+        return instrumentItemConsumed(stepClass, null, input);
+    }
+
+    /**
+     * Instrument a consumer step to count items consumed at the configured item boundary.
+     *
+     * @param stepClass step class
+     * @param runContext run context
+     * @param input step input
+     * @param <T> item type
+     * @return instrumented input
+     */
+    public <T> Uni<T> instrumentItemConsumed(
+        Class<?> stepClass,
+        RunContext runContext,
+        Uni<T> input) {
+        if (!metricsEnabled || !isConsumer(stepClass)) {
+            return input;
         }
-        if (input instanceof Multi<?> multi) {
-            return multi.onItem().invoke(item -> {
-                itemCounter.add(1, runContext.attributes());
-                runContext.itemCount().incrementAndGet();
-            });
+        return input.onItem().invoke(item -> {
+            itemConsumedCounter.add(1, boundaryAttributes(stepClass, true));
+            if (runContext != null && runContext.enabled()) {
+                runContext.itemsConsumed().add(1);
+            }
+        });
+    }
+
+    /**
+     * Instrument a producer step to count items emitted at the configured item boundary.
+     *
+     * @param stepClass step class
+     * @param output step output
+     * @param <T> item type
+     * @return instrumented output
+     */
+    public <T> Multi<T> instrumentItemProduced(Class<?> stepClass, Multi<T> output) {
+        return instrumentItemProduced(stepClass, null, output);
+    }
+
+    /**
+     * Instrument a producer step to count items emitted at the configured item boundary.
+     *
+     * @param stepClass step class
+     * @param runContext run context
+     * @param output step output
+     * @param <T> item type
+     * @return instrumented output
+     */
+    public <T> Multi<T> instrumentItemProduced(
+        Class<?> stepClass,
+        RunContext runContext,
+        Multi<T> output) {
+        if (!metricsEnabled || !isProducer(stepClass)) {
+            return output;
         }
-        return input;
+        return output.onItem().invoke(item -> {
+            itemProducedCounter.add(1, boundaryAttributes(stepClass, false));
+            if (runContext != null && runContext.enabled()) {
+                runContext.itemsProduced().add(1);
+            }
+        });
+    }
+
+    /**
+     * Instrument a producer step to count items emitted at the configured item boundary.
+     *
+     * @param stepClass step class
+     * @param output step output
+     * @param <T> item type
+     * @return instrumented output
+     */
+    public <T> Uni<T> instrumentItemProduced(Class<?> stepClass, Uni<T> output) {
+        return instrumentItemProduced(stepClass, null, output);
+    }
+
+    /**
+     * Instrument a producer step to count items emitted at the configured item boundary.
+     *
+     * @param stepClass step class
+     * @param runContext run context
+     * @param output step output
+     * @param <T> item type
+     * @return instrumented output
+     */
+    public <T> Uni<T> instrumentItemProduced(
+        Class<?> stepClass,
+        RunContext runContext,
+        Uni<T> output) {
+        if (!metricsEnabled || !isProducer(stepClass)) {
+            return output;
+        }
+        return output.onItem().invoke(item -> {
+            itemProducedCounter.add(1, boundaryAttributes(stepClass, false));
+            if (runContext != null && runContext.enabled()) {
+                runContext.itemsProduced().add(1);
+            }
+        });
     }
 
     /**
@@ -383,7 +548,7 @@ public class PipelineTelemetry {
             return;
         }
         double durationMs = nanosToMillis(startNanos);
-        Attributes attributes = Attributes.of(STEP_CLASS, stepClass.getName());
+        Attributes attributes = stepAttributes(stepClass);
         stepDuration.record(durationMs, attributes);
         if (failure != null) {
             stepErrorCounter.add(1, attributes);
@@ -401,15 +566,10 @@ public class PipelineTelemetry {
             if (failure != null) {
                 pipelineRunErrorCounter.add(1, runContext.attributes());
             }
+            recordThroughputSlo(runContext, durationMs);
+            recordItemSuccessSlo(runContext);
         }
         if (tracingEnabled && runContext.span() != null) {
-            long items = runContext.itemCount().get();
-            double durationMs = nanosToMillis(runContext.startNanos());
-            double avgMs = items > 0 ? durationMs / items : 0.0;
-            double perMin = durationMs > 0 ? (items * 60_000d) / durationMs : 0.0;
-            runContext.span().setAttribute(ITEM_COUNT, items);
-            runContext.span().setAttribute(ITEM_AVG_MS, avgMs);
-            runContext.span().setAttribute(ITEMS_PER_MIN, perMin);
             long samples = runContext.inflightSamples().sum();
             double inflightAvg = samples > 0 ? runContext.inflightSum().sum() / (double) samples : 0.0;
             runContext.span().setAttribute(PARALLEL_MAX_IN_FLIGHT, runContext.inflightMax().get());
@@ -450,12 +610,121 @@ public class PipelineTelemetry {
 
     private void recordInflightGauge(ObservableLongMeasurement measurement) {
         inflightByStep.forEach((step, count) -> {
-            measurement.record(count.get(), Attributes.of(STEP_CLASS, step));
+            measurement.record(count.get(), stepAttributes(step));
         });
     }
 
     private void recordMaxConcurrencyGauge(ObservableLongMeasurement measurement) {
         measurement.record(maxConcurrency.get());
+    }
+
+    private void recordThroughputSlo(RunContext runContext, double durationMs) {
+        if (sloItemThroughputTotal == null || sloItemThroughputGood == null || itemBoundary == null) {
+            return;
+        }
+        String consumerStep = itemBoundary.consumerStep();
+        String itemType = itemBoundary.itemInputType();
+        if (consumerStep == null || consumerStep.isBlank() || itemType == null || itemType.isBlank()) {
+            return;
+        }
+        if (durationMs <= 0) {
+            return;
+        }
+        long consumed = runContext.itemsConsumed().sum();
+        double itemsPerMinute = consumed / (durationMs / 60_000d);
+        Attributes attributes = boundaryAttributes(consumerStep, itemType);
+        sloItemThroughputTotal.add(1, attributes);
+        if (itemsPerMinute >= TelemetrySloConfig.itemThroughputPerMinute()) {
+            sloItemThroughputGood.add(1, attributes);
+        }
+    }
+
+    private void recordItemSuccessSlo(RunContext runContext) {
+        if (sloItemSuccessTotal == null || sloItemSuccessGood == null || itemBoundary == null) {
+            return;
+        }
+        String consumerStep = itemBoundary.consumerStep();
+        String itemType = itemBoundary.itemInputType();
+        if (consumerStep == null || consumerStep.isBlank() || itemType == null || itemType.isBlank()) {
+            return;
+        }
+        long consumed = runContext.itemsConsumed().sum();
+        if (consumed <= 0) {
+            return;
+        }
+        long produced = runContext.itemsProduced().sum();
+        long goodCount = Math.min(consumed, produced);
+        Attributes attributes = boundaryAttributes(consumerStep, itemType);
+        sloItemSuccessTotal.add(consumed, attributes);
+        if (goodCount > 0) {
+            sloItemSuccessGood.add(goodCount, attributes);
+        }
+    }
+
+    private boolean isProducer(Class<?> stepClass) {
+        return itemBoundary != null
+            && stepClass != null
+            && resolveStepClassName(stepClass).equals(itemBoundary.producerStep());
+    }
+
+    private boolean isConsumer(Class<?> stepClass) {
+        return itemBoundary != null
+            && stepClass != null
+            && resolveStepClassName(stepClass).equals(itemBoundary.consumerStep());
+    }
+
+    private Attributes boundaryAttributes(Class<?> stepClass, boolean consumed) {
+        if (itemBoundary == null) {
+            return stepAttributes(stepClass);
+        }
+        String stepName = resolveStepClassName(stepClass);
+        String itemType = consumed ? itemBoundary.itemInputType() : itemBoundary.itemOutputType();
+        return Attributes.of(
+            STEP_CLASS, stepName,
+            STEP_PARENT, resolveStepParent(stepName),
+            ITEM_TYPE, itemType);
+    }
+
+    private Attributes boundaryAttributes(String stepClassName, String itemType) {
+        return Attributes.of(
+            STEP_CLASS, stepClassName,
+            STEP_PARENT, resolveStepParent(stepClassName),
+            ITEM_TYPE, itemType);
+    }
+
+    private String resolveStepClassName(Class<?> stepClass) {
+        if (stepClass == null) {
+            return null;
+        }
+        String name = stepClass.getName();
+        if ((name.contains("_Subclass") || name.contains("$$") || name.contains("_ClientProxy"))
+            && stepClass.getSuperclass() != null) {
+            return stepClass.getSuperclass().getName();
+        }
+        return name;
+    }
+
+    private Attributes stepAttributes(Class<?> stepClass) {
+        if (stepClass == null) {
+            return Attributes.empty();
+        }
+        String resolved = resolveStepClassName(stepClass);
+        return Attributes.of(
+            STEP_CLASS, resolved,
+            STEP_PARENT, resolveStepParent(resolved));
+    }
+
+    private Attributes stepAttributes(String stepClassName) {
+        if (stepClassName == null) {
+            return Attributes.empty();
+        }
+        return Attributes.of(
+            STEP_CLASS, stepClassName,
+            STEP_PARENT, resolveStepParent(stepClassName));
+    }
+
+    private String resolveStepParent(String stepClassName) {
+        return stepParents.getOrDefault(stepClassName, stepClassName);
     }
 
     /**
@@ -657,11 +926,12 @@ public class PipelineTelemetry {
      * @param startNanos start time
      * @param attributes run attributes
      * @param enabled whether telemetry is enabled
-     * @param itemCount items observed during the run
      * @param inflightCurrent current in-flight item count
      * @param inflightMax max in-flight item count
      * @param inflightSamples number of in-flight samples taken
      * @param inflightSum sum of in-flight samples
+     * @param itemsConsumed number of items consumed at the boundary
+     * @param itemsProduced number of items produced at the boundary
      */
     public record RunContext(
         Context context,
@@ -669,11 +939,12 @@ public class PipelineTelemetry {
         long startNanos,
         Attributes attributes,
         boolean enabled,
-        AtomicLong itemCount,
         AtomicLong inflightCurrent,
         AtomicLong inflightMax,
         LongAdder inflightSamples,
-        LongAdder inflightSum) {
+        LongAdder inflightSum,
+        LongAdder itemsConsumed,
+        LongAdder itemsProduced) {
 
         static RunContext disabled() {
             return new RunContext(
@@ -684,7 +955,8 @@ public class PipelineTelemetry {
                 false,
                 new AtomicLong(),
                 new AtomicLong(),
-                new AtomicLong(),
+                new LongAdder(),
+                new LongAdder(),
                 new LongAdder(),
                 new LongAdder());
         }
