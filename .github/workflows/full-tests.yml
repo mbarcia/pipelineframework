@@ -40,22 +40,16 @@ jobs:
       - name: Configure Maven
         run: echo "MAVEN_ARGS=${{ env.MAVEN_ARGS_BUILD }} --no-transfer-progress" >> $GITHUB_ENV
 
-      - name: Full clean install (framework + examples)
+      - name: Full clean verify (framework + examples)
         run: |
-          ./mvnw $MAVEN_ARGS clean install \
-          -DskipITs=true -DskipNative=true \
+          ./mvnw $MAVEN_ARGS clean verify \
+          -DskipNative=true \
           -Dquarkus.package.type=fast-jar \
           -Dquarkus.container-image.build=true \
           -Dquarkus.container-image.push=false \
           -Dquarkus.container-image.registry= \
           -Dquarkus.container-image.group=csv-payments \
           -Dquarkus.container-image.tag=latest
-
-
-      - name: Run Integration Tests
-        env:
-          MAVEN_ARGS: -B -T 1 -V --no-transfer-progress
-        run: ./mvnw $MAVEN_ARGS verify
 
       - name: Dump integration test reports on failure
         if: failure()
