@@ -207,6 +207,8 @@ The publish workflow deploys only the framework artifacts (parent, runtime, depl
 - Maven runs from the repo root with `-pl framework,framework/runtime,framework/deployment -am`.
 - The root POM is included in the reactor but is **not deployed** (`maven.deploy.skip=true` in the root, overridden to false in `framework/pom.xml`).
 
+Note: Publishing the `framework-parent` artifact is expected. It is the BOM/parent POM that consumers import for dependency management, so it will appear in Maven Central autocomplete results.
+
 ### Flattening at publish time (property-gated)
 
 Central validation requires resolved dependency versions. We avoid profiles for core behavior and enable flattening only during publish using a property:
